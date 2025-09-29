@@ -67,7 +67,10 @@ class PostProcess(BaseClass):
         self.total_decay_time: float = modeling_options['decay_time']
         self.group_data = None
 
-        self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
+        try:
+            self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
+        except KeyError:
+            self.logger.warning('Postdata does not exist')
         self.fission_term = Concentrations(self.input_path).fission_term
 
         return None
@@ -1172,7 +1175,7 @@ class PostProcess(BaseClass):
         if remainder > 0.0:
             labels.append('Other')
             sizes.append(remainder)
-        colors = self.get_colors(len(labels), min_val=0.1)
+        colors = self.get_colors(len(labels))
         fig, ax = plt.subplots()
         wedges, _, _ = ax.pie(sizes, autopct='%1.1f%%',
                               pctdistance=0.7, labeldistance=1.1,

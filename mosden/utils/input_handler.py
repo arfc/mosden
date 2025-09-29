@@ -43,11 +43,11 @@ class InputHandler:
         output : dict
             Dictionary containing settings and data selections.
         """
-        with open(self.input_path, 'r') as file:
-            try:
+        try:
+            with open(self.input_path, 'r') as file:
                 output = json.load(file)
-            except json.decoder.JSONDecodeError:
-                output = dict()
+        except TypeError or FileNotFoundError or json.decoder.JSONDecodeError:
+            output = dict()
         if apply_defaults:
             output = self._apply_defaults(output, DEFAULTS)
         if check:
