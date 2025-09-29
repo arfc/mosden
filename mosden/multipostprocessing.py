@@ -250,7 +250,7 @@ class MultiPostProcess():
             else:
                 ax.bar(label_locations + offset(post_i), data[post.name]['Halflife [s]'], width, label=post.name,
                        color=colors[post_i])
-        ax.set_ylabel(r'$\bar{\tau}_k$ $[s]$')
+        ax.set_ylabel(r'$\tau_k$ $[s]$')
         ax.set_xticks(label_locations)
         ax.set_xlabel('Groups')
         ax.set_xticklabels(group_labels)
