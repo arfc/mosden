@@ -188,3 +188,4 @@ cython_debug/
 !/examples/prelim_results/appendixD/input_pulse.json
 !/examples/prelim_results/appendixD/input_sat.json
 !/examples/prelim_results/appendixD/README.md
+!/examples/prelim_results/contribution_plots.py
