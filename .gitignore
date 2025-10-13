@@ -190,3 +190,4 @@ cython_debug/
 !/examples/prelim_results/appendixD/README.md
 !/examples/prelim_results/contribution_plots.py
 !/examples/prelim_results/compare_scaled_explicit.py
+!/examples/prelim_results/compare_msr_non_groups.py
