@@ -40,8 +40,8 @@
         "incore_s": 10,
         "excore_s": 0,
         "net_irrad_s": 420,
-        "decay_time": 600,
-        "num_decay_times": 300
+        "decay_time": 1200,
+        "num_decay_times": 800
     },
     "group_options": {
         "num_groups": 6,
