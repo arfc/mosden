@@ -13,6 +13,8 @@ from scipy.integrate import cumulative_trapezoid
 import re
 import pandas as pd
 from scipy.stats import linregress
+from armi import configure
+from armi.nucDirectory import nuclideBases
 plt.style.use('mosden.plotting')
 
 
@@ -40,7 +42,8 @@ class PostProcess(BaseClass):
         self.MC_samples: int = self.input_data['group_options']['samples']
         self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
         self.use_data: list[str] = [
-            'keepin', 'brady', 'synetos', 'Modified 0D Scaled']
+            'keepin', 'brady', 'synetos']#, 'Modified 0D Scaled']
+        self.self_relative_data: bool = False
         self.nuclides: list[str] = [
             'Br87',
             'I137',
@@ -55,7 +58,7 @@ class PostProcess(BaseClass):
             'Br90',
             'As85']
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
-        self.linestyles: list[str] = ['--', '..', '-.']
+        self.linestyles: list[str] = ['-', '--', ':', '-.']
         self.load_post_data()
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
         self.num_decay_times = modeling_options['num_decay_times']
@@ -163,6 +166,45 @@ class PostProcess(BaseClass):
         plt.savefig(f'{self.output_dir}pcnt_diff_counts.png')
         plt.close()
         return None
+    
+    def _chart_form(self, name: str, data: dict, cbar_label: str) -> None:
+        """
+        Create a chart of the nuclides with file name and with data
+
+        Parameters
+        ----------
+        name : str
+            Name of image
+        data : dict[str, float]
+            Data to plot, using the nuclide name as a key and the value to plot
+            (of the form "XE135")
+        """
+        configure(permissive=True)
+        plt.figure(figsize=(12, 8))
+        N = list()
+        Z = list()
+        C = list()
+        name_vals = nuclideBases.byName
+        for nuc, base in nuclideBases.byName.items():
+            try:
+                value = data[nuc.capitalize()]
+                N.append(base.a - base.z)
+                Z.append(base.z)
+                C.append(value)
+            except KeyError:
+                continue
+        norm = 'log'
+        #if name == 'CFY':
+        #    norm = 'log'
+        plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
+        plt.set_cmap('viridis')
+        cbar = plt.colorbar()
+        cbar.set_label(cbar_label)
+        plt.xlabel("Number of neutrons (N)")
+        plt.ylabel("Number of protons (Z)")
+        plt.savefig(f'{self.output_dir}chart_{name}.png')
+        plt.close()
+        return None 
 
     def MC_NLLS_analysis(self) -> None:
         """
@@ -206,10 +248,11 @@ class PostProcess(BaseClass):
         group_names = ['Yield',
                        'Half-life']
         nucs_with_pcc = list()
-        pcc_val = 0.2
+        pcc_cutoff = 0.2
+        summed_pcc_data = dict()
         pcc_data = dict()
         if write:
-            self.logger.info(f'Writing nuclides with PCC > {pcc_val}')
+            self.logger.info(f'Writing nuclides with PCC > {pcc_cutoff}')
         for nuc in nuclides:
             for group in range(self.num_groups):
                 for gname, gdata in zip(group_names, group_data):
@@ -223,7 +266,9 @@ class PostProcess(BaseClass):
                         group_val = (
                             (group_vals - mean_group_val) / mean_group_val)
                         result = linregress(data_val, group_val)
-                        if abs(result.rvalue) > pcc_val:
+                        current_pcc_val = summed_pcc_data.setdefault(nuc, 0.0)
+                        summed_pcc_data[nuc] = current_pcc_val + abs(result.rvalue)
+                        if abs(result.rvalue) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
                                                                             False,
@@ -245,6 +290,13 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
+        self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes')
+        if write:
+            sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
+            top = 10
+            self.logger.info(f'Writing {top = } summed |PCC| nuclides')
+            for nuc,sum_PCC in sorted_summed_pccs[:top]:
+                self.logger.info(f'{nuc = }    {sum_PCC = }')
         return Pn_data, hl_data, conc_data, nucs_with_pcc
 
     def _configure_x_y_labels(self, xlab: str, ylab: str, off_nominal: bool, relative_diff: bool,
@@ -873,6 +925,9 @@ class PostProcess(BaseClass):
             markersize=5,
             markevery=5)
         countrate.method = 'groupfit'
+        if self.self_relative_data:
+            base_name = mc_label
+            base_counts = np.asarray(count_data['counts'])
         group_counts = countrate.calculate_count_rate(write_data=False)
         plt.plot(
             times,
@@ -906,7 +961,8 @@ class PostProcess(BaseClass):
             countrate.group_params = lit_data
             data = countrate._count_rate_from_groups()
             plt.plot(times, data['counts'], label=f'{name} 6-Group Fit',
-                     color=colors[index])
+                     color=colors[index],
+                     linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
                 times,
                 data['counts'] - data['sigma counts'],
@@ -915,7 +971,7 @@ class PostProcess(BaseClass):
                 zorder=2,
                 edgecolor='black',
                 color=colors[index])
-            if first:
+            if first and not self.self_relative_data:
                 base_name = name
                 base_counts = data['counts']
                 first = False
@@ -985,7 +1041,8 @@ class PostProcess(BaseClass):
                 data['counts'] /
                 base_counts,
                 label=f'{name} 6-Group Fit',
-                color=colors[index])
+                color=colors[index],
+                linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
                 times,
                 (data['counts'] - data['sigma counts']) / base_counts,
