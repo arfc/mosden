@@ -148,7 +148,6 @@ dependencies:
   - pip:
     - armi==0.6.0
     - coverage==7.10.5
-    - mosden==0.1
     - ordered-set==4.1.0
     - pydoe==0.3.8
     - pyevtk==1.6.0
