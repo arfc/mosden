@@ -4,15 +4,38 @@ import time
 
 
 def msr_group(T, t, tin, tex, f_rate, yields, halflives):
-    J = int(np.ceil(T/(tin+tex)))
+    tnet = tin+tex
+    J = int(np.floor(T/tnet))
+    Jin = int(np.floor((T-tin)/tnet))
     full_sum = 0
     for k in range(len(yields)):
         lam = np.log(2) / halflives[k]
         nu = yields[k]
         j_sum = 0
-        for j in range(1, J):
-            j_sum += np.exp(-lam * (T - j*tin - (j-1) * tex))
-        full_sum += nu * np.exp(-lam*t) * (1 - np.exp(-lam*T) + (1-np.exp(lam*tex)) * j_sum)
+        for j in range(0, Jin+1):
+            add_val = (np.exp(-lam*(t+T))) * (np.exp(-lam*(-j*tnet-tin)) - (np.exp(-lam*(-j*tnet))))
+            j_sum += add_val
+        for j in range(Jin+1, J+1):
+            add_val = (np.exp(-lam*t)) * (1 - np.exp(-lam*(T-j*tnet)))
+            j_sum += add_val
+        non_j_sum = nu
+        full_sum += non_j_sum * j_sum
+    full_sum = full_sum * f_rate
+    return full_sum
+
+def msr_intermediate_form(T, t, tin, tex, f_rate, yields, halflives):
+    tnet = tin+tex
+    J = int(np.floor(T/tnet))
+    Jin = int(np.floor((T-tin)/tnet))
+    full_sum = 0
+    j_sum = 0
+    for k in range(len(yields)):
+        lam = np.log(2) / halflives[k]
+        r = np.exp(lam*tnet)
+        nu = yields[k]
+        j_sum += np.exp(-lam*t) * ((J-Jin) - np.exp(-lam*T)/(1-r) * (np.exp(lam*tin)*r**(Jin+1) - np.exp(lam*tin) + 1 - r**(J+1)))
+        non_j_sum = nu
+        full_sum += non_j_sum * j_sum
     full_sum = full_sum * f_rate
     return full_sum
 
@@ -42,22 +65,35 @@ def pcnt_diff(a, b):
     val = diff/avg_sum * 100
     return val
 
+def heaviside_func(T, t, tin, tex):
+    summation = 0
+    tnet = tin+tex
+    J = int(np.ceil(T/(tnet)))
+    for j in range(0, J):
+        sum_add = np.heaviside(t-j*tnet, 0) - np.heaviside(t-tin-j*tnet, 0)
+        summation += sum_add
+    return summation
 
-T = 100
+T = 20
 t = np.arange(0, 300, 0.01)
-tin = 20
-tex = 20
+irrad_times = np.arange(0, T, 0.01)
+tin = 9
+tex = 0
+tnet = tin+tex
 halflives = [60]
 min_tin = 1
 min_tex = 1
-max_tin = 20
-max_tex = 20
+max_tin = 10
+max_tex = 10
 num_nodes = 200
 tins = np.linspace(min_tin, max_tin, num_nodes)
 texs = np.linspace(min_tex, max_tex, num_nodes)
+J = int(np.floor(T/tnet))
+Jin = int(np.floor((T-tin)/tnet))
+print(f'{J = }\n{Jin = }')
 
-plot_t = False
-plot_hm = True
+plot_t = True
+plot_hm = not plot_t
 
 
 yields = [1]
@@ -78,18 +114,28 @@ if plot_hm:
 if plot_t:
     msr_res = msr_group(T, t, tin, tex, f_rate, yields, halflives)
     stat_res = nonmsr_group(T, t, f_rate, yields, halflives)
+    intermed_res = msr_intermediate_form(T, t, tin, tex, f_rate, yields, halflives)
     diff = pcnt_diff(stat_res, msr_res)
+    heaviside = heaviside_func(T, irrad_times, tin, tex)
 
     print(f'{round(diff,3)}%')
 
     print(msr_res)
     print(stat_res)
-    plt.plot(t, msr_res, label='MSR')
-    plt.plot(t, stat_res, label='Traditional')
+    plt.plot(t, msr_res, label='MSR', linestyle='--')
+    plt.plot(t, intermed_res, label='MSR-I', linestyle=':')
+    plt.plot(t, stat_res, label='Traditional', marker='.', linestyle='', markersize=5, markevery=0.1)
     plt.xlabel('Time [s]')
     plt.ylabel('Relative Delayed Neutron Count Rate')
     plt.legend()
     plt.savefig('countrates.png')
     plt.close()
+
+    plt.plot(irrad_times, heaviside, label='Fission History')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Relative Fission History')
+    plt.savefig('irrad.png')
+    plt.close()
+
 
 print(f'Took {round(time.time() - start)}s')
