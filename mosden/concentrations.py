@@ -154,7 +154,7 @@ class Concentrations(BaseClass):
         for nuc in all_nucs:
             data[nuc] = {}
             data[nuc]['Concentration'] = concentrations[nuc]
-            data[nuc]['sigma Concentration'] = 0.0
+            data[nuc]['sigma Concentration'] = 1e-12
 
         return data
 
