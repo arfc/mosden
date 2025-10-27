@@ -8,26 +8,6 @@ def msr_group(T, t, tin, tex, f_rate, yields, halflives):
     J = int(np.floor(T/tnet))
     Jin = int(np.floor((T-tin)/tnet))
     full_sum = 0
-    for k in range(len(yields)):
-        lam = np.log(2) / halflives[k]
-        nu = yields[k]
-        j_sum = 0
-        for j in range(0, Jin+1):
-            add_val = (np.exp(-lam*(t+T))) * (np.exp(-lam*(-j*tnet-tin)) - (np.exp(-lam*(-j*tnet))))
-            j_sum += add_val
-        for j in range(Jin+1, J+1):
-            add_val = (np.exp(-lam*t)) * (1 - np.exp(-lam*(T-j*tnet)))
-            j_sum += add_val
-        non_j_sum = nu
-        full_sum += non_j_sum * j_sum
-    full_sum = full_sum * f_rate
-    return full_sum
-
-def msr_intermediate_form(T, t, tin, tex, f_rate, yields, halflives):
-    tnet = tin+tex
-    J = int(np.floor(T/tnet))
-    Jin = int(np.floor((T-tin)/tnet))
-    full_sum = 0
     j_sum = 0
     for k in range(len(yields)):
         lam = np.log(2) / halflives[k]
@@ -74,17 +54,17 @@ def heaviside_func(T, t, tin, tex):
         summation += sum_add
     return summation
 
-T = 20
+T = 600
 t = np.arange(0, 300, 0.01)
 irrad_times = np.arange(0, T, 0.01)
-tin = 9
-tex = 0
+tin = 10
+tex = 10
 tnet = tin+tex
 halflives = [60]
-min_tin = 1
-min_tex = 1
-max_tin = 10
-max_tex = 10
+min_tin = 5
+min_tex = 5
+max_tin = 7
+max_tex = 7
 num_nodes = 200
 tins = np.linspace(min_tin, max_tin, num_nodes)
 texs = np.linspace(min_tex, max_tex, num_nodes)
@@ -92,7 +72,7 @@ J = int(np.floor(T/tnet))
 Jin = int(np.floor((T-tin)/tnet))
 print(f'{J = }\n{Jin = }')
 
-plot_t = True
+plot_t = False
 plot_hm = not plot_t
 
 
@@ -114,7 +94,6 @@ if plot_hm:
 if plot_t:
     msr_res = msr_group(T, t, tin, tex, f_rate, yields, halflives)
     stat_res = nonmsr_group(T, t, f_rate, yields, halflives)
-    intermed_res = msr_intermediate_form(T, t, tin, tex, f_rate, yields, halflives)
     diff = pcnt_diff(stat_res, msr_res)
     heaviside = heaviside_func(T, irrad_times, tin, tex)
 
@@ -123,7 +102,6 @@ if plot_t:
     print(msr_res)
     print(stat_res)
     plt.plot(t, msr_res, label='MSR', linestyle='--')
-    plt.plot(t, intermed_res, label='MSR-I', linestyle=':')
     plt.plot(t, stat_res, label='Traditional', marker='.', linestyle='', markersize=5, markevery=0.1)
     plt.xlabel('Time [s]')
     plt.ylabel('Relative Delayed Neutron Count Rate')
