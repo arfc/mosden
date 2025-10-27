@@ -8,6 +8,7 @@ from typing import Callable
 from math import ceil
 from time import time
 import warnings
+from tqdm import tqdm
 
 
 class Grouper(BaseClass):
@@ -281,7 +282,7 @@ class Grouper(BaseClass):
         sampled_params.append(sorted_params)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
-        for _ in range(1, self.MC_samples):
+        for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares problems'):
             data = countrate.calculate_count_rate(
                 MC_run=True, sampler_func=self.sample_func)
             count_sample = data['counts']
