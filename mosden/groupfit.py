@@ -176,45 +176,32 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
+        t_sum: float = self.t_in + self.t_ex
         try:
-            tot_cycles: int = ceil(self.t_net / (self.t_in + self.t_ex))
+            recircs: int = int(np.floor(self.t_net/t_sum))
+            irrad_circs: int = int(np.floor((self.t_net-self.t_in)/t_sum))
         except ZeroDivisionError:
-            tot_cycles = 0
+            recircs = 0
+            irrad_circs = 0
+        
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+        except TypeError:
+            exp = unumpy.exp
+            counts: np.ndarray[object] = np.zeros(
+                len(times), dtype=object)
+
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
-            a = yields[group]
-            cycle_sum = 0
-            for j in range(1, tot_cycles + 1):
-                exponent = (-lam * (self.t_net -
-                                    j * self.t_in -
-                                    (j - 1) * self.t_ex))
-                try:
-                    cycle_sum += np.exp(exponent)
-                except TypeError:
-                    if exponent.n > 709:
-                        msg = 'Exponent too large in group fitting'
-                        self.logger.critical(
-                            f'{msg} \n {exponent=} {self.t_net=} {lam=}')
-                        continue
-                    cycle_sum += unumpy.exp(exponent)
-            try:
-                counts += (a * np.exp(-lam * times) *
-                           (1 - np.exp(-lam * self.t_net +
-                                       (1 - np.exp(lam * self.t_ex) * cycle_sum)
-                                       )))
-            except TypeError:
-                if lam.n * self.t_ex > 709:
-                    msg = 'Exponent too large in group fitting'
-                    self.logger.critical(f'{msg} \n {self.t_ex=} {lam=}')
-                    continue
-                if group == 0:
-                    counts: np.ndarray[object] = np.zeros(
-                        len(times), dtype=object)
-                counts += (a * unumpy.exp(-lam * times) *
-                           (1 - unumpy.exp(-lam * self.t_net +
-                                           (1 - unumpy.exp(lam * self.t_ex)
-                                            * cycle_sum))))
-        return counts * self.fission_term
+            nu = yields[group]
+            group_counts = 0
+            for j in range(0, irrad_circs+1):
+                group_counts += exp(-lam*(times+self.t_net-j*t_sum-self.t_in)) - exp(-lam*(times+self.t_net-j*t_sum))
+            for j in range(irrad_circs+1, recircs+1):
+                group_counts += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
+            counts += nu * group_counts
+        return self.fission_term * counts
 
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None
@@ -282,7 +269,7 @@ class Grouper(BaseClass):
         sampled_params.append(sorted_params)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
-        for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares problems'):
+        for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
             data = countrate.calculate_count_rate(
                 MC_run=True, sampler_func=self.sample_func)
             count_sample = data['counts']
@@ -320,8 +307,13 @@ class Grouper(BaseClass):
         groupMCdata = list()
         for iterval in range(self.MC_samples):
             groupMCdata.append([i for i in sampled_params[iterval]])
-        self.post_data['groupfitMC'] = groupMCdata
-        self.post_data['countsMC'] = tracked_counts
+        try:
+            self.post_data['groupfitMC'] = groupMCdata
+            self.post_data['countsMC'] = tracked_counts
+        except AttributeError:
+            self.load_post_data()
+            self.post_data['groupfitMC'] = groupMCdata
+            self.post_data['countsMC'] = tracked_counts
 
         data: dict[str: dict[str: float]] = dict()
         for group in range(self.num_groups):

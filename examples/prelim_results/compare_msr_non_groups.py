@@ -11,9 +11,11 @@ def msr_group(T, t, tin, tex, f_rate, yields, halflives):
     j_sum = 0
     for k in range(len(yields)):
         lam = np.log(2) / halflives[k]
-        r = np.exp(lam*tnet)
         nu = yields[k]
-        j_sum += np.exp(-lam*t) * ((J-Jin) - np.exp(-lam*T)/(1-r) * (np.exp(lam*tin)*r**(Jin+1) - np.exp(lam*tin) + 1 - r**(J+1)))
+        for j in range(0, Jin+1):
+            j_sum += np.exp(-lam*(t+T-j*tnet-tin)) - np.exp(-lam*(t+T-j*tnet))
+        for j in range(Jin+1, J+1):
+            j_sum += np.exp(-lam*t) - np.exp(-lam*(t+T-j*tnet))
         non_j_sum = nu
         full_sum += non_j_sum * j_sum
     full_sum = full_sum * f_rate
@@ -54,13 +56,15 @@ def heaviside_func(T, t, tin, tex):
         summation += sum_add
     return summation
 
-T = 600
+T = 1200
 t = np.arange(0, 300, 0.01)
 irrad_times = np.arange(0, T, 0.01)
 tin = 10
-tex = 10
+tex = 0
 tnet = tin+tex
-halflives = [60]
+halflives = [1]#[100]
+yields = [1]#[0.00693]
+f_rate = 1
 min_tin = 5
 min_tex = 5
 max_tin = 7
@@ -72,12 +76,10 @@ J = int(np.floor(T/tnet))
 Jin = int(np.floor((T-tin)/tnet))
 print(f'{J = }\n{Jin = }')
 
-plot_t = False
+plot_t = True
 plot_hm = not plot_t
 
 
-yields = [1]
-f_rate = 1
 
 start = time.time()
 
@@ -99,8 +101,8 @@ if plot_t:
 
     print(f'{round(diff,3)}%')
 
-    print(msr_res)
-    print(stat_res)
+    print(f'{msr_res = }')
+    print(f'{stat_res = }')
     plt.plot(t, msr_res, label='MSR', linestyle='--')
     plt.plot(t, stat_res, label='Traditional', marker='.', linestyle='', markersize=5, markevery=0.1)
     plt.xlabel('Time [s]')
