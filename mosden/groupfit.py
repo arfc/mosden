@@ -196,6 +196,12 @@ class Grouper(BaseClass):
             lam = np.log(2) / half_lives[group]
             nu = yields[group]
             group_counts = 0
+
+            if self.t_ex == 0:
+                group_counts += exp(-lam*times) * (1 - exp(-lam*self.t_net))
+                counts += nu * group_counts
+                continue
+
             for j in range(0, irrad_circs+1):
                 group_counts += exp(-lam*(times+self.t_net-j*t_sum-self.t_in)) - exp(-lam*(times+self.t_net-j*t_sum))
             for j in range(irrad_circs+1, recircs+1):
