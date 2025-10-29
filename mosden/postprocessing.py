@@ -184,7 +184,6 @@ class PostProcess(BaseClass):
         N = list()
         Z = list()
         C = list()
-        name_vals = nuclideBases.byName
         for nuc, base in nuclideBases.byName.items():
             try:
                 value = data[nuc.capitalize()]
@@ -194,8 +193,6 @@ class PostProcess(BaseClass):
             except KeyError:
                 continue
         norm = 'log'
-        #if name == 'CFY':
-        #    norm = 'log'
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
@@ -238,8 +235,12 @@ class PostProcess(BaseClass):
         Pn_data = self.post_data['PnMC']
         hl_data = self.post_data['hlMC']
         conc_data = self.post_data['concMC']
+        uncert_data = self._get_data()
         nuclides = list(Pn_data[0].keys())
         data_sets = [Pn_data, hl_data, conc_data]
+        uncert_names = ['emission_probability',
+                        'concentration',
+                        'half_life']
         data_names = ['Emission Probability',
                       'Half-life',
                       'Concentration']
@@ -250,13 +251,19 @@ class PostProcess(BaseClass):
         nucs_with_pcc = list()
         pcc_cutoff = 0.2
         summed_pcc_data = dict()
+        scaled_uncert_pcc = dict()
         pcc_data = dict()
         if write:
             self.logger.info(f'Writing nuclides with PCC > {pcc_cutoff}')
         for nuc in nuclides:
             for group in range(self.num_groups):
                 for gname, gdata in zip(group_names, group_data):
-                    for data, name in zip(data_sets, data_names):
+                    for data, name, uname in zip(data_sets, data_names, uncert_names):
+                        try:
+                            rel_uncertainty = (uncert_data['nucs'][nuc][uname].s / 
+                                            (uncert_data['nucs'][nuc][uname].n))
+                        except ZeroDivisionError:
+                            rel_uncertainty = 1e-12
                         data_vals = [data[nuc] for data in data]
                         group_vals = gdata[group, 1:]
                         mean_group_val = np.mean(group_vals)
@@ -267,7 +274,9 @@ class PostProcess(BaseClass):
                             (group_vals - mean_group_val) / mean_group_val)
                         result = linregress(data_val, group_val)
                         current_pcc_val = summed_pcc_data.setdefault(nuc, 0.0)
+                        current_uncert_val = scaled_uncert_pcc.setdefault(nuc, 0.0)
                         summed_pcc_data[nuc] = current_pcc_val + abs(result.rvalue)
+                        scaled_uncert_pcc[nuc] = current_uncert_val + abs(result.rvalue) * rel_uncertainty
                         if abs(result.rvalue) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
@@ -290,12 +299,16 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
-        self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes')
-        if write:
+            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes')
+            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes')
             sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
             top = 10
             self.logger.info(f'Writing {top = } summed |PCC| nuclides')
             for nuc,sum_PCC in sorted_summed_pccs[:top]:
+                self.logger.info(f'{nuc = }    {sum_PCC = }')
+            sorted_uncert_pccs = sorted(scaled_uncert_pcc.items(), key=lambda item: item[1], reverse=True)
+            self.logger.info(f'Writing {top = } summed uncertainty times |PCC| nuclides')
+            for nuc,sum_PCC in sorted_uncert_pccs[:top]:
                 self.logger.info(f'{nuc = }    {sum_PCC = }')
         return Pn_data, hl_data, conc_data, nucs_with_pcc
 
