@@ -779,11 +779,11 @@ class PostProcess(BaseClass):
             plt.fill_between(self.decay_times, lower, upper, color=colors[nuci],
                              alpha=0.5)
             plt.plot(self.decay_times, rate_n, color=colors[nuci], label=nuc_names[nuci],
-                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=5,
+                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=0.1,
                      markersize=3)
 
         plt.xlabel('Time [s]')
-        plt.ylabel(r'Delayed Neutron Rate $[s^{-1}]$')
+        plt.ylabel(r'Delayed Neutron Rate per Fission $[s^{-1}]$')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -809,10 +809,10 @@ class PostProcess(BaseClass):
                 color=colors[nuci],
                 alpha=0.5)
             plt.plot(self.decay_times, rate_n, color=colors[nuci], label=nuc_names[nuci],
-                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=5,
+                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=0.1,
                      markersize=3)
         plt.xlabel('Time [s]')
-        plt.ylabel('Relative Delayed Neutron Counts')
+        plt.ylabel('Delayed Neutron Counts per Fission')
         plt.xscale('log')
         plt.yscale('log')
         plt.legend()
@@ -823,7 +823,7 @@ class PostProcess(BaseClass):
         plt.stackplot(self.decay_times, stacked_data, labels=nuc_names,
                       colors=colors)
         plt.xlabel('Time [s]')
-        plt.ylabel('Relative Delayed Neutron Counts')
+        plt.ylabel('Delayed Neutron Counts per Fission')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
