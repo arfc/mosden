@@ -196,6 +196,7 @@ class PostProcess(BaseClass):
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
+        plt.clim(0.1, 10)
         cbar.set_label(cbar_label)
         plt.xlabel("Number of neutrons (N)")
         plt.ylabel("Number of protons (Z)")
@@ -253,12 +254,15 @@ class PostProcess(BaseClass):
         summed_pcc_data = dict()
         scaled_uncert_pcc = dict()
         pcc_data = dict()
+        tracked_data = dict()
         if write:
             self.logger.info(f'Writing nuclides with PCC > {pcc_cutoff}')
         for nuc in nuclides:
+            tracked_data[nuc] = dict()
             for group in range(self.num_groups):
                 for gname, gdata in zip(group_names, group_data):
                     for data, name, uname in zip(data_sets, data_names, uncert_names):
+                        tracked_data[nuc].setdefault(name, {})
                         try:
                             rel_uncertainty = (uncert_data['nucs'][nuc][uname].s / 
                                             (uncert_data['nucs'][nuc][uname].n))
@@ -277,6 +281,8 @@ class PostProcess(BaseClass):
                         current_uncert_val = scaled_uncert_pcc.setdefault(nuc, 0.0)
                         summed_pcc_data[nuc] = current_pcc_val + abs(result.rvalue)
                         scaled_uncert_pcc[nuc] = current_uncert_val + abs(result.rvalue) * rel_uncertainty
+                        current_Ux = tracked_data[nuc][name].setdefault(r'$U_x$', 0.0)
+                        tracked_data[nuc][name][r'$U_x$'] = current_Ux + abs(result.rvalue) * rel_uncertainty
                         if abs(result.rvalue) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
@@ -308,8 +314,49 @@ class PostProcess(BaseClass):
                 self.logger.info(f'{nuc = }    {sum_PCC = }')
             sorted_uncert_pccs = sorted(scaled_uncert_pcc.items(), key=lambda item: item[1], reverse=True)
             self.logger.info(f'Writing {top = } summed uncertainty times |PCC| nuclides')
+            nucs = list()
             for nuc,sum_PCC in sorted_uncert_pccs[:top]:
                 self.logger.info(f'{nuc = }    {sum_PCC = }')
+                nucs.append(nuc)
+            table_data = dict()
+            for nuc in nucs:
+                nuc_name = self._convert_nuc_to_latex(nuc)
+                data = tracked_data[nuc]
+                names = data.keys()
+                for name in names:
+                    scaled_uncert = data[name][r'$U_x$']
+                    nuc_lab, group_lab = self._configure_x_y_labels(name,
+                                                                    None,
+                                                                    False,
+                                                                    False)
+                    table_data.setdefault('Nuclide', []).append(nuc_name)
+                    table_data.setdefault('DNP Value', []).append(nuc_lab)
+                    table_data.setdefault(r'$U_{x}$', []).append(scaled_uncert)
+            table_df_data: pd.DataFrame = pd.DataFrame.from_dict(
+                table_data, orient='columns')
+            df_sorted = table_df_data.nlargest(top, r"$U_{x}$").sort_values(r'$U_{x}$', ascending=True)
+            dnp_vals = df_sorted["DNP Value"].unique()
+            colors = self.get_colors(len(dnp_vals))
+            color_map = dict(zip(dnp_vals, colors))
+            labels = list()
+            invisible_char = '\u00A0'
+            for _, row in df_sorted.iterrows():
+                    label = f'{row['Nuclide']}'
+                    dup_count = labels.count(label)
+                    label = label + invisible_char * dup_count
+                    labels.append(label)
+                    plt.barh(label, row[r"$U_{x}$"], color=color_map[row["DNP Value"]],
+                            edgecolor='black')
+            handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
+            plt.legend(handles, dnp_vals, title="DNP Value")
+            plt.xlabel(r"$U_{x}$")
+            plt.tight_layout()
+            plt.savefig(f'{self.output_dir}pcc-bar.png')
+            plt.close()
+            table_latex = table_df_data.to_latex(index=False)
+            self.logger.info(f'\n{table_latex}')
+
+
         return Pn_data, hl_data, conc_data, nucs_with_pcc
 
     def _configure_x_y_labels(self, xlab: str, ylab: str, off_nominal: bool, relative_diff: bool,
@@ -336,44 +383,46 @@ class PostProcess(BaseClass):
             The configured x and y labels
         """
         xlabel_replace = {
-            "Half-life": fr"$\tau_i [s]$",
-            "Decay Constant": fr"$\lambda_i [s^{{-1}}]$",
-            "Concentration": fr"$N_i [-]$",
-            "Emission Probability": fr'$P_{{n, i}} [-]$'
+            "Half-life": fr"$\tau$ $[s]$",
+            "Decay Constant": fr"$\lambda$ $[s^{{-1}}]$",
+            "Concentration": fr"$N$ $[-]$",
+            "Emission Probability": fr'$P_{{n}}$ $[-]$'
         }
         ylabel_replace = {
-            "Half-life": fr"$\tau_{group_val} [s]$",
-            "Decay Constant": fr"$\lambda_{group_val} [s^{{-1}}]$",
-            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}} [-]$",
+            "Half-life": fr"$\tau_{group_val}$ $[s]$",
+            "Decay Constant": fr"$\lambda_{group_val}$ $[s^{{-1}}]$",
+            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         offnom_ylabel_replace = {
-            "Half-life": fr"$\Delta \tau_{group_val} [s]$",
-            "Decay Constant": fr"$\Delta \lambda_{group_val} [s^{{-1}}]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} [-]$",
+            "Half-life": fr"$\Delta \tau_{group_val}$ $[s]$",
+            "Decay Constant": fr"$\Delta \lambda_{group_val}$ $[s^{{-1}}]$",
+            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         pcnt_ylabel_replace = {
-            "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val} [\%]$",
-            "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val} [\%]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}} [\%]$",
+            "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val}$ $[\%]$",
+            "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val}$ $[\%]$",
+            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}}$ $[\%]$",
         }
         pcnt_xlabel_replace = {
-            "Half-life": fr"$\Delta \tau_i / \tau_i [\%]$",
-            "Decay Constant": fr"$\Delta \lambda_i / \lambda_i [\%]$",
-            "Concentration": fr"$\Delta N_i / N_i [\%]$",
-            "Emission Probability": fr'$\Delta P_{{n, i}} / P_{{n, i}} [\%]$'
+            "Half-life": fr"$\Delta \tau_i / \tau_i$ $[\%]$",
+            "Decay Constant": fr"$\Delta \lambda_i / \lambda_i$ $[\%]$",
+            "Concentration": fr"$\Delta N_i / N_i$ $[\%]$",
+            "Emission Probability": fr'$\Delta P_{{n, i}} / P_{{n, i}}$ $[\%]$'
         }
 
-        if off_nominal:
-            if relative_diff:
-                ylab = pcnt_ylabel_replace[ylab]
+        if ylab:
+            if off_nominal:
+                if relative_diff:
+                    ylab = pcnt_ylabel_replace[ylab]
+                else:
+                    ylab = offnom_ylabel_replace[ylab]
             else:
-                ylab = offnom_ylabel_replace[ylab]
-        else:
-            ylab = ylabel_replace[ylab]
-        if not (off_nominal and relative_diff):
-            xlab = xlabel_replace[xlab]
-        else:
-            xlab = pcnt_xlabel_replace[xlab]
+                ylab = ylabel_replace[ylab]
+        if xlab:
+            if not (off_nominal and relative_diff):
+                xlab = xlabel_replace[xlab]
+            else:
+                xlab = pcnt_xlabel_replace[xlab]
         return xlab, ylab
 
     def _get_sens_data(self, nuc: str,
