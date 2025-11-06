@@ -15,6 +15,7 @@ import pandas as pd
 from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
+from matplotlib.colors import LogNorm
 plt.style.use('mosden.plotting')
 
 
@@ -192,11 +193,10 @@ class PostProcess(BaseClass):
                 C.append(value)
             except KeyError:
                 continue
-        norm = 'log'
+        norm = LogNorm(vmin=0.1, vmax=10)
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
-        plt.clim(0.1, 10)
         cbar.set_label(cbar_label)
         plt.xlabel("Number of neutrons (N)")
         plt.ylabel("Number of protons (Z)")
@@ -276,14 +276,18 @@ class PostProcess(BaseClass):
                             (data_vals - mean_data_val) / mean_data_val)
                         group_val = (
                             (group_vals - mean_group_val) / mean_group_val)
-                        result = linregress(data_val, group_val)
+                        try:
+                            result = linregress(data_val, group_val)
+                            pcc = result.rvalue
+                        except ValueError:
+                            pcc = 0
                         current_pcc_val = summed_pcc_data.setdefault(nuc, 0.0)
                         current_uncert_val = scaled_uncert_pcc.setdefault(nuc, 0.0)
-                        summed_pcc_data[nuc] = current_pcc_val + abs(result.rvalue)
-                        scaled_uncert_pcc[nuc] = current_uncert_val + abs(result.rvalue) * rel_uncertainty
+                        summed_pcc_data[nuc] = current_pcc_val + abs(pcc)
+                        scaled_uncert_pcc[nuc] = current_uncert_val + abs(pcc) * rel_uncertainty
                         current_Ux = tracked_data[nuc][name].setdefault(r'$U_x$', 0.0)
-                        tracked_data[nuc][name][r'$U_x$'] = current_Ux + abs(result.rvalue) * rel_uncertainty
-                        if abs(result.rvalue) > pcc_cutoff:
+                        tracked_data[nuc][name][r'$U_x$'] = current_Ux + abs(pcc) * rel_uncertainty
+                        if abs(pcc) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
                                                                             False,
