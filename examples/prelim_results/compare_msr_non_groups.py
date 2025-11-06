@@ -35,18 +35,18 @@ def msr_group(T: float, t: float|np.ndarray[float], tin: float,
     tnet = tin+tex
     try:
         J = int(np.floor(T/tnet))
-        Jin = int(np.floor((T-tin)/tnet))
+        J_in = int(np.floor((T-tin)/tnet))
     except OverflowError:
         J = 0
-        Jin = 0
+        J_in = 0
     j_sum = 0
     full_sum = 0
     for k in range(len(yields)):
         lam = np.log(2) / halflives[k]
         nu = yields[k]
-        for j in range(0, Jin+1):
+        for j in range(0, J_in+1):
             j_sum += np.exp(-lam*(t+T-j*tnet-tin)) - np.exp(-lam*(t+T-j*tnet))
-        for j in range(Jin+1, J+1):
+        for j in range(J_in+1, J+1):
             j_sum += np.exp(-lam*t) - np.exp(-lam*(t+T-j*tnet))
         non_j_sum = nu
         full_sum += non_j_sum * j_sum
@@ -193,8 +193,8 @@ if __name__ == '__main__':
     tins = np.linspace(min_tin, max_tin, num_nodes)
     texs = np.linspace(min_tex, max_tex, num_nodes)
     J = int(np.floor(T/tnet))
-    Jin = int(np.floor((T-tin)/tnet))
-    print(f'{J = }\n{Jin = }')
+    J_in = int(np.floor((T-tin)/tnet))
+    print(f'{J = }\n{J_in = }')
 
     plot_t = False
     plot_hm = not plot_t
