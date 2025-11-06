@@ -339,13 +339,17 @@ class Preprocess(BaseClass):
         import openmc.data
         data = dict()
         for file in os.listdir(dir):
+            Pn_exists = False
+            hl_exists = False
             if not file.startswith(f'dec-'):
                 continue
-            if file != "dec-035_Br_087.endf":
+            metastable = bool(re.search(r'm\d\.endf$', file))
+            if metastable:
                 continue
             evaluation = openmc.data.endf.Evaluation(dir+file)
             nuc_element = file.split('_')[1]
-            nuc_number = str(int(file.split('_')[-1].split('.')[0]))
+            nuc_num_str = file.split('_')[-1].split('.')[0].split('m')[0]
+            nuc_number = str(int(nuc_num_str))
             nuc_name = nuc_element + nuc_number
             data[nuc_name] = dict()
             for item in evaluation.info['description']:
@@ -353,12 +357,89 @@ class Preprocess(BaseClass):
                     Pn = float(item.split(' ')[0].strip('%Pn='))
                     data[nuc_name]['emission probability'] = Pn
                     data[nuc_name]['sigma emission probability'] = 1e-12
-                elif 'Parent half-life' in item:
-                    value = item.split(' ')[2]
+                    Pn_exists = True
+                if 'Parent half-life' in item:
+                    split_list = list(filter(None, item.split(' ')))
+                    if len(split_list[1]) > 10:
+                        split_list[1] = split_list[1].split(':')
+                        split_list = list(np.concatenate([np.atleast_1d(x) for x in split_list]))
+                    try:
+                        value = split_list[2]
+                    except IndexError:
+                        continue
+                    if value == 'STABLE':
+                        continue
+                    if value == '?':
+                        continue
                     num_decimals = len(value.split('.')[-1])
-                    sigma = float(item.split(' ')[4]) * 10**(-num_decimals)
-                    data[nuc_name]['half_life'] = float(value)
+                    if len(split_list[3]) > 5:
+                        split_list[3] = split_list[3].split('+')
+                        split_list = list(np.concatenate([np.atleast_1d(x) for x in split_list]))
+                    time_units = split_list[3]
+
+
+                    mult = None
+                    match time_units:
+                        case 'PS':
+                            mult = 1e-12
+                        case 'NS':
+                            mult = 1e-9
+                        case 'US':
+                            mult = 1e-6
+                        case 'Ms':
+                            mult = 1e-6
+                        case 'MS':
+                            mult = 1e-3
+                        case 'ms':
+                            mult = 1e-3
+                        case 'S':
+                            mult = 1
+                        case 'M':
+                            mult = 60
+                        case 'H':
+                            mult = 3600
+                        case 'D':
+                            mult = 24 * 3600
+                        case 'Y':
+                            mult = 365.25 * 24 * 3600
+                        case 'EV':
+                            continue
+                        case 'KEV':
+                            continue
+                        case 'MEV':
+                            continue
+                        case 'Sys':
+                            continue
+                        case 'syst':
+                            continue
+                    try:
+                        sigma_check = split_list[4].split('-')
+                        if len(sigma_check) > 1:
+                            sigma_floats = [float(i) for i in sigma_check]
+                            sigma_base = np.max(sigma_floats)
+                        else:
+                            sigma_base = split_list[4]
+                        sigma = float(sigma_base) * 10**(-num_decimals) * mult
+                    except (ValueError, IndexError):
+                        sigma = 1e-12
+                    try:
+                        data[nuc_name]['half_life'] = float(value) * mult
+                    except ValueError:
+                        continue
                     data[nuc_name]['sigma half_life'] = sigma
+                    if not mult:
+                        self.logger.error(f'{nuc_name} did not set mult')
+                        raise ValueError
+                    hl_exists = True
+                if Pn_exists or hl_exists:
+                    if not Pn_exists:
+                        data[nuc_name]['emission probability'] = 1e-12
+                        data[nuc_name]['sigma emission probability'] = 1e-12
+                    if not hl_exists:
+                        data[nuc_name]['half_life'] = 1e-12
+                        data[nuc_name]['sigma half_life'] = 1e-12
+
+
         return data
 
     def _process_chain_file(self, file: str) -> dict[str, dict[str: float]]:
