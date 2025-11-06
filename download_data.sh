@@ -40,24 +40,40 @@ LOWERCASE_VERSION="${INTEGER_VALUE}${DIGIT_PART}"
 
 ENDF_DIR="${DATA_DIR}/endfb${LOWERCASE_VERSION}"
 NFY_DIR="${ENDF_DIR}"
+decay_DIR="${ENDF_DIR}"
 mkdir -p "$NFY_DIR"
 
 if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
   SEPARATOR="-"
+  decay_SEPARATOR="-"
 elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
   SEPARATOR="_"
+  decay_SEPARATOR="_"
 fi
 
 NFY_ZIP_NAME="ENDF-B-${ENDF_VERSION}${SEPARATOR}nfy.zip"
-NFY_URL="https://www.nndc.bnl.gov/endf-b7.1/zips/${NFY_ZIP_NAME}"
+NFY_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${NFY_ZIP_NAME}"
 
 echo "Downloading NFY data for ENDF/B-${ENDF_VERSION}..."
 TEMP_ZIP="${NFY_DIR}/${NFY_ZIP_NAME}"
+echo "Accessing ${NFY_URL}"
 wget --show-progress -O "$TEMP_ZIP" "$NFY_URL"
 echo "Extracting NFY data..."
 unzip "$TEMP_ZIP" -d "$NFY_DIR"
 rm "$TEMP_ZIP"
 echo "NFY data handled"
+
+decay_ZIP_NAME="ENDF-B-${ENDF_VERSION}${decay_SEPARATOR}decay.zip"
+decay_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${decay_ZIP_NAME}"
+
+echo "Downloading decay data for ENDF/B-${ENDF_VERSION}..."
+TEMP_ZIP="${decay_DIR}/${decay_ZIP_NAME}"
+echo "Accessing ${decay_URL}"
+wget --show-progress -O "$TEMP_ZIP" "$decay_URL"
+echo "Extracting decay data..."
+unzip "$TEMP_ZIP" -d "$decay_DIR"
+rm "$TEMP_ZIP"
+echo "Decay data handled"
 
 # /ENDF --------------------------------------------------------------------
 
