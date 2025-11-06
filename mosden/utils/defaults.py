@@ -57,5 +57,8 @@ DEFAULTS = {
         "samples": 1,
         "sample_func": "normal",
         "seed": seed
+    },
+    "post_options": {
+        "sensitivity_suplots": True
     }
 }

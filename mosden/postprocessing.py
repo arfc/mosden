@@ -42,6 +42,7 @@ class PostProcess(BaseClass):
         self.num_groups: int = self.input_data['group_options']['num_groups']
         self.MC_samples: int = self.input_data['group_options']['samples']
         self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
+        self.sens_subplot: bool = self.input_data['post_options']['sensitivity_subplots']
         self.use_data: list[str] = [
             'keepin', 'brady', 'synetos']#, 'Modified 0D Scaled']
         self.self_relative_data: bool = False
@@ -215,7 +216,7 @@ class PostProcess(BaseClass):
             self._plot_sensitivities(
                 off_nominal=True,
                 relative_diff=True,
-                subplot=False)
+                subplot=self.sens_subplot)
         return None
 
     def _get_sens_coeffs(self, write=False) -> tuple[list[dict[str, float]],
