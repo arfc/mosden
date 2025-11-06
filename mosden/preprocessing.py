@@ -394,7 +394,7 @@ class Preprocess(BaseClass):
         data = dict()
         for file in os.listdir(dir):
             Pn = 0
-            half_life = 1e-12
+            half_life = 0
             hl_sigma = 1e-12
             if not file.startswith(f'dec-'):
                 continue
@@ -410,8 +410,6 @@ class Preprocess(BaseClass):
             for item in evaluation.info['description']:
                 if '%Pn=' in item:
                     Pn = float(item.split(' ')[0].strip('%Pn='))
-                    data[nuc_name]['emission probability'] = Pn/100
-                    data[nuc_name]['sigma emission probability'] = 1e-12
                 if 'Parent half-life' in item:
                     split_list = list(filter(None, item.split(' ')))
                     if len(split_list[1]) > 10:
@@ -466,6 +464,7 @@ class Preprocess(BaseClass):
                     mult = self._filter_endf_time_units(unit)
                     half_life = mult * float(value)
                     hl_sigma = 1e-12
+            if Pn > 0.0 and half_life > 0.0:
                 data[nuc_name]['emission probability'] = Pn/100
                 data[nuc_name]['sigma emission probability'] = 1e-12
                 data[nuc_name]['half_life'] = half_life
