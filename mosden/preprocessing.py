@@ -76,7 +76,10 @@ class Preprocess(BaseClass):
         unprocessed_path : str
             Path to the unprocessed data
         """
-        self._openmc_chain_preprocess(data_val, unprocessed_path)
+        if data_val == 'fission_yield' or data_val == 'half_life':
+            self._openmc_chain_preprocess(data_val, unprocessed_path) 
+        else:
+            self.logger.error(f'{data_val} not available in OpenMC chain')
         return None
 
     def endf_preprocess(self, data_val: str, unprocessed_path: str) -> None:
@@ -90,7 +93,12 @@ class Preprocess(BaseClass):
         unprocessed_path : str
             Path to the unprocessed data
         """
-        self._endf_nfy_preprocess(data_val, unprocessed_path)
+        if data_val == 'fission_yield':
+            self._endf_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in ENDF')
         return None
 
     def iaea_preprocess(self, data_val: str, unprocessed_path: str) -> None:
@@ -105,7 +113,10 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
 
         """
-        self._iaea_dn_preprocess(data_val, unprocessed_path)
+        if data_val == 'half_life' or data_val == 'emission_probability':
+            self._iaea_dn_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in IAEA')
         return None
 
     def _iaea_dn_preprocess(self, data_val: str, path: str) -> None:
@@ -147,7 +158,7 @@ class Preprocess(BaseClass):
 
     def _endf_nfy_preprocess(self, data_val: str, path: str) -> None:
         """
-        Processes ENDF data for the specified fissile target.
+        Processes ENDF fission yield data for the specified fissile target.
 
         Parameters
         ----------
@@ -173,6 +184,26 @@ class Preprocess(BaseClass):
         csv_path: str = os.path.join(out_path)
         CSVHandler(csv_path, self.overwrite).write_csv(treated_data)
         return None
+    
+    def _endf_decay_preprocess(self, data_val: str, path: str) -> None:
+        """
+        Processes ENDF decay data for the specified fissile target.
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        path : str
+            Path to the unprocessed data
+        """
+        data_dir: str = os.path.join(self.data_dir, path)
+        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        file_data: dict[str: dict[str: float]
+                        ] = self._process_endf_decay_file(data_dir)
+        csv_path: str = os.path.join(out_path)
+        CSVHandler(csv_path, self.overwrite).write_csv(file_data)
+        return None
+
 
     def _treat_endf_data(
             self,
@@ -277,8 +308,8 @@ class Preprocess(BaseClass):
             Dictionary containing the processed data.
         """
         import openmc.data
-        fpys = openmc.data.FissionProductYields(
-            openmc.data.endf.Evaluation(file))
+        evaluation = openmc.data.endf.Evaluation(file)
+        fpys = openmc.data.FissionProductYields(evaluation)
         energies = fpys.energies
         fys = fpys.cumulative
         endf_nucs: list = list(fys[0].keys())
@@ -289,6 +320,45 @@ class Preprocess(BaseClass):
             data[nuc] = {}
             data[nuc]['CFY'] = fit_FY_nfy[nuc].n
             data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
+        return data
+    
+    def _process_endf_decay_file(self, dir: str) -> dict[str, dict[str: float]]:
+        """
+        Processes all ENDF decay files and returns the data as a dictionary.
+
+        Parameters
+        ----------
+        file : str
+            Name of the ENDF decay directory to process.
+
+        Returns
+        -------
+        data : dict[str, dict[str: float]]
+            Dictionary containing the processed data.
+        """
+        import openmc.data
+        data = dict()
+        for file in os.listdir(dir):
+            if not file.startswith(f'dec-'):
+                continue
+            if file != "dec-035_Br_087.endf":
+                continue
+            evaluation = openmc.data.endf.Evaluation(dir+file)
+            nuc_element = file.split('_')[1]
+            nuc_number = str(int(file.split('_')[-1].split('.')[0]))
+            nuc_name = nuc_element + nuc_number
+            data[nuc_name] = dict()
+            for item in evaluation.info['description']:
+                if '%Pn=' in item:
+                    Pn = float(item.split(' ')[0].strip('%Pn='))
+                    data[nuc_name]['emission probability'] = Pn
+                    data[nuc_name]['sigma emission probability'] = 1e-12
+                elif 'Parent half-life' in item:
+                    value = item.split(' ')[2]
+                    num_decimals = len(value.split('.')[-1])
+                    sigma = float(item.split(' ')[4]) * 10**(-num_decimals)
+                    data[nuc_name]['half_life'] = float(value)
+                    data[nuc_name]['sigma half_life'] = sigma
         return data
 
     def _process_chain_file(self, file: str) -> dict[str, dict[str: float]]:
