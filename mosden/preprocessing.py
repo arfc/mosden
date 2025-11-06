@@ -322,6 +322,60 @@ class Preprocess(BaseClass):
             data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
         return data
     
+    def _filter_endf_time_units(self, unit):
+        """
+        Filter the ENDF data time units and convert them into seconds
+        using a multiplier
+
+        Parameters
+        ----------
+        unit : str
+            Unit in ENDF
+
+        Returns
+        -------
+        mult : float|None
+            Multiplier for the time value to convert to seconds, or None
+        """
+        mult = None
+        match unit:
+            case 'PS':
+                mult = 1e-12
+            case 'NS':
+                mult = 1e-9
+            case 'US':
+                mult = 1e-6
+            case 'Ms':
+                mult = 1e-6
+            case 'MS':
+                mult = 1e-3
+            case 'ms':
+                mult = 1e-3
+            case 'S':
+                mult = 1
+            case 's':
+                mult = 1
+            case 'M':
+                mult = 60
+            case 'H':
+                mult = 3600
+            case 'D':
+                mult = 24 * 3600
+            case 'Y':
+                mult = 365.25 * 24 * 3600
+            case 'EV':
+                None
+            case 'KEV':
+                None
+            case 'MEV':
+                None
+            case 'Sys':
+                None
+            case 'syst':
+                None
+        return mult
+
+    
     def _process_endf_decay_file(self, dir: str) -> dict[str, dict[str: float]]:
         """
         Processes all ENDF decay files and returns the data as a dictionary.
@@ -339,8 +393,9 @@ class Preprocess(BaseClass):
         import openmc.data
         data = dict()
         for file in os.listdir(dir):
-            Pn_exists = False
-            hl_exists = False
+            Pn = 0
+            half_life = 1e-12
+            hl_sigma = 1e-12
             if not file.startswith(f'dec-'):
                 continue
             metastable = bool(re.search(r'm\d\.endf$', file))
@@ -355,9 +410,8 @@ class Preprocess(BaseClass):
             for item in evaluation.info['description']:
                 if '%Pn=' in item:
                     Pn = float(item.split(' ')[0].strip('%Pn='))
-                    data[nuc_name]['emission probability'] = Pn
+                    data[nuc_name]['emission probability'] = Pn/100
                     data[nuc_name]['sigma emission probability'] = 1e-12
-                    Pn_exists = True
                 if 'Parent half-life' in item:
                     split_list = list(filter(None, item.split(' ')))
                     if len(split_list[1]) > 10:
@@ -377,41 +431,10 @@ class Preprocess(BaseClass):
                         split_list = list(np.concatenate([np.atleast_1d(x) for x in split_list]))
                     time_units = split_list[3]
 
+                    mult = self._filter_endf_time_units(time_units)
 
-                    mult = None
-                    match time_units:
-                        case 'PS':
-                            mult = 1e-12
-                        case 'NS':
-                            mult = 1e-9
-                        case 'US':
-                            mult = 1e-6
-                        case 'Ms':
-                            mult = 1e-6
-                        case 'MS':
-                            mult = 1e-3
-                        case 'ms':
-                            mult = 1e-3
-                        case 'S':
-                            mult = 1
-                        case 'M':
-                            mult = 60
-                        case 'H':
-                            mult = 3600
-                        case 'D':
-                            mult = 24 * 3600
-                        case 'Y':
-                            mult = 365.25 * 24 * 3600
-                        case 'EV':
-                            continue
-                        case 'KEV':
-                            continue
-                        case 'MEV':
-                            continue
-                        case 'Sys':
-                            continue
-                        case 'syst':
-                            continue
+                    if not mult:
+                        continue
                     try:
                         sigma_check = split_list[4].split('-')
                         if len(sigma_check) > 1:
@@ -419,27 +442,34 @@ class Preprocess(BaseClass):
                             sigma_base = np.max(sigma_floats)
                         else:
                             sigma_base = split_list[4]
-                        sigma = float(sigma_base) * 10**(-num_decimals) * mult
+                        hl_sigma = float(sigma_base) * 10**(-num_decimals) * mult
                     except (ValueError, IndexError):
-                        sigma = 1e-12
+                        hl_sigma = 1e-12
                     try:
-                        data[nuc_name]['half_life'] = float(value) * mult
+                        half_life = float(value) * mult
                     except ValueError:
                         continue
-                    data[nuc_name]['sigma half_life'] = sigma
                     if not mult:
                         self.logger.error(f'{nuc_name} did not set mult')
                         raise ValueError
-                    hl_exists = True
-                if Pn_exists or hl_exists:
-                    if not Pn_exists:
-                        data[nuc_name]['emission probability'] = 1e-12
-                        data[nuc_name]['sigma emission probability'] = 1e-12
-                    if not hl_exists:
-                        data[nuc_name]['half_life'] = 1e-12
-                        data[nuc_name]['sigma half_life'] = 1e-12
+                elif 'T1/2=' in item:
+                    split_list = item.split('=')
+                    orig_split = split_list
 
-
+                    split_list = list(filter(None, split_list[1].split(' ')))
+                    value = split_list[0]
+                    if len(orig_split) > 2:
+                        unit_split_list = orig_split[-1].split(' ')
+                        unit = unit_split_list[1]
+                    else:
+                        unit = split_list[1]
+                    mult = self._filter_endf_time_units(unit)
+                    half_life = mult * float(value)
+                    hl_sigma = 1e-12
+                data[nuc_name]['emission probability'] = Pn/100
+                data[nuc_name]['sigma emission probability'] = 1e-12
+                data[nuc_name]['half_life'] = half_life
+                data[nuc_name]['sigma half_life'] = hl_sigma
         return data
 
     def _process_chain_file(self, file: str) -> dict[str, dict[str: float]]:
