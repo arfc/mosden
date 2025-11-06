@@ -33,7 +33,6 @@ concs = {
 
 
 all_data = [yields, counts, concs]
-#all_nucs = list(set(list(yields.keys())+list(counts.keys())+list(concs.keys())))
 all_nucs = [
     'Other',
     'Ge86',
@@ -49,7 +48,6 @@ all_nucs = [
     'Te136'
 ]
 all_nucs.reverse()
-print(all_nucs)
 postobj = PostProcess(None)
 num_nucs = len(all_nucs)
 colors = postobj.get_colors(num_nucs)
