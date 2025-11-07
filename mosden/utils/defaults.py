@@ -59,6 +59,6 @@ DEFAULTS = {
         "seed": seed
     },
     "post_options": {
-        "sensitivity_suplots": True
+        "sensitivity_subplots": True
     }
 }
