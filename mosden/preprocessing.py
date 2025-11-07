@@ -350,10 +350,10 @@ class Preprocess(BaseClass):
             data[nuc_name] = dict()
             modes = decay.modes
             for mode in modes:
-                mode: openmc.data.decay.DecayMode
                 products = mode.modes
                 if 'n' in products:
-                    Pn = mode.branching_ratio
+                    multiplier = products.count('n')
+                    Pn += mode.branching_ratio * multiplier
             if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:
                 data[nuc_name]['emission probability'] = Pn.n
                 data[nuc_name]['sigma emission probability'] = Pn.s
