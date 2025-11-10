@@ -18,6 +18,7 @@ roman_to_int() {
 }
 
 DATA_DIR="mosden/data/unprocessed"
+mkdir -p "$DATA_DIR"
 
 # ENDF --------------------------------------------------------------------
 ENDF_VERSION="VII.1"
@@ -28,8 +29,6 @@ if [[ ! " ${ALLOWED_VERSIONS[*]} " =~ " ${ENDF_VERSION} " ]]; then
     echo "Allowed versions: ${ALLOWED_VERSIONS[*]}"
     exit 1
 fi
-
-mkdir -p "$DATA_DIR"
 
 LOWERCASE_VERSION=$(echo "${ENDF_VERSION//./}" | tr '[:upper:]' '[:lower:]')
 
@@ -76,6 +75,43 @@ rm "$TEMP_ZIP"
 echo "Decay data handled"
 
 # /ENDF --------------------------------------------------------------------
+
+
+
+# JEFF --------------------------------------------------------------------
+JEFF_VERSION="3.1.1"
+ALLOWED_VERSIONS=("3.1.1")
+
+if [[ ! " ${ALLOWED_VERSIONS[*]} " =~ " ${JEFF_VERSION} " ]]; then
+    echo "Error: Invalid JEFF version '${JEFF_VERSION}'"
+    echo "Allowed versions: ${ALLOWED_VERSIONS[*]}"
+    exit 1
+fi
+JEFF_VERSION_NOP="${JEFF_VERSION//./}"
+
+JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
+NFY_DIR="${JEFF_DIR}/nfpy/"
+mkdir -p "$NFY_DIR"
+echo "Saving data to ${NFY_DIR}"
+
+if [[ "${JEFF_VERSION}" == "3.1.1" ]]; then
+  JEFF_URL="https://www-nds.iaea.org/public/download-endf/JEFF-${JEFF_VERSION}/nfpy/"
+fi
+
+
+echo "Downloading NFY data for JEFF-${JEFF_VERSION}..."
+echo "Accessing ${JEFF_URL}"
+wget --show-progress --recursive --no-parent --accept "*.zip" --no-host-directories --cut-dirs=3 -P "${JEFF_DIR}" "$JEFF_URL"
+echo "Extracting NFY data..."
+for f in "$NFY_DIR"/*.zip; do
+    unzip "$f" -d "$NFY_DIR"
+done
+echo "Removing zip files..."
+rm "$NFY_DIR"/*.zip
+echo "NFY data handled"
+
+
+# /JEFF --------------------------------------------------------------------
 
 # IAEA --------------------------------------------------------------------
 IAEA_DIR="${DATA_DIR}/iaea"
