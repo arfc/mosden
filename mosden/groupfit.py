@@ -276,11 +276,11 @@ class Grouper(BaseClass):
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
         for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
-            data = countrate.calculate_count_rate(
-                MC_run=True, sampler_func=self.sample_func)
-            count_sample = data['counts']
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
+                data = countrate.calculate_count_rate(
+                    MC_run=True, sampler_func=self.sample_func)
+                count_sample = data['counts']
                 result = least_squares(
                     self._residual_function,
                     result.x,
