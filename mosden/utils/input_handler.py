@@ -24,7 +24,7 @@ class InputHandler:
         ))
         
         self.independent_fission_yields = ['omcchain']
-        self.cumulative_fission_yields = ['nfy']
+        self.cumulative_fission_yields = ['nfy', 'jeff']
         return None
     
     def read_input(self, check: bool=True, apply_defaults: bool=True) -> dict:

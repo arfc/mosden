@@ -302,7 +302,7 @@ class PostProcess(BaseClass):
                                 'DNP Value', []).append(nuc_lab)
                             pcc_data.setdefault(
                                 'PCC', []).append(
-                                result.rvalue)
+                                pcc)
                             nucs_with_pcc.append(nuc)
         pcc_df_data: pd.DataFrame = pd.DataFrame.from_dict(
             pcc_data, orient='columns')
@@ -360,6 +360,14 @@ class PostProcess(BaseClass):
             plt.close()
             table_latex = table_df_data.to_latex(index=False)
             self.logger.info(f'\n{table_latex}')
+            plt.hist(list(summed_pcc_data.values()), bins=int(np.sqrt(len(list(summed_pcc_data.values())))))
+            plt.yscale('log')
+            plt.xlabel(r'$\Sigma\left|PCC\right|$')
+            plt.ylabel(r'Frequency')
+            plt.savefig(f'{self.output_dir}pcc-frequency.png')
+            plt.close()
+
+            
 
 
         return Pn_data, hl_data, conc_data, nucs_with_pcc

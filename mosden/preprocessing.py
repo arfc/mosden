@@ -47,12 +47,14 @@ class Preprocess(BaseClass):
         datasource_list: list[list[str]] = [
             self.omc_data_words,
             self.endf_data_words,
-            self.iaea_data_words
+            self.iaea_data_words,
+            self.jeff_data_words
         ]
         func_list: list = [
             self.openmc_preprocess,
             self.endf_preprocess,
-            self.iaea_preprocess
+            self.iaea_preprocess,
+            self.jeff_preprocess
         ]
 
         func_selector: list[zip] = list(zip(datasource_list,
@@ -99,6 +101,23 @@ class Preprocess(BaseClass):
             self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in ENDF')
+        return None
+    
+    def jeff_preprocess(self, data_val: str, unprocessed_path: str) -> None:
+        """
+        Processes JEFF data
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        unprocessed_path : str
+            Path to the unprocessed data
+        """
+        if data_val == 'fission_yield':
+            self._jeff_nfy_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in JEFF')
         return None
 
     def iaea_preprocess(self, data_val: str, unprocessed_path: str) -> None:
@@ -154,6 +173,36 @@ class Preprocess(BaseClass):
         file_data: dict[str: dict[str: float]
                         ] = self._process_chain_file(data_path)
         CSVHandler(out_path, self.overwrite).write_csv(file_data)
+        return None
+
+    def _jeff_nfy_preprocess(self, data_val: str, path: str) -> None:
+        """
+        Processes JEFF fission yield data for the specified fissile target.
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        path : str
+            Path to the unprocessed data
+        """
+        data_dir: str = os.path.join(self.data_dir, path)
+        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        pre_treated_data: dict[str: dict[str: dict[str: float]]] = dict()
+        for fissile in self.fissile_targets:
+            for file in os.listdir(data_dir):
+                fissile_endf: str = self._endf_fissile_name(fissile)
+                fissile_jeff = fissile_endf[1:].replace('_', '-')
+                if not fissile_jeff in file:
+                    continue
+                full_path: str = os.path.join(data_dir, file)
+                file_data: dict[str: dict[str: float]
+                                ] = self._process_jeff_nfy_file(full_path)
+            pre_treated_data[fissile] = file_data
+        treated_data: dict[str: dict[str: float]
+                           ] = self._treat_endf_data(pre_treated_data)
+        csv_path: str = os.path.join(out_path)
+        CSVHandler(csv_path, self.overwrite).write_csv(treated_data)
         return None
 
     def _endf_nfy_preprocess(self, data_val: str, path: str) -> None:
@@ -296,6 +345,36 @@ class Preprocess(BaseClass):
     def _process_endf_nfy_file(self, file: str) -> dict[str, dict[str: float]]:
         """
         Processes a single ENDF NFY file and returns the data as a dictionary.
+
+        Parameters
+        ----------
+        file : str
+            Name of the NFY file to process.
+
+        Returns
+        -------
+        data : dict[str, dict[str: float]]
+            Dictionary containing the processed data.
+        """
+        import openmc.data
+        evaluation = openmc.data.endf.Evaluation(file)
+        fpys = openmc.data.FissionProductYields(evaluation)
+        energies = fpys.energies
+        fys = fpys.cumulative
+        endf_nucs: list = list(fys[0].keys())
+        fit_FY_nfy = self._fit_fy_endf(energies, fys)
+
+        data: dict[str: dict[str: float]] = dict()
+        for nuc in endf_nucs:
+            data[nuc] = {}
+            data[nuc]['CFY'] = fit_FY_nfy[nuc].n
+            data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
+        return data
+    
+
+    def _process_jeff_nfy_file(self, file: str) -> dict[str, dict[str: float]]:
+        """
+        Processes a single JEFF NFY file and returns the data as a dictionary.
 
         Parameters
         ----------
