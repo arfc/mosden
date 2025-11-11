@@ -186,6 +186,11 @@ cython_debug/
 /examples/pure_endfb71/postproc.json
 /examples/pure_endfb71/images/*
 
+/examples/iaea_matching/*.csv
+/examples/iaea_matching/postproc.json
+/examples/iaea_matching/images/*
+
+
 /examples/prelim_results/*
 !/examples/prelim_results/input.json
 !/examples/prelim_results/results_generator.py
