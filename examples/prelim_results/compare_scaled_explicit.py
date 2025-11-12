@@ -8,17 +8,13 @@ f_in = 0.25
 f_ex = 0.75
 tau = 20
 paras = 1e-12
-Na = list()
-Ns = list()
-Npa = list()
-Nps = list()
 tf = 10 * tau
 dt = 1e-2
 times = np.arange(0, tf, dt)
-Na.append(0)
-Ns.append(0)
-Npa.append(0)
-Nps.append(0)
+Na = [0]
+Ns = [0]
+Npa = [0]
+Nps = [0]
 
 for ti, t in enumerate(times[1:]):
     if (t % tau) <= f_in * tau:
