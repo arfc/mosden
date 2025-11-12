@@ -38,12 +38,12 @@
         "irrad_type": "saturation",
         "incore_s": 10,
         "excore_s": 0,
-        "net_irrad_s": 420,
+        "net_irrad_s": 1200,
         "decay_time": 600,
         "num_decay_times": 100
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 1,
         "method": "nlls",
         "samples": 1,
         "sample_func": "normal",

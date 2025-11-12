@@ -21,16 +21,29 @@ def _run_pre(file):
     preprocess.run()
     return None
 
+def _run_concs(file):
+    concentrations = Concentrations(file)
+    concentrations.generate_concentrations()
+    return None
+
+def _run_counts(file):
+    countrate = CountRate(file)
+    countrate.calculate_count_rate()
+    return None
+
+def _run_groups(file):
+    grouper = Grouper(file)
+    grouper.generate_groups()
+    return None
+
+
 
 def _run_main(file, clear=True):
     if clear:
         BaseClass(file).clear_post_data()
-    concentrations = Concentrations(file)
-    concentrations.generate_concentrations()
-    countrate = CountRate(file)
-    countrate.calculate_count_rate()
-    grouper = Grouper(file)
-    grouper.generate_groups()
+    _run_concs(file)
+    _run_counts(file)
+    _run_groups(file)
     return None
 
 
@@ -76,6 +89,21 @@ def main():
         "--all",
         nargs='+',
         help="Input file for all processes")
+    group.add_argument(
+        "-conc",
+        "--concentrations",
+        nargs='+',
+        help="Input file for concentrations")
+    group.add_argument(
+        "-cnt",
+        "--counts",
+        nargs='+',
+        help="Input file for delayed neutron count rate")
+    group.add_argument(
+        "-g",
+        "--groups",
+        nargs='+',
+        help="Input file for group formation")
 
     args = parser.parse_args()
 
@@ -85,6 +113,15 @@ def main():
     elif args.preprocess:
         for file in args.preprocess:
             _run_pre(file)
+    elif args.concentrations:
+        for file in args.concs:
+            _run_concs(file)
+    elif args.counts:
+        for file in args.counts:
+            _run_counts(file)
+    elif args.groups:
+        for file in args.groups:
+            _run_groups(file)
     elif args.postprocess:
         _run_multi_post(args.postprocess)
     elif args.all:

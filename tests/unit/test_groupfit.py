@@ -21,6 +21,7 @@ def run_grouper_fit_test(irrad_type: str, fit_function_name: str, grouper: Group
     yields = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
     times = np.linspace(0, 600, 100)
     counts = np.zeros(len(times))
+    t_sum: float = grouper.t_in + grouper.t_ex
     for a, hl in zip(yields, half_lives):
         lam = np.log(2) / hl
         if irrad_type == 'pulse':
@@ -28,11 +29,14 @@ def run_grouper_fit_test(irrad_type: str, fit_function_name: str, grouper: Group
         elif irrad_type == 'saturation':
             counts += a * np.exp(-lam * times)
         elif irrad_type == 'saturation_ex':
-            tot_cycles: int = ceil(grouper.t_net / (grouper.t_in + grouper.t_ex))
-            cycle_sum = 0
-            for j in range(1, tot_cycles+1):
-                cycle_sum += np.exp(-lam * (grouper.t_net - j*grouper.t_in - (j-1)*grouper.t_ex))
-            counts += a * np.exp(-lam * times) * (1 - np.exp(-lam * grouper.t_net + (1 - np.exp(lam * grouper.t_ex) * cycle_sum)))
+            recircs: int = int(np.floor(grouper.t_net/t_sum))
+            irrad_circs: int = int(np.floor((grouper.t_net-grouper.t_in)/t_sum))
+            group_counts = 0
+            for j in range(0, irrad_circs+1):
+                group_counts += np.exp(-lam*(times+grouper.t_net-j*t_sum-grouper.t_in)) - np.exp(-lam*(times+grouper.t_net-j*t_sum))
+            for j in range(irrad_circs+1, recircs+1):
+                group_counts += np.exp(-lam*times) - np.exp(-lam*(times+grouper.t_net-j*t_sum))
+            counts += a * group_counts
         else:
             raise ValueError(f'Unknown irrad_type: {irrad_type}')
     if irrad_type == 'saturation_ex':

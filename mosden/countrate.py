@@ -225,7 +225,8 @@ class CountRate(BaseClass):
 
             if MC_run and sampler_func:
                 Pn = sample_parameter(Pn, sampler_func)
-                decay_const = sample_parameter(decay_const, sampler_func)
+                halflife = sample_parameter(halflife, sampler_func)
+                decay_const = np.log(2) / halflife
                 conc = sample_parameter(conc, sampler_func)
 
                 if conc < 0.0:

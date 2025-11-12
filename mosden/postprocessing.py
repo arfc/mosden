@@ -13,6 +13,8 @@ from scipy.integrate import cumulative_trapezoid
 import re
 import pandas as pd
 from scipy.stats import linregress
+from armi import configure
+from armi.nucDirectory import nuclideBases
 plt.style.use('mosden.plotting')
 
 
@@ -40,7 +42,8 @@ class PostProcess(BaseClass):
         self.MC_samples: int = self.input_data['group_options']['samples']
         self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
         self.use_data: list[str] = [
-            'keepin', 'brady', 'synetos', 'Modified 0D Scaled']
+            'keepin', 'brady', 'synetos']#, 'Modified 0D Scaled']
+        self.self_relative_data: bool = False
         self.nuclides: list[str] = [
             'Br87',
             'I137',
@@ -55,7 +58,7 @@ class PostProcess(BaseClass):
             'Br90',
             'As85']
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
-        self.linestyles: list[str] = ['--', '..', '-.']
+        self.linestyles: list[str] = ['-', '--', ':', '-.']
         self.load_post_data()
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
         self.num_decay_times = modeling_options['num_decay_times']
@@ -67,7 +70,10 @@ class PostProcess(BaseClass):
         self.total_decay_time: float = modeling_options['decay_time']
         self.group_data = None
 
-        self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
+        try:
+            self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
+        except KeyError:
+            self.logger.warning('Postdata does not exist')
         self.fission_term = Concentrations(self.input_path).fission_term
 
         return None
@@ -160,6 +166,43 @@ class PostProcess(BaseClass):
         plt.savefig(f'{self.output_dir}pcnt_diff_counts.png')
         plt.close()
         return None
+    
+    def _chart_form(self, name: str, data: dict, cbar_label: str) -> None:
+        """
+        Create a chart of the nuclides with file name and with data
+
+        Parameters
+        ----------
+        name : str
+            Name of image
+        data : dict[str, float]
+            Data to plot, using the nuclide name as a key and the value to plot
+            (of the form "XE135")
+        """
+        configure(permissive=True)
+        plt.figure(figsize=(12, 8))
+        N = list()
+        Z = list()
+        C = list()
+        for nuc, base in nuclideBases.byName.items():
+            try:
+                value = data[nuc.capitalize()]
+                N.append(base.a - base.z)
+                Z.append(base.z)
+                C.append(value)
+            except KeyError:
+                continue
+        norm = 'log'
+        plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
+        plt.set_cmap('viridis')
+        cbar = plt.colorbar()
+        plt.clim(0.1, 10)
+        cbar.set_label(cbar_label)
+        plt.xlabel("Number of neutrons (N)")
+        plt.ylabel("Number of protons (Z)")
+        plt.savefig(f'{self.output_dir}chart_{name}.png')
+        plt.close()
+        return None 
 
     def MC_NLLS_analysis(self) -> None:
         """
@@ -172,7 +215,7 @@ class PostProcess(BaseClass):
             self._plot_sensitivities(
                 off_nominal=True,
                 relative_diff=True,
-                subplot=True)
+                subplot=False)
         return None
 
     def _get_sens_coeffs(self, write=False) -> tuple[list[dict[str, float]],
@@ -193,8 +236,12 @@ class PostProcess(BaseClass):
         Pn_data = self.post_data['PnMC']
         hl_data = self.post_data['hlMC']
         conc_data = self.post_data['concMC']
+        uncert_data = self._get_data()
         nuclides = list(Pn_data[0].keys())
         data_sets = [Pn_data, hl_data, conc_data]
+        uncert_names = ['emission_probability',
+                        'concentration',
+                        'half_life']
         data_names = ['Emission Probability',
                       'Half-life',
                       'Concentration']
@@ -203,14 +250,24 @@ class PostProcess(BaseClass):
         group_names = ['Yield',
                        'Half-life']
         nucs_with_pcc = list()
-        pcc_val = 0.2
+        pcc_cutoff = 0.2
+        summed_pcc_data = dict()
+        scaled_uncert_pcc = dict()
         pcc_data = dict()
+        tracked_data = dict()
         if write:
-            self.logger.info(f'Writing nuclides with PCC > {pcc_val}')
+            self.logger.info(f'Writing nuclides with PCC > {pcc_cutoff}')
         for nuc in nuclides:
+            tracked_data[nuc] = dict()
             for group in range(self.num_groups):
                 for gname, gdata in zip(group_names, group_data):
-                    for data, name in zip(data_sets, data_names):
+                    for data, name, uname in zip(data_sets, data_names, uncert_names):
+                        tracked_data[nuc].setdefault(name, {})
+                        try:
+                            rel_uncertainty = (uncert_data['nucs'][nuc][uname].s / 
+                                            (uncert_data['nucs'][nuc][uname].n))
+                        except ZeroDivisionError:
+                            rel_uncertainty = 1e-12
                         data_vals = [data[nuc] for data in data]
                         group_vals = gdata[group, 1:]
                         mean_group_val = np.mean(group_vals)
@@ -220,7 +277,13 @@ class PostProcess(BaseClass):
                         group_val = (
                             (group_vals - mean_group_val) / mean_group_val)
                         result = linregress(data_val, group_val)
-                        if abs(result.rvalue) > pcc_val:
+                        current_pcc_val = summed_pcc_data.setdefault(nuc, 0.0)
+                        current_uncert_val = scaled_uncert_pcc.setdefault(nuc, 0.0)
+                        summed_pcc_data[nuc] = current_pcc_val + abs(result.rvalue)
+                        scaled_uncert_pcc[nuc] = current_uncert_val + abs(result.rvalue) * rel_uncertainty
+                        current_Ux = tracked_data[nuc][name].setdefault(r'$U_x$', 0.0)
+                        tracked_data[nuc][name][r'$U_x$'] = current_Ux + abs(result.rvalue) * rel_uncertainty
+                        if abs(result.rvalue) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
                                                                             False,
@@ -242,6 +305,58 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
+            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes')
+            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes')
+            sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
+            top = 10
+            self.logger.info(f'Writing {top = } summed |PCC| nuclides')
+            for nuc,sum_PCC in sorted_summed_pccs[:top]:
+                self.logger.info(f'{nuc = }    {sum_PCC = }')
+            sorted_uncert_pccs = sorted(scaled_uncert_pcc.items(), key=lambda item: item[1], reverse=True)
+            self.logger.info(f'Writing {top = } summed uncertainty times |PCC| nuclides')
+            nucs = list()
+            for nuc,sum_PCC in sorted_uncert_pccs[:top]:
+                self.logger.info(f'{nuc = }    {sum_PCC = }')
+                nucs.append(nuc)
+            table_data = dict()
+            for nuc in nucs:
+                nuc_name = self._convert_nuc_to_latex(nuc)
+                data = tracked_data[nuc]
+                names = data.keys()
+                for name in names:
+                    scaled_uncert = data[name][r'$U_x$']
+                    nuc_lab, group_lab = self._configure_x_y_labels(name,
+                                                                    None,
+                                                                    False,
+                                                                    False)
+                    table_data.setdefault('Nuclide', []).append(nuc_name)
+                    table_data.setdefault('DNP Value', []).append(nuc_lab)
+                    table_data.setdefault(r'$U_{x}$', []).append(scaled_uncert)
+            table_df_data: pd.DataFrame = pd.DataFrame.from_dict(
+                table_data, orient='columns')
+            df_sorted = table_df_data.nlargest(top, r"$U_{x}$").sort_values(r'$U_{x}$', ascending=True)
+            dnp_vals = df_sorted["DNP Value"].unique()
+            colors = self.get_colors(len(dnp_vals))
+            color_map = dict(zip(dnp_vals, colors))
+            labels = list()
+            invisible_char = '\u00A0'
+            for _, row in df_sorted.iterrows():
+                    label = f'{row['Nuclide']}'
+                    dup_count = labels.count(label)
+                    label = label + invisible_char * dup_count
+                    labels.append(label)
+                    plt.barh(label, row[r"$U_{x}$"], color=color_map[row["DNP Value"]],
+                            edgecolor='black')
+            handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
+            plt.legend(handles, dnp_vals, title="DNP Value")
+            plt.xlabel(r"$U_{x}$")
+            plt.tight_layout()
+            plt.savefig(f'{self.output_dir}pcc-bar.png')
+            plt.close()
+            table_latex = table_df_data.to_latex(index=False)
+            self.logger.info(f'\n{table_latex}')
+
+
         return Pn_data, hl_data, conc_data, nucs_with_pcc
 
     def _configure_x_y_labels(self, xlab: str, ylab: str, off_nominal: bool, relative_diff: bool,
@@ -268,44 +383,46 @@ class PostProcess(BaseClass):
             The configured x and y labels
         """
         xlabel_replace = {
-            "Half-life": fr"$\tau_i [s]$",
-            "Decay Constant": fr"$\lambda_i [s^{{-1}}]$",
-            "Concentration": fr"$N_i [-]$",
-            "Emission Probability": fr'$P_{{n, i}} [-]$'
+            "Half-life": fr"$\tau$ $[s]$",
+            "Decay Constant": fr"$\lambda$ $[s^{{-1}}]$",
+            "Concentration": fr"$N$ $[-]$",
+            "Emission Probability": fr'$P_{{n}}$ $[-]$'
         }
         ylabel_replace = {
-            "Half-life": fr"$\tau_{group_val} [s]$",
-            "Decay Constant": fr"$\lambda_{group_val} [s^{{-1}}]$",
-            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}} [-]$",
+            "Half-life": fr"$\tau_{group_val}$ $[s]$",
+            "Decay Constant": fr"$\lambda_{group_val}$ $[s^{{-1}}]$",
+            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         offnom_ylabel_replace = {
-            "Half-life": fr"$\Delta \tau_{group_val} [s]$",
-            "Decay Constant": fr"$\Delta \lambda_{group_val} [s^{{-1}}]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} [-]$",
+            "Half-life": fr"$\Delta \tau_{group_val}$ $[s]$",
+            "Decay Constant": fr"$\Delta \lambda_{group_val}$ $[s^{{-1}}]$",
+            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         pcnt_ylabel_replace = {
-            "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val} [\%]$",
-            "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val} [\%]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}} [\%]$",
+            "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val}$ $[\%]$",
+            "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val}$ $[\%]$",
+            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}}$ $[\%]$",
         }
         pcnt_xlabel_replace = {
-            "Half-life": fr"$\Delta \tau_i / \tau_i [\%]$",
-            "Decay Constant": fr"$\Delta \lambda_i / \lambda_i [\%]$",
-            "Concentration": fr"$\Delta N_i / N_i [\%]$",
-            "Emission Probability": fr'$\Delta P_{{n, i}} / P_{{n, i}} [\%]$'
+            "Half-life": fr"$\Delta \tau_i / \tau_i$ $[\%]$",
+            "Decay Constant": fr"$\Delta \lambda_i / \lambda_i$ $[\%]$",
+            "Concentration": fr"$\Delta N_i / N_i$ $[\%]$",
+            "Emission Probability": fr'$\Delta P_{{n, i}} / P_{{n, i}}$ $[\%]$'
         }
 
-        if off_nominal:
-            if relative_diff:
-                ylab = pcnt_ylabel_replace[ylab]
+        if ylab:
+            if off_nominal:
+                if relative_diff:
+                    ylab = pcnt_ylabel_replace[ylab]
+                else:
+                    ylab = offnom_ylabel_replace[ylab]
             else:
-                ylab = offnom_ylabel_replace[ylab]
-        else:
-            ylab = ylabel_replace[ylab]
-        if not (off_nominal and relative_diff):
-            xlab = xlabel_replace[xlab]
-        else:
-            xlab = pcnt_xlabel_replace[xlab]
+                ylab = ylabel_replace[ylab]
+        if xlab:
+            if not (off_nominal and relative_diff):
+                xlab = xlabel_replace[xlab]
+            else:
+                xlab = pcnt_xlabel_replace[xlab]
         return xlab, ylab
 
     def _get_sens_data(self, nuc: str,
@@ -313,7 +430,8 @@ class PostProcess(BaseClass):
                        relative_diff: bool,
                        group_params: np.ndarray,
                        group: int,
-                       indiv_dnp_data: dict) -> tuple[list[float, list[float]]]:
+                       indiv_dnp_data: dict,
+                       actual_data_val: float=None) -> tuple[list[float, list[float]]]:
         """
         Get the sensitivity data for a given nuclide and group
 
@@ -331,6 +449,8 @@ class PostProcess(BaseClass):
             The group index
         indiv_dnp_data : dict
             The individual delayed neutron precursor data
+        actual_data_val : float, optional
+            The actual value of the data for the given nuclide
 
         Returns
         -------
@@ -341,7 +461,10 @@ class PostProcess(BaseClass):
         group_vals = group_params[group, 1:]
         plot_val = group_vals
         mean_group_val = np.mean(group_vals)
-        mean_data_val = np.mean(data_vals)
+        if not actual_data_val:
+            mean_data_val = np.mean(data_vals)
+        else:
+            mean_data_val = np.float64(actual_data_val)
         if off_nominal:
             plot_val = group_vals - mean_group_val
             if relative_diff:
@@ -359,7 +482,8 @@ class PostProcess(BaseClass):
                         savedir: str,
                         off_nominal: bool = True,
                         nuclides: list[str] = None,
-                        relative_diff: bool = True) -> None:
+                        relative_diff: bool = True,
+                        processed_data_dict: dict=None) -> None:
         """
         Helper function to create scatter plots of sensitivity data
 
@@ -383,21 +507,35 @@ class PostProcess(BaseClass):
             The list of nuclides to plot, by default None
         relative_diff : bool, optional
             Whether to plot the relative difference, by default True
+        processed_data_dict : dict, optional
+            Dictionary of processed data for Pn, N, and half-lives.
+            Mean values are used if this is not provided
 
         """
 
         nuclides = nuclides or self.nuclides or list(data[0].keys())
-
-        xlab, ylab = self._configure_x_y_labels(
+        xlab_new, ylab_new = self._configure_x_y_labels(
             xlab, ylab, off_nominal, relative_diff)
         num_colors = self.num_groups
         colors = self.get_colors(num_colors)
+        label_mapping = {'Emission Probability': 'emission_probability',
+                         'Concentration': 'concentration',
+                         'Half-life': 'half_life'}
+
         for nuc in nuclides:
+            actual_data_val = None
+            if processed_data_dict:
+                item = label_mapping[xlab]
+                actual_data_val = processed_data_dict['nucs'][nuc][item]
+                if type(actual_data_val) is not float:
+                    actual_data_val = actual_data_val.n
+                    
             for group in range(self.num_groups):
                 data_val, plot_val = self._get_sens_data(nuc, off_nominal,
                                                          relative_diff,
                                                          group_params, group,
-                                                         data)
+                                                         data,
+                                                         actual_data_val=actual_data_val)
                 plt.scatter(
                     data_val,
                     plot_val,
@@ -406,8 +544,8 @@ class PostProcess(BaseClass):
                     s=4,
                     marker=self.markers[group],
                     color=colors[group])
-                plt.xlabel(xlab)
-                plt.ylabel(ylab)
+                plt.xlabel(xlab_new)
+                plt.ylabel(ylab_new)
                 plt.savefig(f'{savedir}{savename}_{nuc}_{group+1}.png')
                 plt.close()
         return None
@@ -437,6 +575,7 @@ class PostProcess(BaseClass):
         conc_save_dir = os.path.join(self.output_dir, 'sens_conc/')
         if not os.path.exists(conc_save_dir):
             os.makedirs(conc_save_dir)
+        processed_data_dict = self._get_data()
 
         Pn_data, hl_data, conc_data, nuclides = self._get_sens_coeffs()
         if not subplot:
@@ -449,7 +588,8 @@ class PostProcess(BaseClass):
                 pn_save_dir,
                 off_nominal=off_nominal,
                 nuclides=nuclides,
-                relative_diff=relative_diff)
+                relative_diff=relative_diff,
+                processed_data_dict=processed_data_dict)
             self._scatter_helper(
                 hl_data,
                 self.MC_yields,
@@ -459,7 +599,8 @@ class PostProcess(BaseClass):
                 lam_save_dir,
                 off_nominal=off_nominal,
                 nuclides=nuclides,
-                relative_diff=relative_diff)
+                relative_diff=relative_diff,
+                processed_data_dict=processed_data_dict)
             self._scatter_helper(
                 conc_data,
                 self.MC_yields,
@@ -469,7 +610,8 @@ class PostProcess(BaseClass):
                 conc_save_dir,
                 off_nominal=off_nominal,
                 nuclides=nuclides,
-                relative_diff=relative_diff)
+                relative_diff=relative_diff,
+                processed_data_dict=processed_data_dict)
             self._scatter_helper(
                 Pn_data,
                 self.MC_half_lives,
@@ -479,7 +621,8 @@ class PostProcess(BaseClass):
                 pn_save_dir,
                 off_nominal=off_nominal,
                 nuclides=nuclides,
-                relative_diff=relative_diff)
+                relative_diff=relative_diff,
+                processed_data_dict=processed_data_dict)
             self._scatter_helper(
                 hl_data,
                 self.MC_half_lives,
@@ -489,7 +632,8 @@ class PostProcess(BaseClass):
                 lam_save_dir,
                 off_nominal=off_nominal,
                 nuclides=nuclides,
-                relative_diff=relative_diff)
+                relative_diff=relative_diff,
+                processed_data_dict=processed_data_dict)
             self._scatter_helper(
                 conc_data,
                 self.MC_half_lives,
@@ -499,7 +643,8 @@ class PostProcess(BaseClass):
                 conc_save_dir,
                 off_nominal=off_nominal,
                 nuclides=nuclides,
-                relative_diff=relative_diff)
+                relative_diff=relative_diff,
+                processed_data_dict=processed_data_dict)
         else:
             subplot_save_dir = os.path.join(self.output_dir, 'sens_subplots/')
             if not os.path.exists(subplot_save_dir):
@@ -508,6 +653,9 @@ class PostProcess(BaseClass):
             group_name = ['Yield', 'Half-life']
             dnp_data = [Pn_data, hl_data, conc_data]
             dnp_name = ['Emission Probability', 'Half-life', 'Concentration']
+            label_mapping = {'Emission Probability': 'emission_probability',
+                            'Concentration': 'concentration',
+                            'Half-life': 'half_life'}
             num_colors = self.num_groups
             colors = self.get_colors(num_colors)
             for nuc in nuclides:
@@ -519,8 +667,14 @@ class PostProcess(BaseClass):
                     for group_i in range(self.num_groups):
                         for dnp_i, (dnp, name_dnp) in enumerate(
                                 zip(dnp_data, dnp_name)):
+                            actual_data_val = None
+                            if processed_data_dict:
+                                item = label_mapping[name_dnp]
+                                actual_data_val = processed_data_dict['nucs'][nuc][item]
+                                if type(actual_data_val) is not float:
+                                    actual_data_val = actual_data_val.n
                             dataval, plotval = self._get_sens_data(
-                                nuc, off_nominal, relative_diff, group_val, group_i, dnp)
+                                nuc, off_nominal, relative_diff, group_val, group_i, dnp, actual_data_val=actual_data_val)
                             cur_ax = axs[group_i, dnp_i]
                             cur_ax.scatter(
                                 dataval,
@@ -625,11 +779,11 @@ class PostProcess(BaseClass):
             plt.fill_between(self.decay_times, lower, upper, color=colors[nuci],
                              alpha=0.5)
             plt.plot(self.decay_times, rate_n, color=colors[nuci], label=nuc_names[nuci],
-                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=5,
+                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=0.1,
                      markersize=3)
 
         plt.xlabel('Time [s]')
-        plt.ylabel(r'Delayed Neutron Rate $[s^{-1}]$')
+        plt.ylabel(r'Delayed Neutron Rate per Fission $[s^{-1}]$')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -655,10 +809,10 @@ class PostProcess(BaseClass):
                 color=colors[nuci],
                 alpha=0.5)
             plt.plot(self.decay_times, rate_n, color=colors[nuci], label=nuc_names[nuci],
-                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=5,
+                     linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=0.1,
                      markersize=3)
         plt.xlabel('Time [s]')
-        plt.ylabel('Relative Delayed Neutron Counts')
+        plt.ylabel('Delayed Neutron Counts per Fission')
         plt.xscale('log')
         plt.yscale('log')
         plt.legend()
@@ -669,7 +823,7 @@ class PostProcess(BaseClass):
         plt.stackplot(self.decay_times, stacked_data, labels=nuc_names,
                       colors=colors)
         plt.xlabel('Time [s]')
-        plt.ylabel('Relative Delayed Neutron Counts')
+        plt.ylabel('Delayed Neutron Counts per Fission')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -807,13 +961,14 @@ class PostProcess(BaseClass):
         sample_color = 'red'
         mean_color = 'black'
         group_color = 'blue'
+        mc_label = 'Sample, This Work'
 
         counts = self.post_data[self.names['countsMC']]
         countrate = CountRate(self.input_path)
         times = countrate.decay_times
         alpha_MC: float = 1 / np.sqrt(self.MC_samples)
         for MC_iterm, count_val in enumerate(counts):
-            label = 'Sampled' if MC_iterm == 0 else None
+            label = mc_label if MC_iterm == 0 else None
             plt.plot(
                 times,
                 count_val,
@@ -828,17 +983,20 @@ class PostProcess(BaseClass):
             color=mean_color,
             linestyle='',
             marker='x',
-            label='Mean',
+            label='Mean, This Work',
             markersize=5,
             markevery=5)
         countrate.method = 'groupfit'
+        if self.self_relative_data:
+            base_name = mc_label
+            base_counts = np.asarray(count_data['counts'])
         group_counts = countrate.calculate_count_rate(write_data=False)
         plt.plot(
             times,
             group_counts['counts'],
             color=group_color,
             alpha=0.75,
-            label='Group Fit',
+            label='Group Fit, This Work',
             linestyle='--',
             zorder=3)
         plt.fill_between(
@@ -865,7 +1023,8 @@ class PostProcess(BaseClass):
             countrate.group_params = lit_data
             data = countrate._count_rate_from_groups()
             plt.plot(times, data['counts'], label=f'{name} 6-Group Fit',
-                     color=colors[index])
+                     color=colors[index],
+                     linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
                 times,
                 data['counts'] - data['sigma counts'],
@@ -874,7 +1033,7 @@ class PostProcess(BaseClass):
                 zorder=2,
                 edgecolor='black',
                 color=colors[index])
-            if first:
+            if first and not self.self_relative_data:
                 base_name = name
                 base_counts = data['counts']
                 first = False
@@ -884,14 +1043,14 @@ class PostProcess(BaseClass):
         plt.yscale('log')
         leg = plt.legend()
         for line in leg.legend_handles:
-            if line.get_label() == 'Sampled':
+            if line.get_label() == mc_label:
                 line.set_alpha(0.5)
         plt.tight_layout()
         plt.savefig(f'{self.output_dir}MC_counts.png')
         plt.close()
 
         for MC_iterm, count_val in enumerate(counts):
-            label = 'Sampled' if MC_iterm == 0 else None
+            label = mc_label if MC_iterm == 0 else None
             plt.plot(
                 times,
                 count_val /
@@ -907,7 +1066,7 @@ class PostProcess(BaseClass):
             color=mean_color,
             linestyle='',
             marker='x',
-            label='Mean',
+            label='Mean, This Work',
             markersize=5,
             markevery=5)
 
@@ -917,7 +1076,7 @@ class PostProcess(BaseClass):
             base_counts,
             color=group_color,
             alpha=0.75,
-            label='Group Fit',
+            label='Group Fit, This Work',
             linestyle='--',
             zorder=3)
         plt.fill_between(
@@ -944,7 +1103,8 @@ class PostProcess(BaseClass):
                 data['counts'] /
                 base_counts,
                 label=f'{name} 6-Group Fit',
-                color=colors[index])
+                color=colors[index],
+                linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
                 times,
                 (data['counts'] - data['sigma counts']) / base_counts,
@@ -957,7 +1117,7 @@ class PostProcess(BaseClass):
         plt.ylabel(fr'{base_name} Normalized Count Rate')
         leg = plt.legend()
         for line in leg.legend_handles:
-            if line.get_label() == 'Sampled':
+            if line.get_label() == mc_label:
                 line.set_alpha(0.5)
         plt.xscale('log')
         plt.tight_layout()
@@ -1172,7 +1332,7 @@ class PostProcess(BaseClass):
         if remainder > 0.0:
             labels.append('Other')
             sizes.append(remainder)
-        colors = self.get_colors(len(labels), min_val=0.1)
+        colors = self.get_colors(len(labels))
         fig, ax = plt.subplots()
         wedges, _, _ = ax.pie(sizes, autopct='%1.1f%%',
                               pctdistance=0.7, labeldistance=1.1,
