@@ -120,7 +120,7 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        residual = (counts - fit_func(times, parameters)) / (count_err + 1e-12)
+        residual = (counts - fit_func(times, parameters)) / (counts + 1e-12)
         return residual
 
     def _pulse_fit_function(self,
@@ -271,7 +271,6 @@ class Grouper(BaseClass):
                                verbose=0,
                                max_nfev=1e5,
                                args=(times, counts, count_err, fit_function))
-
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
         sorted_params = self._sort_params_by_half_life(result.x)
