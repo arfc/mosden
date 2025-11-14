@@ -286,8 +286,8 @@ class PostProcess(BaseClass):
                         current_uncert_val = scaled_uncert_pcc.setdefault(nuc, 0.0)
                         summed_pcc_data[nuc] = current_pcc_val + abs(pcc)
                         scaled_uncert_pcc[nuc] = current_uncert_val + abs(pcc) * rel_uncertainty
-                        current_Ux = tracked_data[nuc][name].setdefault(r'$U_x$', 0.0)
-                        tracked_data[nuc][name][r'$U_x$'] = current_Ux + abs(pcc) * rel_uncertainty
+                        current_Ux = tracked_data[nuc][name].setdefault(r'$U_{i}$', 0.0)
+                        tracked_data[nuc][name][r'$U_{i}$'] = current_Ux + abs(pcc) * rel_uncertainty
                         if abs(pcc) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
@@ -329,17 +329,17 @@ class PostProcess(BaseClass):
                 data = tracked_data[nuc]
                 names = data.keys()
                 for name in names:
-                    scaled_uncert = data[name][r'$U_x$']
+                    scaled_uncert = data[name][r'$U_{i}$']
                     nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                     None,
                                                                     False,
                                                                     False)
                     table_data.setdefault('Nuclide', []).append(nuc_name)
                     table_data.setdefault('DNP Value', []).append(nuc_lab)
-                    table_data.setdefault(r'$U_{x}$', []).append(scaled_uncert)
+                    table_data.setdefault(r'$U_{i}$', []).append(scaled_uncert)
             table_df_data: pd.DataFrame = pd.DataFrame.from_dict(
                 table_data, orient='columns')
-            df_sorted = table_df_data.nlargest(top, r"$U_{x}$").sort_values(r'$U_{x}$', ascending=True)
+            df_sorted = table_df_data.nlargest(top, r"$U_{i}$").sort_values(r'$U_{i}$', ascending=True)
             dnp_vals = df_sorted["DNP Value"].unique()
             colors = self.get_colors(len(dnp_vals))
             color_map = dict(zip(dnp_vals, colors))
@@ -350,11 +350,11 @@ class PostProcess(BaseClass):
                     dup_count = labels.count(label)
                     label = label + invisible_char * dup_count
                     labels.append(label)
-                    plt.barh(label, row[r"$U_{x}$"], color=color_map[row["DNP Value"]],
+                    plt.barh(label, row[r"$U_{i}$"], color=color_map[row["DNP Value"]],
                             edgecolor='black')
             handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
             plt.legend(handles, dnp_vals, title="DNP Value")
-            plt.xlabel(r"$U_{x}$")
+            plt.xlabel(r"$U_{i}$")
             plt.tight_layout()
             plt.savefig(f'{self.output_dir}pcc-bar.png')
             plt.close()
