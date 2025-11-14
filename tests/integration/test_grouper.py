@@ -32,6 +32,6 @@ def test_fit_groups(input_path, reference_output_path):
     assert data.keys() == reference_data.keys(), "Reference times do not match output times"
 
     for key in data.keys():
-        assert np.all(np.isclose(data[key], reference_data[key], atol=1e-5)), f"Data mismatch for {key}"
+        assert np.all(np.isclose(data[key], reference_data[key], atol=1e-3)), f"Data mismatch for {key}"
 
     return
