@@ -97,6 +97,7 @@ class Grouper(BaseClass):
             parameters: np.ndarray[float],
             times: np.ndarray[float],
             counts: np.ndarray[float],
+            count_err: np.ndarray[float],
             fit_func: Callable) -> float:
         """
         Calculate the residual of the current set of parameters
@@ -108,7 +109,9 @@ class Grouper(BaseClass):
         times : np.ndarray[float]
             List of times
         counts : np.ndarray[float]
-            List of nominal times
+            List of delayed neutron counts
+        count_err : np.ndarray[float]
+            List of count errors
         fit_func : Callable
             Function that takes times and parameters to return list of counts
 
@@ -117,7 +120,7 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        residual = (counts - fit_func(times, parameters)) / (counts + 1e-12)
+        residual = (counts - fit_func(times, parameters)) / (count_err + 1e-12)
         return residual
 
     def _pulse_fit_function(self,
@@ -267,7 +270,7 @@ class Grouper(BaseClass):
                                xtol=1e-12,
                                verbose=0,
                                max_nfev=1e5,
-                               args=(times, counts, fit_function))
+                               args=(times, counts, count_err, fit_function))
 
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
@@ -281,6 +284,7 @@ class Grouper(BaseClass):
                 data = countrate.calculate_count_rate(
                     MC_run=True, sampler_func=self.sample_func)
                 count_sample = data['counts']
+                count_sample_err = data['sigma counts']
                 result = least_squares(
                     self._residual_function,
                     result.x,
@@ -294,6 +298,7 @@ class Grouper(BaseClass):
                     args=(
                         times,
                         count_sample,
+                        count_sample_err,
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)
