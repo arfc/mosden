@@ -9,6 +9,7 @@ from math import ceil
 from time import time
 import warnings
 from tqdm import tqdm
+from scipy.linalg import svd
 
 
 class Grouper(BaseClass):
@@ -271,15 +272,10 @@ class Grouper(BaseClass):
                                verbose=0,
                                max_nfev=1e5,
                                args=(times, counts, count_err, fit_function))
-        chi_square = self._residual_function(result.x, times, counts,
-                                             count_err, fit_function)
-        print('-'*50)
-        print(f'{np.min(counts/count_err) = }')
-        print(f'{np.abs((counts-fit_function(times, result.x))/count_err) = }')
-        print(f'{sum(counts) = }')
-        print(f'{sum(count_err) = }')
-        print(sum(abs(chi_square)))
-        print('-'*50)
+        J = result.jac
+        s = svd(J, compute_uv=False)
+        condition_number = s[0] / s[-1]
+        self.logger.info(f'{condition_number = }')
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
         sorted_params = self._sort_params_by_half_life(result.x)
