@@ -1,6 +1,9 @@
 # MoSDeN
-Molten Salt Delayed Neutron (MoSDeN) is a tool used for reconstruction of 
+Molten Salt Delayed Neutron (MoSDeN) is a tool used for generation of 
 delayed neutron precursor groups in molten salt reactors.
+This tool can also be used for traditional light water reactors, as users
+can adjust ex-core residence times of fissile samples to be zero and chemical
+removal rates to be zero.
 
 ## History
 This tool had a previous version in this repository accessible with 
@@ -26,9 +29,12 @@ The exact organization of raw, unprocessed data is flexible, with some notable
 exceptions:
 - OpenMC chain files to be should all be in a subdirectory labeled with 
 "omcchain" (see `preprocessing.py` for all keywords)
-- ENDF NFY data should all be in a subdirectory labeled `nfy`
+- ENDF fission yield data should all be in a subdirectory labeled `nfy`
+- JEFF fission yield data should all be in a subdirectory labeled `nfpy`
 - ENDF NFY files should be named "nfy-<ZZZ>_<ID>_<AAA>.csv", so 235U would be 
 `nfy-092_U_235.csv`.
+- JEFF NFPY files should be named "nfpy_<NUMS>_<ZZ>-<ID>-<AAA>.dat", so 235U
+would be `nfpy_3542_92-U-235.dat` (the `NUMS` value meaning is unclear).
 - IAEA beta-delayed neutron emission data should be in a directory `iaea` and 
 be called `eval.csv` (default when downloading data).
 

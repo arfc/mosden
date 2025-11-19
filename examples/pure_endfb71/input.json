@@ -1,0 +1,55 @@
+{
+    "name": "ENDFB71 Data",
+    "file_options": {
+        "overwrite": {
+            "preprocessing": true,
+            "concentrations": true,
+            "count_rate": true,
+            "group_fitting": true,
+            "postprocessing": true,
+            "logger": true
+        },
+        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
+        "processed_data_dir": "/home/luke/github/mosden/examples/pure_endfb71/",
+        "output_dir": "/home/luke/github/mosden/examples/pure_endfb71/",
+        "log_level": 20,
+        "log_file": "/home/luke/github/mosden/examples/pure_endfb71/log.log"
+    },
+    "data_options": {
+        "half_life": "endfb71/decay/",
+        "cross_section": "",
+        "emission_probability": "endfb71/decay/",
+        "fission_yield": "endfb71/nfy/",
+        "decay_time_spacing": "log",
+        "temperature_K": 920,
+        "density_g_cm3": 2.3275,
+        "energy_MeV": 0.0253e-6,
+        "fissile_fractions": {
+            "U235": 1.0
+        }
+    },
+    "modeling_options": {
+        "parent_feeding": false,
+        "concentration_handling": "CFY",
+        "count_rate_handling": "data",
+        "reprocessing_locations": ["excore"],
+        "reprocessing": {
+            "Xe": 0.0
+        },
+        "irrad_type": "saturation",
+        "incore_s": 10,
+        "excore_s": 0,
+        "net_irrad_s": 420,
+        "decay_time": 1200,
+        "num_decay_times": 800
+    },
+    "group_options": {
+        "num_groups": 6,
+        "method": "nlls",
+        "samples": 5000,
+        "sample_func": "normal"
+    },
+    "post_options": {
+        "sensitivity_subplots": true
+    }
+}
