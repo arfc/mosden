@@ -34,7 +34,6 @@ concs = {
 
 all_data = [yields, counts, concs]
 all_nucs = [
-    'Other',
     'Ge86',
     'I137',
     'As86',
@@ -45,7 +44,8 @@ all_nucs = [
     'Br88',
     'Br87',
     'Cs141',
-    'Te136'
+    'Te136',
+    'Other'
 ]
 all_nucs.reverse()
 postobj = PostProcess(None)
@@ -63,18 +63,13 @@ for dataset in all_data:
         colors.append(color_nucs[k])
         if k != 'Other':
             k = postobj._convert_nuc_to_latex(k)
-        labels.append(k)
+        labels.append(k + ', ' + str(round(v)) + '\%')
 
-    fig, ax = plt.subplots()
-    _, _, autotexts = ax.pie(sizes, labels=labels, autopct='%1.1f%%',
-            pctdistance=0.7, labeldistance=1.1,
+    fig, ax = plt.subplots(subplot_kw=dict(aspect='equal'))
+    _, _ = ax.pie(sizes, labels=labels, labeldistance=1.1,
             colors=colors)
     ax.axis('equal')
 
-    for i, autotext in enumerate(autotexts):
-        autotext.set_color('black')
-        autotext.set_path_effects([path_effects.Stroke(linewidth=2.0, foreground='white'),
-                                   path_effects.Normal()])
     plt.tight_layout()
     fig.savefig(f'{counter}dnp_yield.png')
     plt.close()

@@ -1292,7 +1292,9 @@ class PostProcess(BaseClass):
             self.logger.info(
                 f'{nuc} - {round(yield_val.n, 5)} +/- {round(yield_val.s, 5)}')
             sizes.append(yield_val.n)
-            labels.append(self._convert_nuc_to_latex(nuc))
+            nuc_name = self._convert_nuc_to_latex(nuc)
+            fraction = 100 * yield_val.n / net_yield.n
+            labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
             running_sum += yield_val
             counter += 1
             extracted_vals[nuc] = yield_val
@@ -1302,12 +1304,10 @@ class PostProcess(BaseClass):
             f'Finished nuclide emission times concentration (net yield)')
         remainder = net_yield.n - running_sum.n
         sizes.append(remainder)
-        labels.append('Other')
+        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
         colors = self.get_colors(num_top + 2)
         fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%',
-               pctdistance=0.7, labeldistance=1.1,
-               colors=colors)
+        ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
         fig.savefig(f'{self.output_dir}dnp_yield.png')
@@ -1327,11 +1327,9 @@ class PostProcess(BaseClass):
                 break
         remainder = net_N.n - running_sum.n
         sizes.append(remainder)
-        labels.append('Other')
+        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
         fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%',
-               pctdistance=0.7, labeldistance=1.1,
-               colors=colors)
+        ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
         fig.savefig(f'{self.output_dir}dnp_conc.png')
