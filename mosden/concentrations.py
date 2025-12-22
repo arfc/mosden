@@ -77,7 +77,7 @@ class Concentrations(BaseClass):
                 f"Concentration handling method '{
                     self.conc_method}' is not implemented")
 
-        CSVHandler(self.concentration_path, self.overwrite).write_csv(data)
+        CSVHandler(self.concentration_path, self.conc_overwrite).write_csv(data)
         self.save_postproc()
         self.time_track(start, 'Concentrations')
         return

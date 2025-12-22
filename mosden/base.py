@@ -33,9 +33,8 @@ class BaseClass:
         modeling_options: dict = self.input_data.get('modeling_options', {})
         data_options: dict = self.input_data.get('data_options', {})
         overwrite_options: dict = file_options.get('overwrite', {})
-        group_options: dict = file_options.get('group_options', {})
+        group_options: dict = self.input_data.get('group_options', {})
 
-        self.overwrite: bool = overwrite_options.get('concentrations', False)
 
         self.log_file: str = file_options.get('log_file', 'log.log')
         self.log_level: int = file_options.get('log_level', 1)
@@ -76,6 +75,7 @@ class BaseClass:
 
         self.conc_method: str = modeling_options.get(
             'concentration_handling', 'CFY')
+        self.conc_overwrite: bool = overwrite_options.get('concentrations', False)
         self.reprocessing: dict[str: float] = modeling_options.get(
             'reprocessing', {})
         self.reprocess: bool = (sum(self.reprocessing.values()) > 0)
@@ -95,6 +95,12 @@ class BaseClass:
         self.count_method: str = self.input_data['modeling_options']['count_rate_handling']
         self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
         self.seed: int = group_options.get('seed', 0)
+
+        self.group_method: str = group_options.get('method', 'nlls')
+        self.num_groups: int = group_options.get('num_groups', 6)
+        self.group_overwrite: bool = overwrite_options.get('group_fitting', False)
+        self.MC_samples: int = group_options.get('samples', 1)
+        self.sample_func: str = group_options.get('sample_func', 'normal')
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.concentration_path: str = os.path.join(
