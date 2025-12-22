@@ -114,8 +114,6 @@ class InputHandler:
             raise ValueError("Unprocessed and processed data directories cannot be the same.")
         if data['file_options']['unprocessed_data_dir'] == data['file_options']['output_dir']:
             raise ValueError("Unprocessed data directory cannot be the same as the output directory.")
-        if data['modeling_options']['parent_feeding'] and not data['modeling_options']['concentration_handling'] == 'depletion':
-            raise ValueError("Parent feeding option requires depletion method for concentration handling")
         if data['modeling_options']['concentration_handling'] == 'IFY':
             ify_in_yields = any(val in data['data_options']['fission_yield'] for val in self.independent_fission_yields)
             if not ify_in_yields:
