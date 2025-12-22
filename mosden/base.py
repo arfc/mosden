@@ -28,8 +28,12 @@ class BaseClass:
         self.input_handler: InputHandler = InputHandler(input_path)
         self.input_data: dict = self.input_handler.read_input()
         self.multi_id: str = self.input_data.get('multi_id', None)
+
         file_options: dict = self.input_data.get('file_options', {})
+        modeling_options: dict = self.input_data.get('modeling_options', {})
+
         overwrite: dict = file_options.get('overwrite', {})
+        self.overwrite: bool = overwrite.get('concentrations', False)
 
         self.log_file: str = file_options.get('log_file', 'log.log')
         self.log_level: int = file_options.get('log_level', 1)
@@ -51,7 +55,9 @@ class BaseClass:
                                 filemode=log_mode)
 
         self.name: str = self.input_data['name']
+        self.output_dir: str = self.input_data['file_options']['output_dir']
         self.logger.info(f'{self.name = }')
+
         data_options: dict = self.input_data.get('data_options', {})
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
         self.fissiles: dict[str, float] = data_options.get(
@@ -66,6 +72,20 @@ class BaseClass:
 
         self.data_dir: str = file_options['unprocessed_data_dir']
         self.preprocess_overwrite: bool = overwrite.get('preprocessing', False)
+
+        self.conc_method: str = modeling_options.get(
+            'concentration_handling', 'CFY')
+        self.reprocessing: dict[str: float] = modeling_options.get(
+            'reprocessing', {})
+        self.reprocess: bool = (sum(self.reprocessing.values()) > 0)
+        self.reprocess_locations: list[str] = modeling_options.get(
+            'reprocessing_locations', [])
+        self.t_in: float = modeling_options.get('incore_s', 0.0)
+        self.t_ex: float = modeling_options.get('excore_s', 0.0)
+        self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
+        self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
+        self.spatial_scaling: str = modeling_options.get(
+            'spatial_scaling', 'unscaled')
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.concentration_path: str = os.path.join(

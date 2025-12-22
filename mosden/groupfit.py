@@ -66,7 +66,7 @@ class Grouper(BaseClass):
         if self.irrad_type == 'pulse':
             self.logger.error('Pulse irradiation fission term not treated')
         elif self.irrad_type == 'saturation':
-            if conc_handler.model_method == 'CFY' and conc_handler.spatial_scaling == 'scaled':
+            if conc_handler.conc_method == 'CFY' and conc_handler.spatial_scaling == 'scaled':
                 fission_term = conc_handler.f_in
         else:
             raise NameError(f'{self.irrad_type = } not available')
