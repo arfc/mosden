@@ -36,7 +36,6 @@ DEFAULTS = {
         }
     },
     "modeling_options": {
-        "parent_feeding": False,
         "concentration_handling": "CFY",
         "count_rate_handling": "data",
         "reprocessing_locations": [""],
