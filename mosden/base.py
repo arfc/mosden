@@ -34,6 +34,7 @@ class BaseClass:
         data_options: dict = self.input_data.get('data_options', {})
         overwrite_options: dict = file_options.get('overwrite', {})
         group_options: dict = self.input_data.get('group_options', {})
+        post_options: dict = self.input_data.get('post_options', {})
 
 
         self.log_file: str = file_options.get('log_file', 'log.log')
@@ -111,6 +112,24 @@ class BaseClass:
             file_options['output_dir'], 'group_parameters.csv')
         self.postproc_path: str = os.path.join(
             file_options['output_dir'], 'postproc.json')
+
+        self.img_dir: str = self.output_dir + 'images/'
+        self.post_overwrite: bool = overwrite_options.get('postprocessing', False)
+        self.sens_subplot: bool = post_options['sensitivity_subplots']
+        self.lit_data: list[str] = ['keepin', 'brady', 'synetos']
+        self.nuclides: list[str] = [
+            'Br87',
+            'I137',
+            'Br88',
+            'Br89',
+            'I138',
+            'Rb94',
+            'Rb93',
+            'Te136',
+            'Ge86',
+            'As86',
+            'Br90',
+            'As85']
 
         self.names: dict[str: str] = {
             'countsMC': 'countsMC',
