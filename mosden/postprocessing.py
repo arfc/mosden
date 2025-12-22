@@ -692,9 +692,7 @@ class PostProcess(BaseClass):
         Compare the total DN yields from summing individuals and from
           group parameters
         """
-        num_top = 4
-        num_stack = 2
-        summed_yield, summed_avg_halflife = self._get_summed_params(num_top)
+        summed_yield, summed_avg_halflife = self._get_summed_params(self.num_top)
         group_yield, group_avg_halflife = self._get_group_params()
 
         self.summed_yield = summed_yield
@@ -702,7 +700,7 @@ class PostProcess(BaseClass):
         self.group_yield = group_yield
         self.group_avg_halflife = group_avg_halflife
 
-        self._plot_nuclide_count_rates(num_stack)
+        self._plot_nuclide_count_rates(self.num_stack)
         self.logger.info(f'{summed_yield = }')
         self.logger.info(f'{summed_avg_halflife = } s')
         self.logger.info(f'{group_yield = }')

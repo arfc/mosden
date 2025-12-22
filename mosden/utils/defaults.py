@@ -59,6 +59,23 @@ DEFAULTS = {
         "seed": seed
     },
     "post_options": {
-        "sensitivity_subplots": True
+        "sensitivity_subplots": True,
+        "top_num_nuclides": 3,
+        "num_stacked_nuclides": 2,
+        "lit_data": ['keepin', 'brady', 'synetos'],
+        "nuclides": [
+            'Br87',
+            'I137',
+            'Br88',
+            'Br89',
+            'I138',
+            'Rb94',
+            'Rb93',
+            'Te136',
+            'Ge86',
+            'As86',
+            'Br90',
+            'As85'
+        ]
     }
 }

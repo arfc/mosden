@@ -115,21 +115,11 @@ class BaseClass:
 
         self.img_dir: str = self.output_dir + 'images/'
         self.post_overwrite: bool = overwrite_options.get('postprocessing', False)
-        self.sens_subplot: bool = post_options['sensitivity_subplots']
-        self.lit_data: list[str] = ['keepin', 'brady', 'synetos']
-        self.nuclides: list[str] = [
-            'Br87',
-            'I137',
-            'Br88',
-            'Br89',
-            'I138',
-            'Rb94',
-            'Rb93',
-            'Te136',
-            'Ge86',
-            'As86',
-            'Br90',
-            'As85']
+        self.sens_subplot: bool = post_options.get('sensitivity_subplots', True)
+        self.lit_data: list[str] = post_options.get('lit_data', ['keepin'])
+        self.nuclides: list[str] = post_options.get('nuclides', ['Br87'])
+        self.num_top = post_options.get('top_num_nuclides', 3)
+        self.num_stack = post_options.get('num_stacked_nuclides', 2)
 
         self.names: dict[str: str] = {
             'countsMC': 'countsMC',
