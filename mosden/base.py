@@ -56,12 +56,16 @@ class BaseClass:
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
         self.fissiles: dict[str, float] = data_options.get(
             'fissile_fractions', {})
+        self.fissile_targets: list = list(self.fissiles.keys())
 
         self.data_types: list[str] = [
             'fission_yield',
             'half_life',
             'cross_section',
             'emission_probability']
+
+        self.data_dir: str = file_options['unprocessed_data_dir']
+        self.preprocess_overwrite: bool = overwrite.get('preprocessing', False)
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.concentration_path: str = os.path.join(

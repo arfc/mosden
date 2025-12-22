@@ -18,14 +18,6 @@ class Preprocess(BaseClass):
             Path to the input file.
         """
         super().__init__(input_path)
-        file_options: dict = self.input_data['file_options']
-
-        self.data_dir: str = file_options['unprocessed_data_dir']
-        self.overwrite: bool = file_options['overwrite']['preprocessing']
-        self.out_dir: str = file_options['processed_data_dir']
-        self.fissile_targets: list = list(
-            self.input_data['data_options']['fissile_fractions'].keys())
-        self.energy_MeV: float = self.input_data['data_options']['energy_MeV']
 
         data_keys: list[str] = [
             'half_life',
@@ -150,11 +142,11 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
         """
         data_file: str = os.path.join(self.data_dir, path)
-        out_file: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        out_file: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
 
         data = CSVHandler(data_file, create=False).read_csv(raw_iaea=True)
         csv_path: str = os.path.join(out_file)
-        CSVHandler(csv_path, self.overwrite).write_csv(data)
+        CSVHandler(csv_path, self.preprocess_overwrite).write_csv(data)
         return None
 
     def _openmc_chain_preprocess(self, data_val: str, path: str) -> None:
@@ -169,10 +161,10 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
         """
         data_path: str = os.path.join(self.data_dir, path)
-        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
         file_data: dict[str: dict[str: float]
                         ] = self._process_chain_file(data_path)
-        CSVHandler(out_path, self.overwrite).write_csv(file_data)
+        CSVHandler(out_path, self.preprocess_overwrite).write_csv(file_data)
         return None
 
     def _jeff_nfy_preprocess(self, data_val: str, path: str) -> None:
@@ -187,7 +179,7 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
         """
         data_dir: str = os.path.join(self.data_dir, path)
-        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
         pre_treated_data: dict[str: dict[str: dict[str: float]]] = dict()
         for fissile in self.fissile_targets:
             for file in os.listdir(data_dir):
@@ -202,7 +194,7 @@ class Preprocess(BaseClass):
         treated_data: dict[str: dict[str: float]
                            ] = self._treat_endf_data(pre_treated_data)
         csv_path: str = os.path.join(out_path)
-        CSVHandler(csv_path, self.overwrite).write_csv(treated_data)
+        CSVHandler(csv_path, self.preprocess_overwrite).write_csv(treated_data)
         return None
 
     def _endf_nfy_preprocess(self, data_val: str, path: str) -> None:
@@ -217,7 +209,7 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
         """
         data_dir: str = os.path.join(self.data_dir, path)
-        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
         pre_treated_data: dict[str: dict[str: dict[str: float]]] = dict()
         for fissile in self.fissile_targets:
             for file in os.listdir(data_dir):
@@ -231,7 +223,7 @@ class Preprocess(BaseClass):
         treated_data: dict[str: dict[str: float]
                            ] = self._treat_endf_data(pre_treated_data)
         csv_path: str = os.path.join(out_path)
-        CSVHandler(csv_path, self.overwrite).write_csv(treated_data)
+        CSVHandler(csv_path, self.preprocess_overwrite).write_csv(treated_data)
         return None
     
     def _endf_decay_preprocess(self, data_val: str, path: str) -> None:
@@ -246,11 +238,11 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
         """
         data_dir: str = os.path.join(self.data_dir, path)
-        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
         file_data: dict[str: dict[str: float]
                         ] = self._process_endf_decay_file(data_dir)
         csv_path: str = os.path.join(out_path)
-        CSVHandler(csv_path, self.overwrite).write_csv(file_data)
+        CSVHandler(csv_path, self.preprocess_overwrite).write_csv(file_data)
         return None
 
 

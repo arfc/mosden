@@ -37,13 +37,13 @@
         "incore_s": 10,
         "excore_s": 0,
         "net_irrad_s": 420,
-        "decay_time": 1200,
+        "decay_time": 120,
         "num_decay_times": 800
     },
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
-        "samples": 5000,
+        "samples": 1,
         "sample_func": "normal"
     }
 }
