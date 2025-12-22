@@ -37,3 +37,35 @@ def test_generate_concentrations(input_path, reference_output_path):
     assert data == reference_data, "Output concentrations do not match the expected reference concentrations."
 
     return
+
+
+def test_chem_removal():
+    """
+    Test chemical removal using the basic test with and without chemical removal
+    """
+    input_path = "tests/integration/test-data/input7.json"
+    concentrations = Concentrations(input_path)
+    #concentrations.postproc_path = os.path.join(reference_output_path, 'postproc.json')
+    #concentrations.processed_data_dir = reference_output_path
+    concentrations.generate_concentrations()
+    output_path = Path(concentrations.output_dir) / "concentrations.csv"
+    assert output_path.exists(), f"Output file {output_path} does not exist."
+    data_nochem = CSVHandler(output_path).read_csv()
+    assert data_nochem, "Output file is empty."
+
+    input_path = "tests/integration/test-data/input8.json"
+    concentrations = Concentrations(input_path)
+    concentrations.generate_concentrations()
+    output_path = Path(concentrations.output_dir) / "concentrations.csv"
+    assert output_path.exists(), f"Output file {output_path} does not exist."
+    data_chem = CSVHandler(output_path).read_csv()
+    assert data_chem, "Output file is empty."
+
+    chems_removed = concentrations.reprocessing.keys()
+
+
+    
+    for nuclide in data_nochem.keys():
+        for chem in chems_removed:
+            if chem in nuclide:
+                assert (data_nochem[nuclide]['Concentration'] > data_chem[nuclide]['Concentration']), f'{nuclide} increased with removal of Xe'
