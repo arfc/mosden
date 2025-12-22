@@ -31,13 +31,15 @@ class BaseClass:
 
         file_options: dict = self.input_data.get('file_options', {})
         modeling_options: dict = self.input_data.get('modeling_options', {})
+        data_options: dict = self.input_data.get('data_options', {})
+        overwrite_options: dict = file_options.get('overwrite', {})
+        group_options: dict = file_options.get('group_options', {})
 
-        overwrite: dict = file_options.get('overwrite', {})
-        self.overwrite: bool = overwrite.get('concentrations', False)
+        self.overwrite: bool = overwrite_options.get('concentrations', False)
 
         self.log_file: str = file_options.get('log_file', 'log.log')
         self.log_level: int = file_options.get('log_level', 1)
-        logger_overwrite: bool = overwrite.get('logger', False)
+        logger_overwrite: bool = overwrite_options.get('logger', False)
 
         self.logger: logging.Logger = logging.getLogger(__name__)
         if logger_overwrite and BaseClass._INITIALIZED:
@@ -58,7 +60,6 @@ class BaseClass:
         self.output_dir: str = self.input_data['file_options']['output_dir']
         self.logger.info(f'{self.name = }')
 
-        data_options: dict = self.input_data.get('data_options', {})
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
         self.fissiles: dict[str, float] = data_options.get(
             'fissile_fractions', {})
@@ -71,7 +72,7 @@ class BaseClass:
             'emission_probability']
 
         self.data_dir: str = file_options['unprocessed_data_dir']
-        self.preprocess_overwrite: bool = overwrite.get('preprocessing', False)
+        self.preprocess_overwrite: bool = overwrite_options.get('preprocessing', False)
 
         self.conc_method: str = modeling_options.get(
             'concentration_handling', 'CFY')
@@ -86,6 +87,14 @@ class BaseClass:
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: str = modeling_options.get(
             'spatial_scaling', 'unscaled')
+        
+        self.count_overwrite: bool = overwrite_options.get('count_rate', False)
+        self.num_times: int = modeling_options['num_decay_times']
+        self.decay_time: float = modeling_options['decay_time']
+        self.decay_time_spacing: str = data_options['decay_time_spacing']
+        self.count_method: str = self.input_data['modeling_options']['count_rate_handling']
+        self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
+        self.seed: int = group_options.get('seed', 0)
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.concentration_path: str = os.path.join(

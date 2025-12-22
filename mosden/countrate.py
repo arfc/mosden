@@ -18,33 +18,18 @@ class CountRate(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
-        file_options: dict = self.input_data['file_options']
-        modeling_options: dict = self.input_data['modeling_options']
-        data_options: dict = self.input_data['data_options']
-        overwrite_options: dict = file_options.get('overwrite', {})
 
-        self.processed_data_dir: str = file_options.get(
-            'processed_data_dir', '')
-        self.output_dir: str = file_options.get('output_dir', '')
-        self.overwrite: bool = overwrite_options.get('count_rate', False)
-
-        self.parent_feed: bool = modeling_options['parent_feeding']
-        self.num_times: int = modeling_options['num_decay_times']
-        self.decay_time: float = modeling_options['decay_time']
-        decay_time_spacing: str = data_options['decay_time_spacing']
-        if decay_time_spacing == 'linear':
+        if self.decay_time_spacing == 'linear':
             self.decay_times: np.ndarray = np.linspace(
                 0, self.decay_time, self.num_times)
-        elif decay_time_spacing == 'log':
+        elif self.decay_time_spacing == 'log':
             self.decay_times: np.ndarray = np.geomspace(
                 1e-2, self.decay_time, self.num_times)
         else:
             raise ValueError(
-                f"Decay time spacing '{decay_time_spacing}' not supported.")
-        self.method = self.input_data['modeling_options']['count_rate_handling']
+                f"Decay time spacing '{self.decay_time_spacing}' not supported.")
 
-        self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
-        np.random.seed(self.input_data['group_options']['seed'])
+        np.random.seed(self.seed)
 
         return None
 
@@ -72,7 +57,7 @@ class CountRate(BaseClass):
         """
         start = time()
         data: dict[str: list[float]] = dict()
-        if self.method == 'data':
+        if self.count_method == 'data':
             pn_path = os.path.join(
                 self.processed_data_dir,
                 'emission_probability.csv')
@@ -85,17 +70,17 @@ class CountRate(BaseClass):
             self.concentration_data = CSVHandler(
                 self.concentration_path, create=False).read_csv()
             data = self._count_rate_from_data(MC_run, sampler_func)
-        elif self.method == 'groupfit':
+        elif self.count_method == 'groupfit':
             self.group_params = CSVHandler(
                 self.group_path, create=False).read_vector_csv()
             data = self._count_rate_from_groups()
         else:
-            raise NotImplementedError(f'{self.method} not available')
+            raise NotImplementedError(f'{self.count_method} not available')
 
         if not MC_run and write_data:
             CSVHandler(
                 self.countrate_path,
-                self.overwrite).write_count_rate_csv(data)
+                self.count_overwrite).write_count_rate_csv(data)
             self.save_postproc()
             self.time_track(start, 'Countrate')
         return data
