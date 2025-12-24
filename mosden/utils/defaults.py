@@ -1,7 +1,7 @@
 import os
 import numpy as np
 unprocessed_data_dir = os.path.join(os.path.dirname(__file__), '../data/unprocessed')
-literature_data_dir = os.path.join(os.path.dirname(__file__), '../data/literature')
+literature_data_dir = os.path.join(os.path.dirname(__file__), '../data/literature_groups')
 mosden_dir = os.path.dirname(__file__)
 current_dir = os.getcwd()
 seed = np.random.randint(0, 2**32 - 1)
