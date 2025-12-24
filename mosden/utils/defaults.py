@@ -2,6 +2,7 @@ import os
 import numpy as np
 unprocessed_data_dir = os.path.join(os.path.dirname(__file__), '../data/unprocessed')
 literature_data_dir = os.path.join(os.path.dirname(__file__), '../data/literature_groups')
+reprocessing_data_dir = os.path.join(os.path.dirname(__file__), '../data/chemical_rates')
 mosden_dir = os.path.dirname(__file__)
 current_dir = os.getcwd()
 seed = np.random.randint(0, 2**32 - 1)
@@ -19,6 +20,7 @@ DEFAULTS = {
         },
         "unprocessed_data_dir": f"{unprocessed_data_dir}",
         "literature_data_dir": f"{literature_data_dir}",
+        "reprocessing_data_dir": f"{reprocessing_data_dir}",
         "processed_data_dir": f"{current_dir}/",
         "output_dir": f"{current_dir}/",
         "log_level": 20,
