@@ -72,6 +72,7 @@ class BaseClass:
             'emission_probability']
 
         self.data_dir: str = file_options['unprocessed_data_dir']
+        self.lit_data_dir: str = file_options['literature_data_dir']
         self.preprocess_overwrite: bool = overwrite_options.get('preprocessing', False)
 
         self.conc_method: str = modeling_options.get(
