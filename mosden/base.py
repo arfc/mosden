@@ -90,6 +90,7 @@ class BaseClass:
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: str = modeling_options.get(
             'spatial_scaling', 'unscaled')
+        self.base_repr_scale: float = modeling_options.get('base_removal_scaling', 0.5)
         
         self.count_overwrite: bool = overwrite_options.get('count_rate', False)
         self.num_times: int = modeling_options['num_decay_times']

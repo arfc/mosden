@@ -47,6 +47,20 @@ cumulative fission yields (with energy dependence based on nearest energy)
 - [IAEA data](https://www-nds.iaea.org/beta-delayed-neutron/database.html): 
 these give emission probabilities and half-lives
 
+Some data are provided without additional downloading steps.
+These data include: chemical reprocessing schemes and group parameter data.
+- Chemical removal rates provided should represent *scaled* removal (the removal
+rate applied to the entire volume). This is generally how the data is presented 
+in the literature. The scripts assume the data is in this form. The user input 
+captures this effect via the `base_removal_scaling`. This term represents, as a 
+value from 0 to 1, the ex-core fraction (assuming chemical removal in the that 
+region). Whatever chemical removal rates are used, this term should represent 
+the scaling that has been applied to that data (for example, if the removal 
+occurs everywhere in the primary loop, then the scaling would be 1.0 since this 
+term captures the spatial component.)
+- The group parameter data from the literature should be given as absolute 
+yields (calculable from the relative yield and total yield values).
+
 ### Processing
 Processing consists of three steps:
 1. Generate concentrations (or collect fission yield data).

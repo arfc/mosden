@@ -122,6 +122,8 @@ class InputHandler:
             cfy_in_yields = any(val in data['data_options']['fission_yield'] for val in self.cumulative_fission_yields)
             if not cfy_in_yields:
                 raise ValueError(f"CFY requires cumulative fission yield data {self.cumulative_fission_yields} (not in {data["data_options"]["fission_yield"]})")
+        if data['modeling_options']['base_removal_scaling'] == 0.0:
+            self.logger.warning('Base removal scaling set to 0.0, see README for more information.')
         
         possible_decay_spacings = ['linear', 'log']
         _check_if_in_options(data['data_options']['decay_time_spacing'], possible_decay_spacings)

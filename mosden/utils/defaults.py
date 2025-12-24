@@ -44,6 +44,7 @@ DEFAULTS = {
         "count_rate_handling": "data",
         "reprocessing_locations": [""],
         "spatial_scaling": "scaled",
+        "base_removal_scaling": 0.5,
         "reprocessing": {
             "Xe": 0.0
         },

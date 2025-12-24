@@ -33,10 +33,15 @@ class Concentrations(BaseClass):
                 self.repr_scale += self.f_in
             if 'excore' in self.reprocess_locations:
                 self.repr_scale += self.f_ex
+            self.repr_scale /= self.base_repr_scale
         else:
             raise NotImplementedError(
                 f'{self.spatial_scaling} not implemented')
         self.fission_term = 1.0 * self.f_in
+        if self.repr_scale <= 0.0:
+            self.logger.error('No valid chemical removal region provided')
+            self.logger.warning('Setting reprocessing scale to 1.0')
+            self.repr_scale = 1.0
 
         return None
 
@@ -105,7 +110,8 @@ class Concentrations(BaseClass):
                 nuc_element = self._get_element_from_nuclide(nuclide)
                 repr_term = self.reprocessing.get(nuc_element, 0.0)
             lam = np.log(2) / hl
-            loss_term = lam + self.repr_scale * repr_term
+            reprocessing = repr_term * self.repr_scale
+            loss_term = lam + reprocessing
             concentrations[nuclide] = self.f_in * concs / loss_term
             all_nucs.add(nuclide)
 
