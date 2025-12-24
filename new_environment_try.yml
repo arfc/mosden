@@ -1,0 +1,14 @@
+name: mosdenv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pytest
+  - pandas
+  - uncertainties
+  - scipy
+  - openmc
+  - seaborn
+  - jinja2
+  - tqdm
