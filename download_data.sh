@@ -56,7 +56,7 @@ NFY_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${NF
 echo "Downloading NFY data for ENDF/B-${ENDF_VERSION}..."
 TEMP_ZIP="${NFY_DIR}/${NFY_ZIP_NAME}"
 echo "Accessing ${NFY_URL}"
-wget --show-progress -O "$TEMP_ZIP" "$NFY_URL"
+wget -4 --show-progress -O "$TEMP_ZIP" "$NFY_URL"
 echo "Extracting NFY data..."
 unzip "$TEMP_ZIP" -d "$NFY_DIR"
 rm "$TEMP_ZIP"
@@ -68,7 +68,7 @@ decay_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${
 echo "Downloading decay data for ENDF/B-${ENDF_VERSION}..."
 TEMP_ZIP="${decay_DIR}/${decay_ZIP_NAME}"
 echo "Accessing ${decay_URL}"
-wget --show-progress -O "$TEMP_ZIP" "$decay_URL"
+wget -4 --show-progress -O "$TEMP_ZIP" "$decay_URL"
 echo "Extracting decay data..."
 unzip "$TEMP_ZIP" -d "$decay_DIR"
 rm "$TEMP_ZIP"
@@ -101,7 +101,7 @@ fi
 
 echo "Downloading NFY data for JEFF-${JEFF_VERSION}..."
 echo "Accessing ${JEFF_URL}"
-wget --show-progress --recursive --no-parent --accept "*.zip" --no-host-directories --cut-dirs=3 -P "${JEFF_DIR}" "$JEFF_URL"
+wget -4 --show-progress --recursive --no-parent --accept "*.zip" --no-host-directories --cut-dirs=3 -P "${JEFF_DIR}" "$JEFF_URL"
 echo "Extracting NFY data..."
 for f in "$NFY_DIR"/*.zip; do
     unzip "$f" -d "$NFY_DIR"
@@ -120,7 +120,7 @@ IAEA_URL="https://www-nds.iaea.org/relnsd/delayedn/eval.csv"
 mkdir -p "$IAEA_DIR"
 
 echo "Downloading IAEA delayed neutron data..."
-wget -q --show-progress -O "$IAEA_FILE" "$IAEA_URL"
+wget -4 -q --show-progress -O "$IAEA_FILE" "$IAEA_URL"
 echo "Saved to $IAEA_FILE"
 
 # /IAEA --------------------------------------------------------------------
@@ -128,12 +128,12 @@ echo "Saved to $IAEA_FILE"
 # OpenMC --------------------------------------------------------------------
 OPENMC_DIR="${ENDF_DIR}/omcchain/"
 mkdir -p "$OPENMC_DIR"
-wget -q --show-progress -O "${OPENMC_DIR}chain_casl_pwr.xml" "https://anl.box.com/shared/static/3nvnasacm2b56716oh5hyndxdyauh5gs.xml"
-wget -q --show-progress -O "${OPENMC_DIR}chain_casl_sfr.xml" "https://anl.box.com/shared/static/9fqbq87j0tx4m6vfl06pl4ccc0hwamg9.xml"
+wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_pwr.xml" "https://anl.box.com/shared/static/3nvnasacm2b56716oh5hyndxdyauh5gs.xml"
+wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_sfr.xml" "https://anl.box.com/shared/static/9fqbq87j0tx4m6vfl06pl4ccc0hwamg9.xml"
 if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
-  wget -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/os1u896bwsbopurpgas72bi6aij2zzdc.xml"
-  wget -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/9058zje1gm0ekd93hja542su50pccvj0.xml"
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/os1u896bwsbopurpgas72bi6aij2zzdc.xml"
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/9058zje1gm0ekd93hja542su50pccvj0.xml"
 elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
-  wget -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/nyezmyuofd4eqt6wzd626lqth7wvpprr.xml"
-  wget -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/x3kp739hr5upmeqpbwx9zk9ep04fnmtg.xml"
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/nyezmyuofd4eqt6wzd626lqth7wvpprr.xml"
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/x3kp739hr5upmeqpbwx9zk9ep04fnmtg.xml"
 fi
