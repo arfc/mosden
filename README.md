@@ -87,11 +87,9 @@ including analysis of each step.
 ## Using the tool from source
 Download the repository from GitHub.
 The environment will also to be created by running 
-`conda env create -f environment.yml`.
+`mamba env create -f environment.yml`.
 This should be followed with `conda activate mosdenv` to activate 
 the environment.
-Run `pip install -e .` to make the package available to use on the command line 
-as `mosden` in the `mosdenv` environment.
 Download the data used in tests by running `bash download_data.sh`.
 Check that tests pass by running `pytest` or `pytest -m "not slow"` for the 
 faster version.
