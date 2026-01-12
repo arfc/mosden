@@ -145,8 +145,11 @@ class CountRate(BaseClass):
 
         Returns
         -------
-        data : dict[str: list[float]]
+        data : dict[str, list[float]]
             Dictionary containing the times, count rates, and uncertainties
+        post_data : dict[str, list[float]] (optional)
+            Sensitivity parameters, specifying the specific samples values
+            Returned only if `MC_run` is True
         """
         def sample_parameter(val: ufloat, dist: str) -> float:
             if isinstance(val, float):
@@ -234,24 +237,21 @@ class CountRate(BaseClass):
             lam_post_data[nuc] = np.log(2) / decay_const
             conc_post_data[nuc] = conc
 
-        if MC_run:
-            if 'PnMC' not in self.post_data.keys():
-                self.post_data['PnMC'] = list()
-            if 'hlMC' not in self.post_data.keys():
-                self.post_data['hlMC'] = list()
-            if 'concMC' not in self.post_data.keys():
-                self.post_data['concMC'] = list()
-            self.post_data['PnMC'].append(Pn_post_data)
-            self.post_data['hlMC'].append(lam_post_data)
-            self.post_data['concMC'].append(conc_post_data)
-            self.save_postproc()
-
         data = {
             'times': self.decay_times,
             'counts': count_rate,
             'sigma counts': sigma_count_rate
         }
-        return data
+
+        if not MC_run:
+            return data
+
+        post_data = {}
+        post_data['PnMC'] = Pn_post_data
+        post_data['hlMC'] = lam_post_data
+        post_data['concMC'] = conc_post_data
+
+        return data, post_data
 
 
 if __name__ == '__main__':

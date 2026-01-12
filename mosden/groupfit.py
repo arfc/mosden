@@ -269,11 +269,13 @@ class Grouper(BaseClass):
         sampled_params.append(sorted_params)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
+        post_data_save = []
         for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                data = countrate.calculate_count_rate(
+                data, post_data = countrate.calculate_count_rate(
                     MC_run=True, sampler_func=self.sample_func)
+                post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
                 result = least_squares(
@@ -295,6 +297,17 @@ class Grouper(BaseClass):
             sorted_params = self._sort_params_by_half_life(result.x)
             sampled_params.append(sorted_params)
         sampled_params: np.ndarray[float] = np.asarray(sampled_params)
+
+        if 'PnMC' not in self.post_data.keys():
+            self.post_data['PnMC'] = list()
+        if 'hlMC' not in self.post_data.keys():
+            self.post_data['hlMC'] = list()
+        if 'concMC' not in self.post_data.keys():
+            self.post_data['concMC'] = list()
+        for post_data_vals in post_data_save:
+            for key in self.post_data.keys():
+                self.post_data[key].append(post_data_vals[key])
+        self.save_postproc()
 
         yields = np.zeros((self.num_groups, self.MC_samples))
         half_lives = np.zeros((self.num_groups, self.MC_samples))
