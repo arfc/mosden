@@ -19,18 +19,6 @@ class CountRate(BaseClass):
         """
         super().__init__(input_path)
 
-        if self.decay_time_spacing == 'linear':
-            self.decay_times: np.ndarray = np.linspace(
-                0, self.decay_time, self.num_times)
-        elif self.decay_time_spacing == 'log':
-            self.decay_times: np.ndarray = np.geomspace(
-                1e-2, self.decay_time, self.num_times)
-        else:
-            raise ValueError(
-                f"Decay time spacing '{self.decay_time_spacing}' not supported.")
-
-        np.random.seed(self.seed)
-
         return None
 
     def calculate_count_rate(self,
@@ -68,7 +56,7 @@ class CountRate(BaseClass):
             self.half_life_data = CSVHandler(
                 half_life_path, create=False).read_csv()
             self.concentration_data = CSVHandler(
-                self.concentration_path, create=False).read_csv()
+                self.concentration_path, create=False).read_csv_with_time()
             data = self._count_rate_from_data(MC_run, sampler_func)
         elif self.count_method == 'groupfit':
             self.group_params = CSVHandler(
@@ -207,15 +195,22 @@ class CountRate(BaseClass):
             decay_const = np.log(2) / halflife
 
             conc_data = self.concentration_data[nuc]
-            conc = ufloat(
-                conc_data['Concentration'],
-                conc_data['sigma Concentration'])
+            vals = list()
+            uncertainties = list()
+            for (val, uncertainty) in conc_data.values():
+                vals.append(val)
+                uncertainties.append(uncertainty)
+            concentration_array = unumpy.uarray(vals, uncertainties)
+            single_time_val = (len(concentration_array) == 1)
 
             if MC_run and sampler_func:
+                if not single_time_val:
+                    msg = 'Concentration not sampled over time; using initial'
+                    self.logger.warning(msg)
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
-                conc = sample_parameter(conc, sampler_func)
+                conc = sample_parameter(concentration_array[0], sampler_func)
 
                 if conc < 0.0:
                     conc = 1e-12
@@ -228,14 +223,20 @@ class CountRate(BaseClass):
                     np.exp(-decay_const * self.decay_times)
                 count_rate += counts
             else:
-                counts = Pn * decay_const * conc * \
-                    unumpy.exp(-decay_const * self.decay_times)
+                if single_time_val:
+                    counts = Pn * decay_const * concentration_array[0] * \
+                        unumpy.exp(-decay_const * self.decay_times)
+                else:
+                    raise NotImplementedError
                 count_rate += unumpy.nominal_values(counts)
                 sigma_count_rate += unumpy.std_devs(counts)
 
             Pn_post_data[nuc] = Pn
             lam_post_data[nuc] = np.log(2) / decay_const
-            conc_post_data[nuc] = conc
+            if single_time_val:
+                conc_post_data[nuc] = concentration_array[0]
+            else:
+                raise NotImplementedError
 
         data = {
             'times': self.decay_times,

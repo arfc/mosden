@@ -77,19 +77,26 @@ class Concentrations(BaseClass):
             self.logger.error(
                 'IFY method has not been verified. Use with caution')
             data = self.IFY_concentrations()
+        elif self.conc_method == 'OMC':
+            data = self.OMC_concentrations()
         else:
             raise NotImplementedError(
                 f"Concentration handling method '{
                     self.conc_method}' is not implemented")
 
-        CSVHandler(self.concentration_path, self.conc_overwrite).write_csv(data)
+        CSVHandler(self.concentration_path, self.conc_overwrite).write_csv_with_time(data)
         self.save_postproc()
         self.time_track(start, 'Concentrations')
         return
 
-    def CFY_concentrations(self) -> None:
+    def CFY_concentrations(self) -> list[dict]:
         """
         Generate the concentrations of each nuclide using the CFY method.
+
+        Returns
+        -------
+        data : list[dict]
+            Concentration and uncertainty for each nuclide post-irradiation
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
@@ -115,17 +122,25 @@ class Concentrations(BaseClass):
             concentrations[nuclide] = self.f_in * concs / loss_term
             all_nucs.add(nuclide)
 
-        data: dict[str: dict[str: float]] = dict()
-        for nuc in all_nucs:
-            data[nuc] = {}
-            data[nuc]['Concentration'] = concentrations[nuc].n
-            data[nuc]['sigma Concentration'] = concentrations[nuc].s
-
+        data = list()
+        for t in range(1):
+            for nuc in all_nucs:
+                data.append({
+                    'Time': t,
+                    'Nuclide': nuc,
+                    'Concentration': concentrations[nuc].n,
+                    'sigma Concentration': concentrations[nuc].s
+                })
         return data
 
-    def IFY_concentrations(self) -> None:
+    def IFY_concentrations(self) -> list[dict]:
         """
         Generate the concentrations of each nuclide using the IFY method.
+        
+        Returns
+        -------
+        data : list[dict]
+            Concentration and uncertainty for each nuclide post-irradiation
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
@@ -135,12 +150,15 @@ class Concentrations(BaseClass):
             concentrations[nuclide] = concs
             all_nucs.add(nuclide)
 
-        data: dict[str: dict[str: float]] = dict()
-        for nuc in all_nucs:
-            data[nuc] = {}
-            data[nuc]['Concentration'] = concentrations[nuc]
-            data[nuc]['sigma Concentration'] = 1e-12
-
+        data = list()
+        for t in range(1):
+            for nuc in all_nucs:
+                data.append({
+                    'Time': t,
+                    'Nuclide': nuc,
+                    'Concentration': concentrations[nuc],
+                    'sigma Concentration': 1e-12
+                })
         return data
 
 

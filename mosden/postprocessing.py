@@ -1159,7 +1159,7 @@ class PostProcess(BaseClass):
         data_dict['half_life'] = halflife_data
         concentration_data = CSVHandler(
             self.concentration_path,
-            create=False).read_csv()
+            create=False).read_csv_with_time(trim=True)
         data_dict['concentration'] = concentration_data
 
         emission_nucs = list(emission_prob_data.keys())
@@ -1174,8 +1174,8 @@ class PostProcess(BaseClass):
             Pn = ufloat(emission_data['emission probability'],
                         emission_data['sigma emission probability'])
             conc_data = concentration_data[nuc]
-            N = ufloat(conc_data['Concentration'],
-                       conc_data['sigma Concentration'])
+            N = ufloat(conc_data[0],
+                       conc_data[1])
             hl_data = halflife_data[nuc]
             uncert = hl_data.get('sigma half_life', 1e-12)
             hl = ufloat(hl_data['half_life'], uncert)
@@ -1232,7 +1232,6 @@ class PostProcess(BaseClass):
         net_yield, avg_half_life : tuple[float, float]
             net yield and average half-life of the group.
         """
-        data_dict = self._get_data()
         sorted_yields, sorted_concs, halflife_times_yield = self._get_sorted_dnp_data()
         net_yield = np.sum([i for i in sorted_yields.values()])
         net_N = np.sum([i for i in sorted_concs.values()])
@@ -1283,7 +1282,6 @@ class PostProcess(BaseClass):
         counter = 0
         running_sum = 0
         for index_val, (nuc, conc_val) in enumerate(sorted_concs.items()):
-            N = data_dict['nucs'][nuc]['concentration']
             if nuc in self.nuc_colors.keys():
                 colors[index_val] = self.nuc_colors[nuc]
             sizes.append(conc_val.n)

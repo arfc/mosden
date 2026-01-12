@@ -4,6 +4,7 @@ from mosden.utils.csv_handler import CSVHandler
 import os
 import logging
 import json
+import numpy as np
 from time import time
 
 
@@ -125,6 +126,19 @@ class BaseClass:
         self.num_top_conc = self.num_top.get('conc_top', 3)
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
+
+        if self.decay_time_spacing == 'linear':
+            self.decay_times: np.ndarray = np.linspace(
+                0, self.decay_time, self.num_times)
+        elif self.decay_time_spacing == 'log':
+            self.decay_times: np.ndarray = np.geomspace(
+                1e-2, self.decay_time, self.num_times)
+        else:
+            raise ValueError(
+                f"Decay time spacing '{self.decay_time_spacing}' not supported.")
+
+        np.random.seed(self.seed)
+
 
         self.names: dict[str: str] = {
             'countsMC': 'countsMC',
