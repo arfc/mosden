@@ -493,7 +493,7 @@ class PostProcess(BaseClass):
 
         """
 
-        nuclides = nuclides or self.nuclides or list(data[0].keys())
+        nuclides = nuclides or list(data[0].keys())
         xlab_new, ylab_new = self._configure_x_y_labels(
             xlab, ylab, off_nominal, relative_diff)
         num_colors = self.num_groups
@@ -692,7 +692,7 @@ class PostProcess(BaseClass):
         Compare the total DN yields from summing individuals and from
           group parameters
         """
-        summed_yield, summed_avg_halflife = self._get_summed_params(self.num_top)
+        summed_yield, summed_avg_halflife = self._get_summed_params()
         group_yield, group_avg_halflife = self._get_group_params()
 
         self.summed_yield = summed_yield
@@ -752,6 +752,8 @@ class PostProcess(BaseClass):
         for nuci, nuc in enumerate(biggest_nucs):
             rate_n = unumpy.nominal_values(count_rates[nuc])
             rate_s = unumpy.std_devs(count_rates[nuc])
+            if nuc in self.nuc_colors:
+                colors[nuci] = self.nuc_colors[nuc]
             upper = rate_n + rate_s
             lower = rate_n - rate_s
             plt.fill_between(self.decay_times, lower, upper, color=colors[nuci],
@@ -1221,16 +1223,11 @@ class PostProcess(BaseClass):
                 reverse=True))
         return sorted_yields, sorted_concs, halflife_times_yield
 
-    def _get_summed_params(self, num_top: int = 10) -> tuple[float, float]:
+    def _get_summed_params(self) -> tuple[float, float]:
         """
         Get the summed parameters from the postprocessing data
 
-        Parameters
-        ----------
-        num_top : int, optional
-            Number of top contributors to consider, by default 10
-
-        returns
+        Returns
         -------
         net_yield, avg_half_life : tuple[float, float]
             net yield and average half-life of the group.
@@ -1250,27 +1247,29 @@ class PostProcess(BaseClass):
         running_sum = 0
         sizes = list()
         labels = list()
+        colors = self.get_colors(self.num_top_yield + 2)
         counter = 0
         self.logger.info(
             f'Writing nuclide emission times concentration (net yield)')
-        for nuc, yield_val in sorted_yields.items():
+        for index_val, (nuc, yield_val) in enumerate(sorted_yields.items()):
             self.logger.info(
                 f'{nuc} - {round(yield_val.n, 5)} +/- {round(yield_val.s, 5)}')
             sizes.append(yield_val.n)
+            if nuc in self.nuc_colors.keys():
+                colors[index_val] = self.nuc_colors[nuc]
             nuc_name = self._convert_nuc_to_latex(nuc)
             fraction = 100 * yield_val.n / net_yield.n
             labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
             running_sum += yield_val
             counter += 1
             extracted_vals[nuc] = yield_val
-            if counter > num_top:
+            if counter > self.num_top_yield:
                 break
         self.logger.info(
             f'Finished nuclide emission times concentration (net yield)')
         remainder = net_yield.n - running_sum.n
         sizes.append(remainder)
         labels.append('Other' + ', ' + str(round(remainder)) + '\%')
-        colors = self.get_colors(num_top + 2)
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
@@ -1280,15 +1279,18 @@ class PostProcess(BaseClass):
 
         sizes = list()
         labels = list()
+        colors = self.get_colors(self.num_top_conc + 2)
         counter = 0
         running_sum = 0
-        for nuc, conc_val in sorted_concs.items():
+        for index_val, (nuc, conc_val) in enumerate(sorted_concs.items()):
             N = data_dict['nucs'][nuc]['concentration']
+            if nuc in self.nuc_colors.keys():
+                colors[index_val] = self.nuc_colors[nuc]
             sizes.append(conc_val.n)
             labels.append(self._convert_nuc_to_latex(nuc))
             running_sum += conc_val
             counter += 1
-            if counter > num_top:
+            if counter > self.num_top_conc:
                 break
         remainder = net_N.n - running_sum.n
         sizes.append(remainder)

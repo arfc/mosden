@@ -120,8 +120,10 @@ class BaseClass:
         self.post_overwrite: bool = overwrite_options.get('postprocessing', False)
         self.sens_subplot: bool = post_options.get('sensitivity_subplots', True)
         self.lit_data: list[str] = post_options.get('lit_data', ['keepin'])
-        self.nuclides: list[str] = post_options.get('nuclides', ['Br87'])
-        self.num_top = post_options.get('top_num_nuclides', 3)
+        self.num_top = post_options.get('top_num_nuclides', {})
+        self.num_top_yield = self.num_top.get('yield_top', 3)
+        self.num_top_conc = self.num_top.get('conc_top', 3)
+        self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
 
         self.names: dict[str: str] = {
