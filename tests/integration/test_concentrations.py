@@ -45,8 +45,6 @@ def test_chem_removal():
     """
     input_path = "tests/integration/test-data/input7.json"
     concentrations = Concentrations(input_path)
-    #concentrations.postproc_path = os.path.join(reference_output_path, 'postproc.json')
-    #concentrations.processed_data_dir = reference_output_path
     concentrations.generate_concentrations()
     output_path = Path(concentrations.output_dir) / "concentrations.csv"
     assert output_path.exists(), f"Output file {output_path} does not exist."
