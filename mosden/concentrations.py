@@ -132,6 +132,33 @@ class Concentrations(BaseClass):
                     'sigma Concentration': concentrations[nuc].s
                 })
         return data
+    
+    def OMC_concentrations(self) -> None:
+        """
+        Generate the concentrations of each nuclide using OpenMC.
+        """
+        self.repr_scale # multiply chemical removal rates by this term
+        self.reprocess: bool # if reprocessing is present
+        self.reprocess_locations: list[str] # Where reprocessing occurs
+        self.t_in: float
+        self.t_ex: float
+        self.t_net: float
+        self.decay_times: np.ndarray[float]
+        self.reprocessing: dict[str, float] # elemental reprocessing rates
+        self.energy_MeV
+        self.fissiles
+        self.temperature_K
+        self.density_g_cc
+        self.openmc_settings['nps']
+        self.openmc_settings['mode']
+        self.openmc_settings['batches']
+        self.openmc_settings['flux']
+        self.seed
+
+
+
+        return None
+
 
     def IFY_concentrations(self) -> list[dict]:
         """

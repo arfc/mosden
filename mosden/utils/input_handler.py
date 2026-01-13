@@ -127,7 +127,7 @@ class InputHandler:
         
         possible_decay_spacings = ['linear', 'log']
         _check_if_in_options(data['data_options']['decay_time_spacing'], possible_decay_spacings)
-        possible_concentration_options = ['CFY', 'IFY']
+        possible_concentration_options = ['CFY', 'IFY', 'OMC']
         _check_if_in_options(data['modeling_options']['concentration_handling'], possible_concentration_options)
         possible_irradiation_options = ['saturation', 'pulse']
         _check_if_in_options(data['modeling_options']['irrad_type'], possible_irradiation_options)

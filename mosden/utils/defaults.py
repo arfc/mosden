@@ -53,7 +53,13 @@ DEFAULTS = {
         "excore_s": 0,
         "net_irrad_s": 10000,
         "decay_time": 1200,
-        "num_decay_times": 800
+        "num_decay_times": 800,
+        "openmc_settings": {
+            "nps": 1000,
+            "mode": 'fixed source',
+            "batches": 10,
+            "flux": 1e12
+        }
     },
     "group_options": {
         "num_groups": 6,
