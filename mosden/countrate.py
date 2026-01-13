@@ -201,6 +201,7 @@ class CountRate(BaseClass):
                 vals.append(val)
                 uncertainties.append(uncertainty)
             concentration_array = unumpy.uarray(vals, uncertainties)
+            conc = concentration_array[0]
             single_time_val = (len(concentration_array) == 1)
 
             if MC_run and sampler_func:
@@ -234,7 +235,7 @@ class CountRate(BaseClass):
             Pn_post_data[nuc] = Pn
             lam_post_data[nuc] = np.log(2) / decay_const
             if single_time_val:
-                conc_post_data[nuc] = concentration_array[0]
+                conc_post_data[nuc] = conc
             else:
                 raise NotImplementedError
 
