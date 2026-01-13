@@ -177,7 +177,7 @@ class PostProcess(BaseClass):
         Analyze Monte Carlo Non-linear Least Squares results
         """
         self._plot_counts()
-        if self.MC_samples > 1:
+        if self.MC_samples > 2:
             self._plot_MC_group_params()
             self._get_sens_coeffs(write=True)
             self._plot_sensitivities(
