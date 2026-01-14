@@ -2,6 +2,7 @@ import os
 from mosden.concentrations import Concentrations
 from pathlib import Path
 from mosden.utils.csv_handler import CSVHandler
+from mosden.preprocessing import Preprocess
 import numpy as np
 import pytest
 
@@ -15,6 +16,8 @@ def test_generate_concentrations(input_path, reference_output_path):
     """
     Test the concentration generation method.
     """
+    preproc = Preprocess(input_path)
+    preproc.run()
     concentrations = Concentrations(input_path)
     concentrations.postproc_path = os.path.join(reference_output_path, 'postproc.json')
     concentrations.processed_data_dir = reference_output_path
@@ -40,6 +43,8 @@ def test_chem_removal():
     Test chemical removal using the basic test with and without chemical removal
     """
     input_path = "tests/integration/test-data/input7.json"
+    preproc = Preprocess(input_path)
+    preproc.run()
     concentrations = Concentrations(input_path)
     concentrations.generate_concentrations()
     output_path = Path(concentrations.output_dir) / "concentrations.csv"
@@ -48,6 +53,8 @@ def test_chem_removal():
     assert data_nochem, "Output file is empty."
 
     input_path = "tests/integration/test-data/input8.json"
+    preproc = Preprocess(input_path)
+    preproc.run()
     concentrations = Concentrations(input_path)
     concentrations.generate_concentrations()
     output_path = Path(concentrations.output_dir) / "concentrations.csv"
