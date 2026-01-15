@@ -196,12 +196,17 @@ class Concentrations(BaseClass):
         final_mats = results.export_to_materials(-1, path=f'{omc_dir}/materials.xml')
         sample_mat: openmc.Material = final_mats[0]
         nucs = sample_mat.get_nuclides()
-        for ti, _ in enumerate(times):
-            cur_t_data = {}
+        for ti, t in enumerate(times):
             for nuc in nucs:
                 _, concs = results.get_atoms('1', nuc)
-                cur_t_data[nuc] = concs[ti]
-            data.append(cur_t_data)
+                data.append(
+                    {
+                        'Time': t,
+                        'Nuclide': nuc,
+                        'Concentration': concs[ti],
+                        'sigma Concentration': 1e-12
+                    }
+                )
 
         return data
 
