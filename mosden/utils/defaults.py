@@ -55,12 +55,14 @@ DEFAULTS = {
         "decay_time": 1200,
         "num_decay_times": 800,
         "openmc_settings": {
-            "nps": 50000,
+            "nps": 5000,
             "mode": 'fixed source',
             "batches": 10,
             "source": 1,
-            "chain": 'endfb71/omcchain/chain_endb71_pwr.xml',
-            "x_sections": 'endfb71/xs/cross_sections.xml'
+            "chain": 'endfb71/omcchain/chain_endfb71_pwr.xml',
+            "x_sections": 'endfb71/xs/cross_sections.xml',
+            "omc_file": 'omc_run.jinja',
+            "omc_dir": f'{current_dir}/omc' 
         }
     },
     "group_options": {

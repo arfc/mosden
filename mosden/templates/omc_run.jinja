@@ -25,6 +25,7 @@ flux = {{source}}
 chain_file = '{{chain_file}}'
 reprocessing = {{reprocessing}}
 repr_scale = {{repr_scale}}
+omc_dir = '{{omc_dir}}'
 
 
 volume = mass_g / dens_g_cm3
@@ -40,7 +41,8 @@ def settings():
     settings = openmc.Settings()
     settings.batches = batches
     settings.output = {'summary': False,
-                       'tallies': False}
+                       'tallies': False,
+                       'path': omc_dir}
     settings.particles = nps
     settings.run_mode = mode
     settings.seed = seed
@@ -124,7 +126,7 @@ def tallies():
 def build_model(settings, materials, geometry, tallies):
     model = Model(geometry, materials,
                   settings, tallies)
-    model.export_to_xml()
+    model.export_to_xml(directory=omc_dir)
     return model
 
 
@@ -146,15 +148,19 @@ def get_times_and_rates():
             region = 'excore'
             source = 0
             in_core = True
+
+        if t <= 0.0:
+            continue
         
+        current_time += t
         timesteps.append(t)
         if region in reprocess_locations:
             removal_indeces.append(index_counter)
         source_rates.append(source)
-        current_time += t
         index_counter += 1
     
-    for t in decay_times:
+    decay_time_steps = np.diff(decay_times)
+    for t in decay_time_steps:
         timesteps.append(t)
         source_rates.append(0)
     return timesteps, source_rates, removal_indeces
@@ -170,6 +176,7 @@ def run():
     ts, sources, chem_times = get_times_and_rates()
     operator = openmc.deplete.CoupledOperator(model, chain_file,
                                               normalization_mode='source-rate')
+    operator.output_dir = omc_dir
     repr_obj = None
     if not np.all(np.asarray(list(reprocessing.values())) <= 0.0):
         repr_obj = openmc.deplete.transfer_rates.TransferRates(operator, model, len(ts))
@@ -185,3 +192,5 @@ def run():
         integrator.transfer_rates = repr_obj
     integrator.integrate()
     return
+
+run()

@@ -3,7 +3,10 @@ from mosden.utils.csv_handler import CSVHandler
 from uncertainties import ufloat
 from mosden.base import BaseClass
 from time import time
+import os
 from jinja2 import Environment, PackageLoader
+import subprocess
+import sys
 
 
 class Concentrations(BaseClass):
@@ -139,7 +142,7 @@ class Concentrations(BaseClass):
         Generate the concentrations of each nuclide using OpenMC.
         """
         env = Environment(loader=PackageLoader('mosden'))
-        file = 'omc_run.jinja'
+        file = self.openmc_settings['omc_file']
         template = env.get_template(file)
         chain_file = self.unprocessed_data_dir + self.openmc_settings['chain']
         cross_sections = self.unprocessed_data_dir + self.openmc_settings['x_sections']
@@ -161,11 +164,31 @@ class Concentrations(BaseClass):
             'reprocessing': self.reprocessing,
             'repr_scale': self.repr_scale,
             'chain_file': chain_file,
-            'cross_sections': cross_sections
+            'cross_sections': cross_sections,
+            'omc_dir': self.openmc_settings['omc_dir']
         }
         rendered_template = template.render(render_data)
-        input(rendered_template)
+        savedir = self.openmc_settings['omc_dir']
+        fname = 'omc.py'
+        full_name = f'{savedir}/{fname}'
+        if not os.path.exists(savedir):
+            os.makedirs(savedir)
+        with open(full_name, mode='w') as output:
+            output.write(rendered_template)
 
+        try:
+            completed_process = subprocess.run([sys.executable, full_name],
+                                               capture_output=True, text=True,
+                                               check=True)
+            with open(f'{savedir}/omc_output.txt', 'w') as f:
+                f.write(completed_process.stdout)
+        except subprocess.CalledProcessError as e:
+            print(f'OpenMC failed with return code {e.returncode}')
+            print(f'Error output: {e.stderr}')
+        except FileNotFoundError:
+            print(f'{full_name} not found')
+
+        input('...')
 
         return None
 
