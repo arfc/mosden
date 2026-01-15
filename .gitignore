@@ -167,16 +167,17 @@ cython_debug/
 /mosden/results*
 
 
-/examples/*
-!/examples/keepin_1957/input.json
-!/examples/huynh_2014/input.json
-!/examples/empty_run/input.json
-!/examples/msre/input.json
-!/examples/pure_endfb71/input.json
-!/examples/iaea_matching/input.json
-!/examples/high_fidelity/input.json
+/examples/**
+!/examples/**/
+!/examples/**/input.json
 
-!/examples/prelim_results/input.json
+/examples/prelim_results/detailed_decay/*
+/examples/prelim_results/spacing_times/*
+/examples/prelim_results/total_decay_time/*
+/examples/prelim_results/decay_time_nodes_linear/*
+/examples/prelim_results/decay_time_nodes_linear_more/*
+/examples/prelim_results/chem_long/*
+/examples/prelim_results/chem_bool/*
 !/examples/prelim_results/results_generator.py
 !/examples/prelim_results/appendixD/input_pulse.json
 !/examples/prelim_results/appendixD/input_sat.json

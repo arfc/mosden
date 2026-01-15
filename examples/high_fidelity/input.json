@@ -1,0 +1,56 @@
+{
+    "name": "IAEA HF",
+    "file_options": {
+        "overwrite": {
+            "preprocessing": true,
+            "concentrations": true,
+            "count_rate": true,
+            "group_fitting": true,
+            "postprocessing": true,
+            "logger": true
+        },
+        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
+        "log_level": 20
+    },
+    "data_options": {
+        "half_life": "iaea/eval.csv",
+        "cross_section": "",
+        "emission_probability": "iaea/eval.csv",
+        "fission_yield": "jeff311/nfpy/",
+        "decay_time_spacing": "log",
+        "temperature_K": 920,
+        "density_g_cm3": 2.3275,
+        "energy_MeV": 0.0253e-6,
+        "fissile_fractions": {
+            "U235": 1.0
+        }
+    },
+    "modeling_options": {
+        "concentration_handling": "OMC",
+        "count_rate_handling": "data",
+        "reprocessing_locations": ["excore"],
+        "reprocessing": {
+            "Xe": 0.0
+        },
+        "irrad_type": "saturation",
+        "spatial_scaling": "scaled",
+        "base_removal_scaling": 0.5,
+        "incore_s": 10,
+        "excore_s": 0,
+        "net_irrad_s": 30,
+        "decay_time": 120,
+        "num_decay_times": 10,
+        "openmc_settings": {
+            "nps": 5000,
+            "batches": 10,
+            "source": 1.0,
+            "run_omc": false
+        }
+    },
+    "group_options": {
+        "num_groups": 6,
+        "method": "nlls",
+        "samples": 1,
+        "sample_func": "normal"
+    }
+}
