@@ -55,10 +55,10 @@ DEFAULTS = {
         "decay_time": 1200,
         "num_decay_times": 800,
         "openmc_settings": {
-            "nps": 1000,
+            "nps": 50000,
             "mode": 'fixed source',
             "batches": 10,
-            "flux": 1e12
+            "source": 1
         }
     },
     "group_options": {

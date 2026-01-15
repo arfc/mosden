@@ -6,28 +6,28 @@ import openmc.deplete
 import re
 
 
-batches = 10
-nps = 50000
-mode = 'fixed source'
-seed = 1
-energy_MeV = 0.0253e-6
+batches = {{batches}}
+nps = {{nps}}
+mode = {{mode}}
+seed = {{seed}}
+energy_MeV = {{energy}}
 mass_g = 3
-g_cm3 = 2.3275
-temperature_K = 920
-fissiles = {'U235': 1.0}
+dens_g_cm3 = {{density}}
+temperature_K = {{temperature}}
+fissiles = {{fissiles}}
 xs_data = '/home/luke/projects/cross-section-libraries/endfb71/endfb71_hdf5/cross_sections.xml'
-t_in: float = 5
-t_ex: float = 3
-t_net: float = 20
-decay_times: np.ndarray[float] = np.geomspace(1e-3, 10, 5)
-reprocess_locations: list[str] = ['excore']
-flux = 1
+t_in: float = {{t_in}}
+t_ex: float = {{t_ex}}
+t_net: float = {{total_irrad_s}}
+decay_times: np.ndarray[float] = {{decay_times}}
+reprocess_locations: list[str] = {{repr_locations}}
+flux = {{source}}
 chain_file = '/home/luke/github/mosden/mosden/data/unprocessed/endfb71/omcchain/chain_casl_pwr.xml'
-reprocessing = {'Xe': 0.0}
-repr_scale = 1.0
+reprocessing = {{reprocessing}}
+repr_scale = {{repr_scale}}
 
 
-volume = mass_g / g_cm3
+volume = mass_g / dens_g_cm3
 radius = (mass_g * volume / (4 * np.pi)) ** (1/3)
 
 xs_library = openmc.data.DataLibrary.from_xml(xs_data)
@@ -63,7 +63,7 @@ def materials():
     sample.id = 1
     for nuc, frac in fissiles.items():
         sample.add_nuclide(nuc, frac, 'wo')
-    sample.set_density('g/cm3', g_cm3)
+    sample.set_density('g/cm3', dens_g_cm3)
     sample.depletable = True
     sample.volume = volume
     materials = openmc.Materials([sample])

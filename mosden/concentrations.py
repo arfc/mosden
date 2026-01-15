@@ -3,6 +3,7 @@ from mosden.utils.csv_handler import CSVHandler
 from uncertainties import ufloat
 from mosden.base import BaseClass
 from time import time
+from jinja2 import Environment, PackageLoader
 
 
 class Concentrations(BaseClass):
@@ -137,24 +138,29 @@ class Concentrations(BaseClass):
         """
         Generate the concentrations of each nuclide using OpenMC.
         """
-        self.repr_scale # multiply chemical removal rates by this term
-        self.reprocess: bool # if reprocessing is present
-        self.reprocess_locations: list[str] # Where reprocessing occurs
-        self.t_in: float
-        self.t_ex: float
-        self.t_net: float
-        self.decay_times: np.ndarray[float]
-        self.reprocessing: dict[str, float] # elemental reprocessing rates
-        self.energy_MeV
-        self.fissiles
-        self.temperature_K
-        self.density_g_cc
-        self.openmc_settings['nps']
-        self.openmc_settings['mode']
-        self.openmc_settings['batches']
-        self.openmc_settings['flux']
-        self.seed
-
+        env = Environment(loader=PackageLoader('mosden'))
+        file = 'omc_run.jinja'
+        template = env.get_template(file)
+        render_data = {
+            'nps': self.openmc_settings['nps'],
+            'mode': self.openmc_settings['mode'],
+            'batches': self.openmc_settings['batches'],
+            'source': self.openmc_settings['source'],
+            'seed': self.seed,
+            'energy': self.energy_MeV,
+            'density': self.density_g_cc,
+            'temperature': self.temperature_K,
+            'fissiles': self.fissiles,
+            't_in': self.t_in,
+            't_ex': self.t_ex,
+            'total_irrad_s': self.t_net,
+            'decay_times': self.decay_times,
+            'repr_locations': self.reprocess_locations,
+            'reprocessing': self.reprocessing,
+            'repr_scale': self.repr_scale
+        }
+        rendered_template = template.render(render_data)
+        input(rendered_template)
 
 
         return None
