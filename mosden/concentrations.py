@@ -193,9 +193,7 @@ class Concentrations(BaseClass):
         data = list()
         results = openmc.deplete.Results(f'{omc_dir}/depletion_results.h5')
         times = results.get_times(time_units='s')
-        final_mats = results.export_to_materials(-1, path=f'{omc_dir}/materials.xml')
-        sample_mat: openmc.Material = final_mats[0]
-        nucs = sample_mat.get_nuclides()
+        nucs = list(results[0].index_nuc.keys())
         for ti, t in enumerate(times):
             for nuc in nucs:
                 _, concs = results.get_atoms('1', nuc)
