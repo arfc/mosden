@@ -58,7 +58,9 @@ DEFAULTS = {
             "nps": 50000,
             "mode": 'fixed source',
             "batches": 10,
-            "source": 1
+            "source": 1,
+            "chain": 'endfb71/omcchain/chain_endb71_pwr.xml',
+            "x_sections": 'endfb71/xs/cross_sections.xml'
         }
     },
     "group_options": {

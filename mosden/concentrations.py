@@ -141,6 +141,8 @@ class Concentrations(BaseClass):
         env = Environment(loader=PackageLoader('mosden'))
         file = 'omc_run.jinja'
         template = env.get_template(file)
+        chain_file = self.unprocessed_data_dir + self.openmc_settings['chain']
+        cross_sections = self.unprocessed_data_dir + self.openmc_settings['x_sections']
         render_data = {
             'nps': self.openmc_settings['nps'],
             'mode': self.openmc_settings['mode'],
@@ -157,7 +159,9 @@ class Concentrations(BaseClass):
             'decay_times': self.decay_times,
             'repr_locations': self.reprocess_locations,
             'reprocessing': self.reprocessing,
-            'repr_scale': self.repr_scale
+            'repr_scale': self.repr_scale,
+            'chain_file': chain_file,
+            'cross_sections': cross_sections
         }
         rendered_template = template.render(render_data)
         input(rendered_template)

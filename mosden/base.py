@@ -112,6 +112,7 @@ class BaseClass:
         self.sample_func: str = group_options.get('sample_func', 'normal')
 
         self.processed_data_dir: str = file_options['processed_data_dir']
+        self.unprocessed_data_dir: str = file_options['unprocessed_data_dir']
         self.concentration_path: str = os.path.join(
             file_options['output_dir'], 'concentrations.csv')
         self.countrate_path: str = os.path.join(
