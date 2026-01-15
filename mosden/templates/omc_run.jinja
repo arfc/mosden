@@ -15,14 +15,14 @@ mass_g = 3
 dens_g_cm3 = {{density}}
 temperature_K = {{temperature}}
 fissiles = {{fissiles}}
-xs_data = {{cross_sections}}
+xs_data = '{{cross_sections}}'
 t_in: float = {{t_in}}
 t_ex: float = {{t_ex}}
 t_net: float = {{total_irrad_s}}
-decay_times: np.ndarray[float] = {{decay_times}}
+decay_times: np.ndarray[float] = [{{decay_times | join(', ')}}]
 reprocess_locations: list[str] = {{repr_locations}}
 flux = {{source}}
-chain_file = '{{chain_file}}''
+chain_file = '{{chain_file}}'
 reprocessing = {{reprocessing}}
 repr_scale = {{repr_scale}}
 
