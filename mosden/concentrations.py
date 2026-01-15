@@ -7,7 +7,7 @@ import os
 from jinja2 import Environment, PackageLoader
 import subprocess
 import sys
-
+import openmc.deplete
 
 class Concentrations(BaseClass):
     def __init__(self, input_path: str) -> None:
@@ -137,7 +137,7 @@ class Concentrations(BaseClass):
                 })
         return data
     
-    def OMC_concentrations(self) -> None:
+    def OMC_concentrations(self) -> list[dict]:
         """
         Generate the concentrations of each nuclide using OpenMC.
         """
@@ -146,6 +146,7 @@ class Concentrations(BaseClass):
         template = env.get_template(file)
         chain_file = self.unprocessed_data_dir + self.openmc_settings['chain']
         cross_sections = self.unprocessed_data_dir + self.openmc_settings['x_sections']
+        omc_dir = self.openmc_settings['omc_dir']
         render_data = {
             'nps': self.openmc_settings['nps'],
             'mode': self.openmc_settings['mode'],
@@ -165,32 +166,44 @@ class Concentrations(BaseClass):
             'repr_scale': self.repr_scale,
             'chain_file': chain_file,
             'cross_sections': cross_sections,
-            'omc_dir': self.openmc_settings['omc_dir']
+            'omc_dir': omc_dir
         }
         rendered_template = template.render(render_data)
-        savedir = self.openmc_settings['omc_dir']
         fname = 'omc.py'
-        full_name = f'{savedir}/{fname}'
-        if not os.path.exists(savedir):
-            os.makedirs(savedir)
-        with open(full_name, mode='w') as output:
-            output.write(rendered_template)
+        full_name = f'{omc_dir}/{fname}'
 
-        try:
-            completed_process = subprocess.run([sys.executable, full_name],
-                                               capture_output=True, text=True,
-                                               check=True)
-            with open(f'{savedir}/omc_output.txt', 'w') as f:
-                f.write(completed_process.stdout)
-        except subprocess.CalledProcessError as e:
-            print(f'OpenMC failed with return code {e.returncode}')
-            print(f'Error output: {e.stderr}')
-        except FileNotFoundError:
-            print(f'{full_name} not found')
+        if self.openmc_settings['run_omc']:
+            if not os.path.exists(omc_dir):
+                os.makedirs(omc_dir)
+            with open(full_name, mode='w') as output:
+                output.write(rendered_template)
 
-        input('...')
+            try:
+                completed_process = subprocess.run([sys.executable, full_name],
+                                                capture_output=True, text=True,
+                                                check=True)
+                with open(f'{omc_dir}/omc_output.txt', 'w') as f:
+                    f.write(completed_process.stdout)
+            except subprocess.CalledProcessError as e:
+                print(f'OpenMC failed with return code {e.returncode}')
+                print(f'Error output: {e.stderr}')
+            except FileNotFoundError:
+                print(f'{full_name} not found')
+        
+        data = list()
+        results = openmc.deplete.Results(f'{omc_dir}/depletion_results.h5')
+        times = results.get_times(time_units='s')
+        final_mats = results.export_to_materials(-1, path=f'{omc_dir}/materials.xml')
+        sample_mat: openmc.Material = final_mats[0]
+        nucs = sample_mat.get_nuclides()
+        for ti, _ in enumerate(times):
+            cur_t_data = {}
+            for nuc in nucs:
+                _, concs = results.get_atoms('1', nuc)
+                cur_t_data[nuc] = concs[ti]
+            data.append(cur_t_data)
 
-        return None
+        return data
 
 
     def IFY_concentrations(self) -> list[dict]:

@@ -166,32 +166,16 @@ cython_debug/
 /tests/integration/data_output
 /mosden/results*
 
-/examples/keepin_1957/*.csv
-/examples/keepin_1957/postproc.json
-/examples/keepin_1957/images/*
 
-/examples/huynh_2014/*.csv
-/examples/huynh_2014/postproc.json
-/examples/huynh_2014/images/*
+/examples/*
+!/examples/keepin_1957/input.json
+!/examples/huynh_2014/input.json
+!/examples/empty_run/input.json
+!/examples/msre/input.json
+!/examples/pure_endfb71/input.json
+!/examples/iaea_matching/input.json
+!/examples/high_fidelity/input.json
 
-/examples/empty_run/*.csv
-/examples/empty_run/postproc.json
-/examples/empty_run/images/*
-
-/examples/msre/*.csv
-/examples/msre/postproc.json
-/examples/msre/images/*
-
-/examples/pure_endfb71/*.csv
-/examples/pure_endfb71/postproc.json
-/examples/pure_endfb71/images/*
-
-/examples/iaea_matching/*.csv
-/examples/iaea_matching/postproc.json
-/examples/iaea_matching/images/*
-
-
-/examples/prelim_results/*
 !/examples/prelim_results/input.json
 !/examples/prelim_results/results_generator.py
 !/examples/prelim_results/appendixD/input_pulse.json

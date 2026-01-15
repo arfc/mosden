@@ -62,7 +62,8 @@ DEFAULTS = {
             "chain": 'endfb71/omcchain/chain_endfb71_pwr.xml',
             "x_sections": 'endfb71/xs/cross_sections.xml',
             "omc_file": 'omc_run.jinja',
-            "omc_dir": f'{current_dir}/omc' 
+            "omc_dir": f'{current_dir}/omc',
+            "run_omc": True
         }
     },
     "group_options": {
