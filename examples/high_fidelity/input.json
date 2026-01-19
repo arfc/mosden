@@ -40,9 +40,9 @@
         "base_removal_scaling": 0.5,
         "incore_s": 10,
         "excore_s": 0,
-        "net_irrad_s": 30,
-        "decay_time": 120,
-        "num_decay_times": 10,
+        "net_irrad_s": 420,
+        "decay_time": 1200,
+        "num_decay_times": 100,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,

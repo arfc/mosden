@@ -4,6 +4,7 @@ from openmc.model import Model
 import numpy as np
 import openmc.deplete
 import re
+from time import time
 
 
 batches = {{batches}}
@@ -198,4 +199,6 @@ def run():
     integrator.integrate()
     return
 
+start = time()
 run()
+print(f'Took {round(time()-start)}s')
