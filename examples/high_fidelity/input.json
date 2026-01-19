@@ -33,7 +33,10 @@
             "Xe": 0.0
         },
         "irrad_type": "saturation",
-        "spatial_scaling": "scaled",
+        "spatial_scaling": {
+            "flux": false,
+            "reprocessing": false
+        },
         "base_removal_scaling": 0.5,
         "incore_s": 10,
         "excore_s": 0,

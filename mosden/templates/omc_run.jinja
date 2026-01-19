@@ -26,6 +26,9 @@ chain_file = '{{chain_file}}'
 reprocessing = {{reprocessing}}
 repr_scale = {{repr_scale}}
 omc_dir = '{{omc_dir}}'
+flux_scaling: bool = {{flux_scaling}}
+chem_scaling: bool = {{chem_scaling}}
+f_in : float = {{f_in}}
 
 
 volume = mass_g / dens_g_cm3
@@ -154,8 +157,10 @@ def get_times_and_rates():
         
         current_time += t
         timesteps.append(t)
-        if region in reprocess_locations:
+        if (region in reprocess_locations) or chem_scaling:
             removal_indeces.append(index_counter)
+        if flux_scaling:
+            source = flux * f_in
         source_rates.append(source)
         index_counter += 1
     

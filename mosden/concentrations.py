@@ -21,11 +21,16 @@ class Concentrations(BaseClass):
         """
         super().__init__(input_path)
 
-
-        self.repr_scale = 1.0
         self.fission_term = 1.0
         self.f_in = 1.0
         self.f_ex = 1.0
+
+        self.repr_scale = 0.0
+        if 'incore' in self.reprocess_locations:
+            self.repr_scale += self.f_in
+        if 'excore' in self.reprocess_locations:
+            self.repr_scale += self.f_ex
+        self.repr_scale /= self.base_repr_scale
 
         if self.flux_scaling:
             self.fission_term = 1.0 * self.f_in
@@ -38,12 +43,7 @@ class Concentrations(BaseClass):
                 self.f_ex = 1.0
         
         if self.chem_scaling:
-            self.repr_scale = 0.0
-            if 'incore' in self.reprocess_locations:
-                self.repr_scale += self.f_in
-            if 'excore' in self.reprocess_locations:
-                self.repr_scale += self.f_ex
-            self.repr_scale /= self.base_repr_scale
+            self.repr_scale = 1.0
 
         if self.repr_scale <= 0.0:
             self.logger.error('No valid chemical removal region provided')
@@ -169,7 +169,10 @@ class Concentrations(BaseClass):
             'repr_scale': self.repr_scale,
             'chain_file': chain_file,
             'cross_sections': cross_sections,
-            'omc_dir': omc_dir
+            'omc_dir': omc_dir,
+            'flux_scaling': self.flux_scaling,
+            'chem_scaling': self.chem_scaling,
+            'f_in': self.f_in
         }
         rendered_template = template.render(render_data)
         fname = 'omc.py'
