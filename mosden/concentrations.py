@@ -21,9 +21,14 @@ class Concentrations(BaseClass):
         """
         super().__init__(input_path)
 
-        self.fission_term = 1.0
-        self.f_in = 1.0
-        self.f_ex = 1.0
+        try:
+            self.f_in: float = self.t_in / (self.t_in + self.t_ex)
+            self.f_ex: float = self.t_ex / (self.t_in + self.t_ex)
+        except ZeroDivisionError:
+            self.logger.error('No in-core or ex-core time')
+            self.f_in = 1.0
+            self.f_ex = 1.0
+        self.fission_term = 1.0 * self.f_in
 
         self.repr_scale = 0.0
         if 'incore' in self.reprocess_locations:
@@ -32,19 +37,14 @@ class Concentrations(BaseClass):
             self.repr_scale += self.f_ex
         self.repr_scale /= self.base_repr_scale
 
-        if self.flux_scaling:
-            self.fission_term = 1.0 * self.f_in
-            try:
-                self.f_in: float = self.t_in / (self.t_in + self.t_ex)
-                self.f_ex: float = self.t_ex / (self.t_in + self.t_ex)
-            except ZeroDivisionError:
-                self.logger.error('No in-core or ex-core time')
-                self.f_in = 1.0
-                self.f_ex = 1.0
+        if not self.flux_scaling:
+            self.fission_term = 1.0
+            self.f_in = 1.0
+            self.f_ex = 1.0
         
         if self.chem_scaling:
             self.repr_scale = 1.0
-
+        
         if self.repr_scale <= 0.0:
             self.logger.error('No valid chemical removal region provided')
             self.logger.warning('Setting reprocessing scale to 1.0')
