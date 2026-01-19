@@ -89,8 +89,10 @@ class BaseClass:
         self.t_ex: float = modeling_options.get('excore_s', 0.0)
         self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
-        self.spatial_scaling: str = modeling_options.get(
-            'spatial_scaling', 'unscaled')
+        self.spatial_scaling: dict[str: str] = modeling_options.get(
+            'spatial_scaling', {})
+        self.flux_scaling = self.spatial_scaling['flux']
+        self.chem_scaling = self.spatial_scaling['reprocessing']
         self.base_repr_scale: float = modeling_options.get('base_removal_scaling', 0.5)
         self.temperature_K: float = data_options.get('temperature_K', 920)
         self.density_g_cc: float = data_options.get('density_g_cm3', 2.3275)

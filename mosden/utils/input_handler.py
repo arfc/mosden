@@ -141,8 +141,6 @@ class InputHandler:
         possible_reprocessing_locations = ['incore', 'excore', 'net', '']
         for item in data['modeling_options']['reprocessing_locations']:
             _check_if_in_options(item, possible_reprocessing_locations)
-        possible_spatial_scaling = ['scaled', 'unscaled', 'explicit']
-        _check_if_in_options(data['modeling_options']['spatial_scaling'], possible_spatial_scaling)
 
         if sum(data['data_options']['fissile_fractions'].values()) != 1.0:
             raise ValueError("Fissile fractions must sum to 1.0. Current sum: "

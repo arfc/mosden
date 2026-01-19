@@ -43,7 +43,10 @@ DEFAULTS = {
         "concentration_handling": "CFY",
         "count_rate_handling": "data",
         "reprocessing_locations": [""],
-        "spatial_scaling": "scaled",
+        "spatial_scaling": {
+            "flux": True,
+            "reprocessing": True
+        },
         "base_removal_scaling": 0.5,
         "reprocessing": {
             "Xe": 0.0

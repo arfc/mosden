@@ -22,26 +22,29 @@ class Concentrations(BaseClass):
         super().__init__(input_path)
 
 
-        if self.spatial_scaling == 'unscaled':
-            self.repr_scale = 1.0
-            self.f_in = 1.0
-            self.f_ex = 1.0
-        elif self.spatial_scaling == 'scaled':
+        self.repr_scale = 1.0
+        self.fission_term = 1.0
+        self.f_in = 1.0
+        self.f_ex = 1.0
+
+        if self.flux_scaling:
+            self.fission_term = 1.0 * self.f_in
             try:
                 self.f_in: float = self.t_in / (self.t_in + self.t_ex)
                 self.f_ex: float = self.t_ex / (self.t_in + self.t_ex)
             except ZeroDivisionError:
                 self.logger.error('No in-core or ex-core time')
+                self.f_in = 1.0
+                self.f_ex = 1.0
+        
+        if self.chem_scaling:
             self.repr_scale = 0.0
             if 'incore' in self.reprocess_locations:
                 self.repr_scale += self.f_in
             if 'excore' in self.reprocess_locations:
                 self.repr_scale += self.f_ex
             self.repr_scale /= self.base_repr_scale
-        else:
-            raise NotImplementedError(
-                f'{self.spatial_scaling} not implemented')
-        self.fission_term = 1.0 * self.f_in
+
         if self.repr_scale <= 0.0:
             self.logger.error('No valid chemical removal region provided')
             self.logger.warning('Setting reprocessing scale to 1.0')
