@@ -46,6 +46,7 @@ class Concentrations(BaseClass):
             self.repr_scale = 1.0
         
         if self.repr_scale <= 0.0:
+            self.logger.info(f'{self.repr_scale = }')
             self.logger.error('No valid chemical removal region provided')
             self.logger.warning('Setting reprocessing scale to 1.0')
             self.repr_scale = 1.0
@@ -139,7 +140,7 @@ class Concentrations(BaseClass):
                     'sigma Concentration': concentrations[nuc].s
                 })
         return data
-    
+
     def OMC_concentrations(self) -> list[dict]:
         """
         Generate the concentrations of each nuclide using OpenMC.

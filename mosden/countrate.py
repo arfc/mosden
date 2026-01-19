@@ -116,7 +116,7 @@ class CountRate(BaseClass):
             'sigma counts': sigma_count_rate
         }
         return data
-
+    
     def _count_rate_from_data(self,
                               MC_run: bool = False,
                               sampler_func: str = None
@@ -201,8 +201,9 @@ class CountRate(BaseClass):
                 vals.append(val)
                 uncertainties.append(uncertainty)
             concentration_array = unumpy.uarray(vals, uncertainties)
-            conc = concentration_array[0]
             single_time_val = (len(concentration_array) == 1)
+            post_irrad_index = self.get_irrad_index(single_time_val)
+            conc = concentration_array[post_irrad_index]
 
             if MC_run and sampler_func:
                 if not single_time_val:
@@ -211,7 +212,7 @@ class CountRate(BaseClass):
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
-                conc = sample_parameter(concentration_array[0], sampler_func)
+                conc = sample_parameter(concentration_array[post_irrad_index], sampler_func)
 
                 if conc < 0.0:
                     conc = 1e-12
@@ -225,19 +226,16 @@ class CountRate(BaseClass):
                 count_rate += counts
             else:
                 if single_time_val:
-                    counts = Pn * decay_const * concentration_array[0] * \
+                    counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * self.decay_times)
                 else:
-                    raise NotImplementedError
+                    counts = Pn * decay_const * concentration_array[post_irrad_index:]
                 count_rate += unumpy.nominal_values(counts)
                 sigma_count_rate += unumpy.std_devs(counts)
 
             Pn_post_data[nuc] = Pn
             lam_post_data[nuc] = np.log(2) / decay_const
-            if single_time_val:
-                conc_post_data[nuc] = conc
-            else:
-                raise NotImplementedError
+            conc_post_data[nuc] = conc
 
         data = {
             'times': self.decay_times,

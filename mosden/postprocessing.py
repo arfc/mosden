@@ -1174,6 +1174,12 @@ class PostProcess(BaseClass):
             Pn = ufloat(emission_data['emission probability'],
                         emission_data['sigma emission probability'])
             conc_data = concentration_data[nuc]
+            if type(conc_data) is dict:
+                use_time_index = self.get_irrad_index(False)
+                time = list(conc_data.keys())
+                time.sort()
+                t = time[use_time_index]
+                conc_data = conc_data[t]
             N = ufloat(conc_data[0],
                        conc_data[1])
             hl_data = halflife_data[nuc]

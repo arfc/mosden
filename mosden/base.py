@@ -161,6 +161,39 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+    
+    def get_irrad_index(self, single_time_val: bool) -> int:
+        """
+        Calculate the burnup index at which the sample starts decay
+
+        Parameters
+        ----------
+        single_time_val : bool
+            If there is only a single time value, the index is 0
+
+        Returns
+        -------
+        post_irrad_index: int
+            Integer index position of initial decay
+        """
+        post_irrad_index: int = 0
+        if single_time_val:
+            return post_irrad_index
+        adjust_index_start_decay = 1
+
+        full_cycles = np.floor(self.t_net/(self.t_in + self.t_ex))
+        partial_time = self.t_net - full_cycles * (self.t_ex + self.t_in)
+        if partial_time > 0.0:
+            post_irrad_index += 1
+        if partial_time > self.t_in:
+            post_irrad_index += 1
+        post_irrad_index += 2 * int(full_cycles)
+        if self.t_in == 0:
+            post_irrad_index = int(np.ceil(self.t_net/self.t_ex))
+        elif self.t_ex == 0:
+            post_irrad_index = int(np.ceil(self.t_net/self.t_in)) 
+        post_irrad_index += adjust_index_start_decay
+        return post_irrad_index
 
     def load_post_data(self) -> dict[str: float | str | list]:
         """
