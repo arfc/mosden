@@ -93,7 +93,7 @@ def tallies():
     mesh.upper_right = np.array([radius, radius, radius])
     mesh_filter = openmc.MeshFilter(mesh)
 
-    # Fission Rate tally    # Prompt Neutron Yield tally
+    # Fission Rate tally
     fission_tally = openmc.Tally(name='fissionrate')
     fission_tally.filters = [mesh_filter]
     fission_tally.scores = ['fission']
