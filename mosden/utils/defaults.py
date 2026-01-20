@@ -66,7 +66,8 @@ DEFAULTS = {
             "x_sections": 'endfb71/xs/cross_sections.xml',
             "omc_file": 'omc_run.jinja',
             "omc_dir": f'{current_dir}/omc',
-            "run_omc": True
+            "run_omc": True,
+            "write_fission_json": True
         }
     },
     "group_options": {

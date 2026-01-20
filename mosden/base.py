@@ -79,6 +79,9 @@ class BaseClass:
 
         self.conc_method: str = modeling_options.get(
             'concentration_handling', 'CFY')
+        self.omc = False
+        if self.conc_method == 'OMC':
+            self.omc = True
         self.conc_overwrite: bool = overwrite_options.get('concentrations', False)
         self.reprocessing: dict[str: float] = modeling_options.get(
             'reprocessing', {})

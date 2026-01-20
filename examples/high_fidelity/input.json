@@ -41,13 +41,14 @@
         "incore_s": 10,
         "excore_s": 0,
         "net_irrad_s": 420,
-        "decay_time": 1200,
+        "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
             "source": 1.0,
-            "run_omc": false
+            "run_omc": false,
+            "write_fission_json": false
         }
     },
     "group_options": {

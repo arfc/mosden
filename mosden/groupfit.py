@@ -25,10 +25,10 @@ class Grouper(BaseClass):
         super().__init__(input_path)
         self.output_dir: str = self.input_data['file_options']['output_dir']
 
-        self.fission_term: float = self._calculate_fission_term()
+        self.fission_term, self.fission_times = self._calculate_fission_term()
         return None
 
-    def _calculate_fission_term(self) -> float:
+    def _calculate_fission_term(self) -> list[float]:
         """
         Calculate the fission rate or number of fissions.
         The fission rate is used for saturation irradiations, while the number
@@ -36,8 +36,14 @@ class Grouper(BaseClass):
 
         Returns
         -------
-        fission_term : float
-            The number/rate of fissions in the sample.
+        fission_term : list[float]
+            The number/rate of fissions in the sample. The list is length > 1
+            when using OMC for concentration calculation due to variation in the
+            fission rate history.
+        
+        times : list[float]
+            The times at which the fission history is evaluated (None unless OMC
+            is used)
 
         Raises
         ------
@@ -49,15 +55,27 @@ class Grouper(BaseClass):
             irradiation types.
         """
         conc_handler = Concentrations(self.input_path)
-        fission_term = 1.0
+        fission_term = [1.0]
+        times = None
+
+        if self.omc:
+            fission_term, times = conc_handler.read_omc_fission_json()
+            fission_term = fission_term['net']
+
         if self.irrad_type == 'pulse':
-            self.logger.error('Pulse irradiation fission term not treated')
+            fission_term = [sum(fission_term)]
+            if not self.omc:
+                self.logger.error('Pulse irradiation fission term not treated')
         elif self.irrad_type == 'saturation':
-            if conc_handler.conc_method == 'CFY' and conc_handler.spatial_scaling == 'scaled':
-                fission_term = conc_handler.f_in
+            if conc_handler.spatial_scaling == 'scaled':
+                fission_term = [conc_handler.f_in * f for f in fission_term]
         else:
             raise NameError(f'{self.irrad_type = } not available')
-        return fission_term
+
+        if not self.omc and not self.irrad_type=='pulse':
+            self.refined_fission_term = np.mean(fission_term)
+
+        return fission_term, times
 
     def generate_groups(self) -> None:
         """
@@ -143,7 +161,7 @@ class Grouper(BaseClass):
                     counts: np.ndarray[object] = np.zeros(
                         len(times), dtype=object)
                 counts += (a * lam * unumpy.exp(-lam * times))
-        return counts * self.fission_term
+        return counts * self.fission_term[0]
 
     def _saturation_fit_function(self,
                                  times: np.ndarray[float | object],
@@ -198,7 +216,29 @@ class Grouper(BaseClass):
             for j in range(irrad_circs+1, recircs+1):
                 group_counts += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
             counts += nu * group_counts
-        return self.fission_term * counts
+        return self.refined_fission_term * counts
+    
+    def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> None: 
+        """
+        Sets the `refined_fission_term` to a finer set of times.
+        Currently takes the average value rather than using a time dependent
+        version due to limitations in the derived equation.
+
+        Parameters
+        ----------
+        fine_times : np.ndarray[float]
+            The finer set of times over which to apply the fission history
+        """
+        refined_term = list()
+        for t in fine_times:
+            for i in range(len(self.fission_term)):
+                if self.fission_times[i] <= t < self.fission_times[i+1]:
+                    refined_term.append(self.fission_term[i])
+                    break
+        self.refined_fission_term = np.asarray(refined_term)
+        self.logger.info('New derivation required for time dependent fission rate history')
+        self.refined_fission_term = np.mean(self.refined_fission_term)
+        return None
 
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None
@@ -223,6 +263,8 @@ class Grouper(BaseClass):
         if count_data is None:
             count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
+        if self.omc:
+            self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
         if self.irrad_type == 'pulse':

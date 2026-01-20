@@ -8,6 +8,7 @@ from jinja2 import Environment, PackageLoader
 import subprocess
 import sys
 import openmc.deplete
+import json
 
 class Concentrations(BaseClass):
     def __init__(self, input_path: str) -> None:
@@ -212,8 +213,85 @@ class Concentrations(BaseClass):
                         'sigma Concentration': 1e-12
                     }
                 )
-
+        if self.openmc_settings['write_fission_json']:
+            self._collect_omc_fissions()
         return data
+    
+    def read_omc_fission_json(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
+        """
+        Collect the fission rate history from a json file
+
+        Returns
+        -------
+        fissions : dict[str, np.ndarray]
+            Fission rate history as a function of time for each fissile nuclide
+            and the 'net'
+        times : np.ndarray
+            The times the fission rate history is recorded
+        """
+        with open(f'{self.output_dir}/omc_fissions.json', 'r') as f:
+            full_data = json.load(f)
+        fissions = full_data['fissions']
+        times = np.array(full_data['times'])
+        for nuc in fissions.keys():
+            fissions[nuc] = np.array(fissions[nuc])
+        return fissions, times
+
+    
+    def _collect_omc_fissions(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
+        """
+        Collect the fission rate history from OpenMC output and writes to a
+        json file
+
+        Returns
+        -------
+        fissions : dict[str, np.ndarray]
+            Fission rate history as a function of time for each fissile nuclide
+            and the 'net'
+        times : np.ndarray
+            The times the fission rate history is recorded
+        """
+        if self.openmc_settings['mode'] != 'fixed source':
+            raise NotImplementedError('Only fixed source fission tracking enabled')
+        fissions = dict()
+        num_files = self.get_irrad_index(False) - 1
+        for i in range(num_files):
+            sp = openmc.StatePoint(f'{self.openmc_settings["omc_dir"]}/openmc_simulation_n{i}.h5')
+            for tally in sp.tallies.keys():
+                tally_data = sp.get_tally(id=tally)
+                if 'fissionrate' in tally_data.name:
+                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    try:
+                        df['mean'] = df['mean'] * self.openmc_settings['source']
+                    except KeyError:
+                        continue
+                    df_sorted = df.sort_values(by='mean', ascending=False)
+                    df_sorted = df_sorted.reset_index(drop=True)
+                    if i == 0:
+                        for nuc in df_sorted['nuclide']:
+                            fissions[nuc] = np.zeros(num_files)
+                        fissions['net'] = np.zeros(num_files)
+                    for nuc_i, nuc in enumerate(df_sorted['nuclide']):
+                        fissions[nuc][i] = df_sorted['mean'][nuc_i]
+                        fissions['net'][i] += fissions[nuc][i]
+
+        fiss_keys = list(fissions.keys())
+        for nuc in fiss_keys:
+            if np.all(fissions[nuc] <= 1e-12 * np.ones(num_files)):
+                del fissions[nuc]
+        results = openmc.deplete.Results(f'{self.openmc_settings["omc_dir"]}/depletion_results.h5')
+        times = results.get_times(time_units='s')[:num_files+1]
+        full_data = {}
+        full_data['fissions'] = fissions
+        full_data['times'] = times
+
+        def json_default(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+
+        with open(f'{self.output_dir}/omc_fissions.json', 'w') as f:
+            json.dump(full_data, f, indent=4, default=json_default)
+        return fissions, times
 
 
     def IFY_concentrations(self) -> list[dict]:
