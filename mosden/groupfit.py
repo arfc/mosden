@@ -72,9 +72,6 @@ class Grouper(BaseClass):
         else:
             raise NameError(f'{self.irrad_type = } not available')
 
-        if not self.omc and not self.irrad_type=='pulse':
-            self.refined_fission_term = np.mean(fission_term)
-
         return fission_term, times
 
     def generate_groups(self) -> None:
@@ -229,6 +226,10 @@ class Grouper(BaseClass):
         fine_times : np.ndarray[float]
             The finer set of times over which to apply the fission history
         """
+        if not self.omc and not self.irrad_type=='pulse':
+            self.refined_fission_term = np.mean(self.fission_term)
+            return
+
         refined_term = list()
         for t in fine_times:
             for i in range(len(self.fission_term)):
@@ -263,8 +264,7 @@ class Grouper(BaseClass):
         if count_data is None:
             count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
-        if self.omc:
-            self._set_refined_fission_term(times)
+        self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
         if self.irrad_type == 'pulse':
