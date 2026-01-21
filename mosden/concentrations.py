@@ -202,9 +202,9 @@ class Concentrations(BaseClass):
         results = openmc.deplete.Results(f'{omc_dir}/depletion_results.h5')
         times = results.get_times(time_units='s')
         nucs = list(results[0].index_nuc.keys())
-        for ti, t in enumerate(times):
-            for nuc in nucs:
-                _, concs = results.get_atoms('1', nuc)
+        for nuc in nucs:
+            _, concs = results.get_atoms('1', nuc)
+            for ti, t in enumerate(times):
                 data.append(
                     {
                         'Time': t,
