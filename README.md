@@ -95,6 +95,8 @@ Check that tests pass by running `pytest` or `pytest -m "not slow"` for the
 faster version.
 Use `mosden -a <input.json>` to do a full run, `mosden -pre <input.json>` for 
 preprocessing, or `mosden -post <input.json>` for post-processing.
+For profiling, `python -m cProfile -m mosden -a <input.json> > profile.txt` 
+can be used.
 
 ### Input file
 The input file contains the majority of parameters of interest.
