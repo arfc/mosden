@@ -975,6 +975,7 @@ class PostProcess(BaseClass):
         if self.self_relative_data:
             base_name = mc_label
             base_counts = np.asarray(count_data['counts'])
+            base_sigma = np.asarray(count_data['sigma counts'])
         group_counts = countrate.calculate_count_rate(write_data=False)
         plt.plot(
             times,
@@ -1021,6 +1022,7 @@ class PostProcess(BaseClass):
             if first and not self.self_relative_data:
                 base_name = name
                 base_counts = data['counts']
+                base_sigma = data['sigma counts']
                 first = False
 
         plt.xlabel('Time [s]')
@@ -1043,11 +1045,15 @@ class PostProcess(BaseClass):
                 alpha=alpha_MC,
                 color=sample_color,
                 label=label)
+        counts_this_work = unumpy.uarray(count_data['counts'],
+                                         count_data['sigma counts'])
+        counts_base = unumpy.uarray(base_counts,
+                                    base_sigma)
+        this_over_base = counts_this_work / counts_base
         plt.errorbar(
             times,
-            count_data['counts'] /
-            base_counts,
-            count_data['sigma counts'],
+            unumpy.nominal_values(this_over_base),
+            unumpy.std_devs(this_over_base),
             color=mean_color,
             linestyle='',
             marker='x',
@@ -1055,21 +1061,21 @@ class PostProcess(BaseClass):
             markersize=5,
             markevery=5)
 
+        counts_group = unumpy.uarray(group_counts['counts'],
+                                     group_counts['sigma counts'])
+        group_over_base = counts_group / counts_base
         plt.plot(
             times,
-            group_counts['counts'] /
-            base_counts,
+            unumpy.nominal_values(group_over_base),
             color=group_color,
-            alpha=0.75,
+            alpha=0.5,
             label='Group Fit, This Work',
             linestyle='--',
             zorder=3)
         plt.fill_between(
             times,
-            (group_counts['counts'] - group_counts['sigma counts']) /
-            base_counts,
-            (group_counts['counts'] + group_counts['sigma counts']) /
-            base_counts,
+            (unumpy.nominal_values(group_over_base) - unumpy.std_devs(group_over_base)),
+            (unumpy.nominal_values(group_over_base) + unumpy.std_devs(group_over_base)),
             color=group_color,
             alpha=0.3,
             zorder=2,
@@ -1083,17 +1089,18 @@ class PostProcess(BaseClass):
                 name = name.capitalize()
             countrate.group_params = lit_data
             data = countrate._count_rate_from_groups()
+            counts_lit = unumpy.uarray(data['counts'], data['sigma counts'])
+            lit_over_base = counts_lit / counts_base
             plt.plot(
                 times,
-                data['counts'] /
-                base_counts,
+                unumpy.nominal_values(lit_over_base),
                 label=f'{name} 6-Group Fit',
                 color=colors[index],
                 linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
                 times,
-                (data['counts'] - data['sigma counts']) / base_counts,
-                (data['counts'] + data['sigma counts']) / base_counts,
+                (unumpy.nominal_values(lit_over_base) - unumpy.std_devs(lit_over_base)),
+                (unumpy.nominal_values(lit_over_base) + unumpy.std_devs(lit_over_base)),
                 alpha=0.3,
                 zorder=2,
                 edgecolor='black',
