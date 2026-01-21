@@ -226,7 +226,7 @@ class Grouper(BaseClass):
         fine_times : np.ndarray[float]
             The finer set of times over which to apply the fission history
         """
-        if not self.omc and not self.irrad_type=='pulse':
+        if not self.omc:
             self.refined_fission_term = np.mean(self.fission_term)
             return
 

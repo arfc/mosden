@@ -44,6 +44,7 @@ def run_grouper_fit_test(irrad_type: str, fit_function_name: str, grouper: Group
 
     grouper.irrad_type = irrad_type
     grouper.num_groups = 6
+    grouper._set_refined_fission_term(times)
 
 
     parameters = yields + half_lives
@@ -80,7 +81,6 @@ def test_grouper_saturation_noex_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
     grouper.t_ex = 0
-
     run_grouper_fit_test('saturation', '_saturation_fit_function', grouper)
 
 

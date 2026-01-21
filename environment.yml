@@ -12,6 +12,7 @@ dependencies:
   - tqdm
   - openmc
   - seaborn
+  - jinja2
   - pip:
       - -e .
       - https://github.com/terrapower/armi/archive/main.zip

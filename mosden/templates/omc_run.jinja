@@ -121,7 +121,6 @@ def tallies():
     delnu_tally = openmc.Tally(name='nuyield')
     delnu_tally.filters = [mesh_filter]
     delnu_tally.scores = ['nu-fission']
-    delnu_tally.multiply_density = True
     delnu_tally.nuclides = list(set(xs_nuclide_list))
     tallies_file.append(delnu_tally)
 
