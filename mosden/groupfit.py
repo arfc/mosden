@@ -215,7 +215,7 @@ class Grouper(BaseClass):
             counts += nu * group_counts
         return self.refined_fission_term * counts
     
-    def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> None: 
+    def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
         """
         Sets the `refined_fission_term` to a finer set of times.
         Currently takes the average value rather than using a time dependent
@@ -225,6 +225,12 @@ class Grouper(BaseClass):
         ----------
         fine_times : np.ndarray[float]
             The finer set of times over which to apply the fission history
+
+        Returns
+        -------
+        refined_fission_term : float
+            The fission term calculated using the mean (future work may use the
+            explicit fission rate history tracking, returning a np.ndarray)
         """
         if not self.omc:
             self.refined_fission_term = np.mean(self.fission_term)
@@ -239,7 +245,7 @@ class Grouper(BaseClass):
         self.refined_fission_term = np.asarray(refined_term)
         self.logger.info('New derivation required for time dependent fission rate history')
         self.refined_fission_term = np.mean(self.refined_fission_term)
-        return None
+        return self.refined_fission_term
 
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None

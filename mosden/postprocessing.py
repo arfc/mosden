@@ -5,6 +5,7 @@ import os
 from mosden.utils.literature_handler import Literature
 from mosden.countrate import CountRate
 from mosden.concentrations import Concentrations
+from mosden.groupfit import Grouper
 from mosden.utils.csv_handler import CSVHandler
 from mosden.base import BaseClass
 import matplotlib.ticker as ticker
@@ -43,7 +44,11 @@ class PostProcess(BaseClass):
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
             self.logger.warning('Postdata does not exist')
-        self.fission_term = Concentrations(self.input_path).fission_term
+        grouper = Grouper(input_path)
+        fission_term, fission_times = grouper._calculate_fission_term()
+        grouper.fission_term = fission_term
+        grouper.fission_times = fission_times
+        self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
 
         return None
 
@@ -1212,7 +1217,7 @@ class PostProcess(BaseClass):
             N = data_dict['nucs'][nuc]['concentration']
             hl = data_dict['nucs'][nuc]['half_life']
             lam_val = np.log(2) / hl
-            nuc_yield[nuc] = Pn * N * lam_val / self.fission_term
+            nuc_yield[nuc] = Pn * N * lam_val / self.refined_fission_term
             self.total_delayed_neutrons += (Pn * N).n
             halflife_times_yield[nuc] = nuc_yield[nuc] * np.log(2) / lam_val
             nuc_concs[nuc] = N
