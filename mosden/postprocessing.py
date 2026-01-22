@@ -709,6 +709,10 @@ class PostProcess(BaseClass):
         self.logger.info(f'{summed_avg_halflife = } s')
         self.logger.info(f'{group_yield = }')
         self.logger.info(f'{group_avg_halflife = } s')
+        if self.omc:
+            yields = Concentrations(self.input_path).read_omc_nuyield_json()
+            omc_yield = np.mean(yields['d']['net'])
+            self.logger.info(f'{omc_yield = }')
         return None
 
     def _plot_nuclide_count_rates(self, num_stack: int = 1):

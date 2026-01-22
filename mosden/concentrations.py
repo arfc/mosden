@@ -215,6 +215,8 @@ class Concentrations(BaseClass):
                 )
         if self.openmc_settings['write_fission_json']:
             self._collect_omc_fissions()
+        if self.openmc_settings['write_nuyield_json']:
+            self._collect_omc_nuyield()
         return data
     
     def read_omc_fission_json(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
@@ -236,6 +238,15 @@ class Concentrations(BaseClass):
         for nuc in fissions.keys():
             fissions[nuc] = np.array(fissions[nuc])
         return fissions, times
+    
+    def read_omc_nuyield_json(self) -> dict[str, dict[str, np.ndarray]]:
+        with open(f'{self.output_dir}/omc_nuyield.json', 'r') as f:
+            full_data = json.load(f)
+        for type_yield in full_data.keys():
+            for nuc in full_data[type_yield].keys():
+                full_data[type_yield][nuc] = np.array(full_data[type_yield][nuc])
+        return full_data
+
 
     
     def _collect_omc_fissions(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
@@ -285,13 +296,84 @@ class Concentrations(BaseClass):
         full_data['fissions'] = fissions
         full_data['times'] = times
 
-        def json_default(obj):
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-
         with open(f'{self.output_dir}/omc_fissions.json', 'w') as f:
-            json.dump(full_data, f, indent=4, default=json_default)
+            json.dump(full_data, f, indent=4, default=self._json_default)
         return fissions, times
+    
+    def _json_default(self, obj: object):
+        """
+        JSON helper function that replaces incompatible datatypes
+
+        Parameters
+        ----------
+        obj : object
+            Some Python object
+        """
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+    
+    def _collect_omc_nuyield(self):
+        fiss, _ = self.read_omc_fission_json()
+        avg_fission_rate = np.mean(fiss['net'])
+        nuyield = dict()
+        nuyield['d'] = dict()
+        nuyield['p'] = dict()
+        results = openmc.deplete.Results(f'{self.openmc_settings["omc_dir"]}/depletion_results.h5')
+        time_cap = self.get_irrad_index(False)
+        times = results.get_times('s')[:time_cap-1]
+        for i in range(len(times)):
+            sp = openmc.StatePoint(f'{self.openmc_settings["omc_dir"]}/openmc_simulation_n{i}.h5')
+            for tally in sp.tallies.keys():
+                tally_data = sp.get_tally(id=tally)
+                if 'delnuyield' in tally_data.name:
+                    use_dict = nuyield['d']
+                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    try:
+                        df['mean'] = (df['mean'] * self.openmc_settings['source'] / avg_fission_rate)
+                    except KeyError:
+                        continue
+                    df_sorted = df.sort_values(by='mean', ascending=False)
+                    df_sorted = df_sorted.reset_index(drop=True)
+
+                    if i == 0:
+                        for nuc in df_sorted['nuclide']:
+                            use_dict[nuc] = np.zeros(len(times))
+                        use_dict['net'] = np.zeros(len(times))
+                    
+                    for nuc_i, nuc in enumerate(df_sorted['nuclide']):
+                        use_dict[nuc][i] = df_sorted['mean'][nuc_i]
+                        use_dict['net'][i] += use_dict[nuc][i]
+
+                if 'pmtnuyield' in tally_data.name:
+                    use_dict = nuyield['p']
+                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    try:
+                        df['mean'] = (df['mean'] * self.openmc_settings['source'] / avg_fission_rate)
+                    except KeyError:
+                        continue
+                    df_sorted = df.sort_values(by='mean', ascending=False)
+                    df_sorted = df_sorted.reset_index(drop=True)
+
+                    if i == 0:
+                        for nuc in df_sorted['nuclide']:
+                            use_dict[nuc] = np.zeros(len(times))
+                        use_dict['net'] = np.zeros(len(times))
+                    for nuc_i, nuc in enumerate(df_sorted['nuclide']):
+                        use_dict[nuc][i] = df_sorted['mean'][nuc_i]
+                        use_dict['net'][i] += use_dict[nuc][i]
+
+        fiss_keys = list(nuyield['d'].keys())
+        for nuc in fiss_keys:
+            if np.all(nuyield['d'][nuc] <= 1e-12 * np.ones(len(times))):
+                del nuyield['d'][nuc]
+        fiss_keys = list(nuyield['p'].keys())
+        for nuc in fiss_keys:
+            if np.all(nuyield['p'][nuc] <= 1e-12 * np.ones(len(times))):
+                del nuyield['p'][nuc]
+
+        with open(f'{self.output_dir}/omc_nuyield.json', 'w') as f:
+            json.dump(nuyield, f, indent=4, default=self._json_default)
+        return nuyield
 
 
     def IFY_concentrations(self) -> list[dict]:

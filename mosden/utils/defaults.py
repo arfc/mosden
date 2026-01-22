@@ -67,7 +67,8 @@ DEFAULTS = {
             "omc_file": 'omc_run.jinja',
             "omc_dir": f'{current_dir}/omc',
             "run_omc": True,
-            "write_fission_json": True
+            "write_fission_json": True,
+            "write_nuyield_json": True
         }
     },
     "group_options": {
