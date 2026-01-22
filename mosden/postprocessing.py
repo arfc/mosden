@@ -31,7 +31,6 @@ class PostProcess(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
-        self.self_relative_data: bool = False
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
         self.linestyles: list[str] = ['-', '--', ':', '-.']
         self.load_post_data()
@@ -1025,6 +1024,14 @@ class PostProcess(BaseClass):
                 base_sigma = data['sigma counts']
                 first = False
 
+        if first and not self.self_relative_data:
+            msg = f'No literature data is available for given energy and fissile nuclide'
+            self.logger.warning(msg)
+            self.logger.info('Using generated counts for normalization')
+            base_name = mc_label
+            base_counts = np.asarray(count_data['counts'])
+            base_sigma = np.asarray(count_data['sigma counts'])
+
         plt.xlabel('Time [s]')
         plt.ylabel(r'Count Rate $[n \cdot s^{-1}]$')
         plt.yscale('log')
@@ -1317,6 +1324,15 @@ class PostProcess(BaseClass):
         plt.tight_layout()
         fig.savefig(f'{self.img_dir}dnp_conc.png')
         plt.close()
+
+        concs = Concentrations(self.input_path)
+        if self.omc:
+            fission_term, _ = concs.read_omc_fission_json()
+            fission_data = dict()
+            for nuc, rate in fission_term.items():
+                fission_data[nuc] = np.mean(rate)
+            for nuc in self.fissiles.keys():
+                self.fissiles[nuc] = fission_data[nuc]/fission_data['net']
 
         labels = [
             self._convert_nuc_to_latex(
