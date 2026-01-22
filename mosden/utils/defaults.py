@@ -27,7 +27,7 @@ DEFAULTS = {
         "cross_section": "",
         "emission_probability": "iaea/eval.csv",
         "fission_yield": "endfb71/nfy/",
-        "decay_time_spacing": "linear",
+        "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
         "energy_MeV": 0.0253e-6,
@@ -47,9 +47,9 @@ DEFAULTS = {
         "irrad_type": "saturation",
         "incore_s": 10,
         "excore_s": 0,
-        "net_irrad_s": 420,
-        "decay_time": 600,
-        "num_decay_times": 100
+        "net_irrad_s": 10000,
+        "decay_time": 1200,
+        "num_decay_times": 800
     },
     "group_options": {
         "num_groups": 6,
@@ -57,5 +57,8 @@ DEFAULTS = {
         "samples": 1,
         "sample_func": "normal",
         "seed": seed
+    },
+    "post_options": {
+        "sensitivity_subplots": True
     }
 }

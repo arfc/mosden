@@ -9,6 +9,7 @@ from math import ceil
 from time import time
 import warnings
 from tqdm import tqdm
+from scipy.linalg import svd
 
 
 class Grouper(BaseClass):
@@ -97,6 +98,7 @@ class Grouper(BaseClass):
             parameters: np.ndarray[float],
             times: np.ndarray[float],
             counts: np.ndarray[float],
+            count_err: np.ndarray[float],
             fit_func: Callable) -> float:
         """
         Calculate the residual of the current set of parameters
@@ -108,7 +110,9 @@ class Grouper(BaseClass):
         times : np.ndarray[float]
             List of times
         counts : np.ndarray[float]
-            List of nominal times
+            List of delayed neutron counts
+        count_err : np.ndarray[float]
+            List of count errors
         fit_func : Callable
             Function that takes times and parameters to return list of counts
 
@@ -117,7 +121,7 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        residual = (counts - fit_func(times, parameters)) / (counts + 1e-12)
+        residual = (counts - fit_func(times, parameters)) / (counts)
         return residual
 
     def _pulse_fit_function(self,
@@ -267,8 +271,11 @@ class Grouper(BaseClass):
                                xtol=1e-12,
                                verbose=0,
                                max_nfev=1e5,
-                               args=(times, counts, fit_function))
-
+                               args=(times, counts, count_err, fit_function))
+        J = result.jac
+        s = svd(J, compute_uv=False)
+        condition_number = s[0] / s[-1]
+        self.logger.info(f'{condition_number = }')
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
         sorted_params = self._sort_params_by_half_life(result.x)
@@ -276,11 +283,12 @@ class Grouper(BaseClass):
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
         for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
-            data = countrate.calculate_count_rate(
-                MC_run=True, sampler_func=self.sample_func)
-            count_sample = data['counts']
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
+                data = countrate.calculate_count_rate(
+                    MC_run=True, sampler_func=self.sample_func)
+                count_sample = data['counts']
+                count_sample_err = data['sigma counts']
                 result = least_squares(
                     self._residual_function,
                     result.x,
@@ -294,6 +302,7 @@ class Grouper(BaseClass):
                     args=(
                         times,
                         count_sample,
+                        count_sample_err,
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)

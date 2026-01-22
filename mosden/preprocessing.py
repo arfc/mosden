@@ -47,12 +47,14 @@ class Preprocess(BaseClass):
         datasource_list: list[list[str]] = [
             self.omc_data_words,
             self.endf_data_words,
-            self.iaea_data_words
+            self.iaea_data_words,
+            self.jeff_data_words
         ]
         func_list: list = [
             self.openmc_preprocess,
             self.endf_preprocess,
-            self.iaea_preprocess
+            self.iaea_preprocess,
+            self.jeff_preprocess
         ]
 
         func_selector: list[zip] = list(zip(datasource_list,
@@ -76,7 +78,10 @@ class Preprocess(BaseClass):
         unprocessed_path : str
             Path to the unprocessed data
         """
-        self._openmc_chain_preprocess(data_val, unprocessed_path)
+        if data_val == 'fission_yield' or data_val == 'half_life':
+            self._openmc_chain_preprocess(data_val, unprocessed_path) 
+        else:
+            self.logger.error(f'{data_val} not available in OpenMC chain')
         return None
 
     def endf_preprocess(self, data_val: str, unprocessed_path: str) -> None:
@@ -90,7 +95,29 @@ class Preprocess(BaseClass):
         unprocessed_path : str
             Path to the unprocessed data
         """
-        self._endf_nfy_preprocess(data_val, unprocessed_path)
+        if data_val == 'fission_yield':
+            self._endf_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in ENDF')
+        return None
+    
+    def jeff_preprocess(self, data_val: str, unprocessed_path: str) -> None:
+        """
+        Processes JEFF data
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        unprocessed_path : str
+            Path to the unprocessed data
+        """
+        if data_val == 'fission_yield':
+            self._jeff_nfy_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in JEFF')
         return None
 
     def iaea_preprocess(self, data_val: str, unprocessed_path: str) -> None:
@@ -105,7 +132,10 @@ class Preprocess(BaseClass):
             Path to the unprocessed data
 
         """
-        self._iaea_dn_preprocess(data_val, unprocessed_path)
+        if data_val == 'half_life' or data_val == 'emission_probability':
+            self._iaea_dn_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in IAEA')
         return None
 
     def _iaea_dn_preprocess(self, data_val: str, path: str) -> None:
@@ -145,9 +175,39 @@ class Preprocess(BaseClass):
         CSVHandler(out_path, self.overwrite).write_csv(file_data)
         return None
 
+    def _jeff_nfy_preprocess(self, data_val: str, path: str) -> None:
+        """
+        Processes JEFF fission yield data for the specified fissile target.
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        path : str
+            Path to the unprocessed data
+        """
+        data_dir: str = os.path.join(self.data_dir, path)
+        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        pre_treated_data: dict[str: dict[str: dict[str: float]]] = dict()
+        for fissile in self.fissile_targets:
+            for file in os.listdir(data_dir):
+                fissile_endf: str = self._endf_fissile_name(fissile)
+                fissile_jeff = fissile_endf[1:].replace('_', '-')
+                if not fissile_jeff in file:
+                    continue
+                full_path: str = os.path.join(data_dir, file)
+                file_data: dict[str: dict[str: float]
+                                ] = self._process_jeff_nfy_file(full_path)
+            pre_treated_data[fissile] = file_data
+        treated_data: dict[str: dict[str: float]
+                           ] = self._treat_endf_data(pre_treated_data)
+        csv_path: str = os.path.join(out_path)
+        CSVHandler(csv_path, self.overwrite).write_csv(treated_data)
+        return None
+
     def _endf_nfy_preprocess(self, data_val: str, path: str) -> None:
         """
-        Processes ENDF data for the specified fissile target.
+        Processes ENDF fission yield data for the specified fissile target.
 
         Parameters
         ----------
@@ -173,6 +233,26 @@ class Preprocess(BaseClass):
         csv_path: str = os.path.join(out_path)
         CSVHandler(csv_path, self.overwrite).write_csv(treated_data)
         return None
+    
+    def _endf_decay_preprocess(self, data_val: str, path: str) -> None:
+        """
+        Processes ENDF decay data for the specified fissile target.
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        path : str
+            Path to the unprocessed data
+        """
+        data_dir: str = os.path.join(self.data_dir, path)
+        out_path: str = os.path.join(self.out_dir, f'{data_val}.csv')
+        file_data: dict[str: dict[str: float]
+                        ] = self._process_endf_decay_file(data_dir)
+        csv_path: str = os.path.join(out_path)
+        CSVHandler(csv_path, self.overwrite).write_csv(file_data)
+        return None
+
 
     def _treat_endf_data(
             self,
@@ -277,8 +357,8 @@ class Preprocess(BaseClass):
             Dictionary containing the processed data.
         """
         import openmc.data
-        fpys = openmc.data.FissionProductYields(
-            openmc.data.endf.Evaluation(file))
+        evaluation = openmc.data.endf.Evaluation(file)
+        fpys = openmc.data.FissionProductYields(evaluation)
         energies = fpys.energies
         fys = fpys.cumulative
         endf_nucs: list = list(fys[0].keys())
@@ -289,6 +369,75 @@ class Preprocess(BaseClass):
             data[nuc] = {}
             data[nuc]['CFY'] = fit_FY_nfy[nuc].n
             data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
+        return data
+    
+
+    def _process_jeff_nfy_file(self, file: str) -> dict[str, dict[str: float]]:
+        """
+        Processes a single JEFF NFY file and returns the data as a dictionary.
+
+        Parameters
+        ----------
+        file : str
+            Name of the NFY file to process.
+
+        Returns
+        -------
+        data : dict[str, dict[str: float]]
+            Dictionary containing the processed data.
+        """
+        import openmc.data
+        evaluation = openmc.data.endf.Evaluation(file)
+        fpys = openmc.data.FissionProductYields(evaluation)
+        energies = fpys.energies
+        fys = fpys.cumulative
+        endf_nucs: list = list(fys[0].keys())
+        fit_FY_nfy = self._fit_fy_endf(energies, fys)
+
+        data: dict[str: dict[str: float]] = dict()
+        for nuc in endf_nucs:
+            data[nuc] = {}
+            data[nuc]['CFY'] = fit_FY_nfy[nuc].n
+            data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
+        return data
+    
+    
+    def _process_endf_decay_file(self, dir: str) -> dict[str, dict[str: float]]:
+        """
+        Processes all ENDF decay files and returns the data as a dictionary.
+
+        Parameters
+        ----------
+        file : str
+            Name of the ENDF decay directory to process.
+
+        Returns
+        -------
+        data : dict[str, dict[str: float]]
+            Dictionary containing the processed data.
+        """
+        import openmc.data
+        data = dict()
+        for file in os.listdir(dir):
+            Pn = ufloat(0, 1e-12)
+            half_life = ufloat(0, 1e-12)
+            if not file.startswith(f'dec-'):
+                continue
+            decay = openmc.data.Decay.from_endf(dir+file)
+            half_life = decay.half_life
+            nuc_name = decay.nuclide['name']
+            data[nuc_name] = dict()
+            modes = decay.modes
+            for mode in modes:
+                products = mode.modes
+                if 'n' in products:
+                    multiplier = products.count('n')
+                    Pn += mode.branching_ratio * multiplier
+            if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:
+                data[nuc_name]['emission probability'] = Pn.n
+                data[nuc_name]['sigma emission probability'] = Pn.s
+                data[nuc_name]['half_life'] = half_life.n
+                data[nuc_name]['sigma half_life'] = half_life.s
         return data
 
     def _process_chain_file(self, file: str) -> dict[str, dict[str: float]]:

@@ -15,6 +15,7 @@ import pandas as pd
 from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
+from matplotlib.colors import LogNorm
 plt.style.use('mosden.plotting')
 
 
@@ -41,6 +42,7 @@ class PostProcess(BaseClass):
         self.num_groups: int = self.input_data['group_options']['num_groups']
         self.MC_samples: int = self.input_data['group_options']['samples']
         self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
+        self.sens_subplot: bool = self.input_data['post_options']['sensitivity_subplots']
         self.use_data: list[str] = [
             'keepin', 'brady', 'synetos']#, 'Modified 0D Scaled']
         self.self_relative_data: bool = False
@@ -192,11 +194,10 @@ class PostProcess(BaseClass):
                 C.append(value)
             except KeyError:
                 continue
-        norm = 'log'
+        norm = LogNorm(vmin=0.1, vmax=10)
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
-        plt.clim(0.1, 10)
         cbar.set_label(cbar_label)
         plt.xlabel("Number of neutrons (N)")
         plt.ylabel("Number of protons (Z)")
@@ -215,7 +216,7 @@ class PostProcess(BaseClass):
             self._plot_sensitivities(
                 off_nominal=True,
                 relative_diff=True,
-                subplot=False)
+                subplot=self.sens_subplot)
         return None
 
     def _get_sens_coeffs(self, write=False) -> tuple[list[dict[str, float]],
@@ -276,14 +277,18 @@ class PostProcess(BaseClass):
                             (data_vals - mean_data_val) / mean_data_val)
                         group_val = (
                             (group_vals - mean_group_val) / mean_group_val)
-                        result = linregress(data_val, group_val)
+                        try:
+                            result = linregress(data_val, group_val)
+                            pcc = result.rvalue
+                        except ValueError:
+                            pcc = 0
                         current_pcc_val = summed_pcc_data.setdefault(nuc, 0.0)
                         current_uncert_val = scaled_uncert_pcc.setdefault(nuc, 0.0)
-                        summed_pcc_data[nuc] = current_pcc_val + abs(result.rvalue)
-                        scaled_uncert_pcc[nuc] = current_uncert_val + abs(result.rvalue) * rel_uncertainty
-                        current_Ux = tracked_data[nuc][name].setdefault(r'$U_x$', 0.0)
-                        tracked_data[nuc][name][r'$U_x$'] = current_Ux + abs(result.rvalue) * rel_uncertainty
-                        if abs(result.rvalue) > pcc_cutoff:
+                        summed_pcc_data[nuc] = current_pcc_val + abs(pcc)
+                        scaled_uncert_pcc[nuc] = current_uncert_val + abs(pcc) * rel_uncertainty
+                        current_Ux = tracked_data[nuc][name].setdefault(r'$U_{i}$', 0.0)
+                        tracked_data[nuc][name][r'$U_{i}$'] = current_Ux + abs(pcc) * rel_uncertainty
+                        if abs(pcc) > pcc_cutoff:
                             nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                             gname,
                                                                             False,
@@ -297,7 +302,7 @@ class PostProcess(BaseClass):
                                 'DNP Value', []).append(nuc_lab)
                             pcc_data.setdefault(
                                 'PCC', []).append(
-                                result.rvalue)
+                                pcc)
                             nucs_with_pcc.append(nuc)
         pcc_df_data: pd.DataFrame = pd.DataFrame.from_dict(
             pcc_data, orient='columns')
@@ -324,17 +329,17 @@ class PostProcess(BaseClass):
                 data = tracked_data[nuc]
                 names = data.keys()
                 for name in names:
-                    scaled_uncert = data[name][r'$U_x$']
+                    scaled_uncert = data[name][r'$U_{i}$']
                     nuc_lab, group_lab = self._configure_x_y_labels(name,
                                                                     None,
                                                                     False,
                                                                     False)
                     table_data.setdefault('Nuclide', []).append(nuc_name)
                     table_data.setdefault('DNP Value', []).append(nuc_lab)
-                    table_data.setdefault(r'$U_{x}$', []).append(scaled_uncert)
+                    table_data.setdefault(r'$U_{i}$', []).append(scaled_uncert)
             table_df_data: pd.DataFrame = pd.DataFrame.from_dict(
                 table_data, orient='columns')
-            df_sorted = table_df_data.nlargest(top, r"$U_{x}$").sort_values(r'$U_{x}$', ascending=True)
+            df_sorted = table_df_data.nlargest(top, r"$U_{i}$").sort_values(r'$U_{i}$', ascending=True)
             dnp_vals = df_sorted["DNP Value"].unique()
             colors = self.get_colors(len(dnp_vals))
             color_map = dict(zip(dnp_vals, colors))
@@ -345,16 +350,24 @@ class PostProcess(BaseClass):
                     dup_count = labels.count(label)
                     label = label + invisible_char * dup_count
                     labels.append(label)
-                    plt.barh(label, row[r"$U_{x}$"], color=color_map[row["DNP Value"]],
+                    plt.barh(label, row[r"$U_{i}$"], color=color_map[row["DNP Value"]],
                             edgecolor='black')
             handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
             plt.legend(handles, dnp_vals, title="DNP Value")
-            plt.xlabel(r"$U_{x}$")
+            plt.xlabel(r"$U_{i}$")
             plt.tight_layout()
             plt.savefig(f'{self.output_dir}pcc-bar.png')
             plt.close()
             table_latex = table_df_data.to_latex(index=False)
             self.logger.info(f'\n{table_latex}')
+            plt.hist(list(summed_pcc_data.values()), bins=int(np.sqrt(len(list(summed_pcc_data.values())))))
+            plt.yscale('log')
+            plt.xlabel(r'$\Sigma\left|PCC\right|$')
+            plt.ylabel(r'Frequency')
+            plt.savefig(f'{self.output_dir}pcc-frequency.png')
+            plt.close()
+
+            
 
 
         return Pn_data, hl_data, conc_data, nucs_with_pcc
@@ -1279,7 +1292,9 @@ class PostProcess(BaseClass):
             self.logger.info(
                 f'{nuc} - {round(yield_val.n, 5)} +/- {round(yield_val.s, 5)}')
             sizes.append(yield_val.n)
-            labels.append(self._convert_nuc_to_latex(nuc))
+            nuc_name = self._convert_nuc_to_latex(nuc)
+            fraction = 100 * yield_val.n / net_yield.n
+            labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
             running_sum += yield_val
             counter += 1
             extracted_vals[nuc] = yield_val
@@ -1289,12 +1304,10 @@ class PostProcess(BaseClass):
             f'Finished nuclide emission times concentration (net yield)')
         remainder = net_yield.n - running_sum.n
         sizes.append(remainder)
-        labels.append('Other')
+        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
         colors = self.get_colors(num_top + 2)
         fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%',
-               pctdistance=0.7, labeldistance=1.1,
-               colors=colors)
+        ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
         fig.savefig(f'{self.output_dir}dnp_yield.png')
@@ -1314,11 +1327,9 @@ class PostProcess(BaseClass):
                 break
         remainder = net_N.n - running_sum.n
         sizes.append(remainder)
-        labels.append('Other')
+        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
         fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%',
-               pctdistance=0.7, labeldistance=1.1,
-               colors=colors)
+        ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
         fig.savefig(f'{self.output_dir}dnp_conc.png')
