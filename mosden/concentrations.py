@@ -219,9 +219,13 @@ class Concentrations(BaseClass):
             self._collect_omc_nuyield()
         return data
     
-    def read_omc_fission_json(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    def read_omc_fission_json(self, only_incore:bool = False) -> tuple[dict[str, np.ndarray], np.ndarray]:
         """
         Collect the fission rate history from a json file
+
+        only_incore : bool
+            Return the fission rate history ONLY for the in-core residence times
+            (this assumes starting in core and then alternates)
 
         Returns
         -------
@@ -236,6 +240,8 @@ class Concentrations(BaseClass):
         fissions = full_data['fissions']
         times = np.array(full_data['times'])
         for nuc in fissions.keys():
+            if only_incore:
+                fissions[nuc] = fissions[nuc][::2]
             fissions[nuc] = np.array(fissions[nuc])
         return fissions, times
     
@@ -246,9 +252,7 @@ class Concentrations(BaseClass):
             for nuc in full_data[type_yield].keys():
                 full_data[type_yield][nuc] = np.array(full_data[type_yield][nuc])
         return full_data
-
-
-    
+ 
     def _collect_omc_fissions(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
         """
         Collect the fission rate history from OpenMC output and writes to a

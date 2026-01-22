@@ -59,7 +59,7 @@ class Grouper(BaseClass):
         times = None
 
         if self.omc:
-            fission_term, times = conc_handler.read_omc_fission_json()
+            fission_term, times = conc_handler.read_omc_fission_json(only_incore=True)
             fission_term = fission_term['net']
 
         if self.irrad_type == 'pulse':
@@ -243,8 +243,8 @@ class Grouper(BaseClass):
                     refined_term.append(self.fission_term[i])
                     break
         self.refined_fission_term = np.asarray(refined_term)
-        self.logger.info('New derivation required for time dependent fission rate history')
-        self.refined_fission_term = np.mean(self.refined_fission_term)
+        self.logger.debug('Time dependent fission rate history not enabled')
+        self.refined_fission_term = np.mean(self.fission_term)
         return self.refined_fission_term
 
     def _nonlinear_least_squares(self,
