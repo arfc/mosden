@@ -79,6 +79,7 @@ DEFAULTS = {
     },
     "post_options": {
         "sensitivity_subplots": True,
+        "self_relative_counts": False,
         "top_num_nuclides": {
             'yield_top': 20,
             'conc_top': 15
