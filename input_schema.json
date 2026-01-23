@@ -1,0 +1,207 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A description of the general input formatting for MoSDeN",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "description": "Classifier to use in defining the MoSDeN simulation"
+        },
+        "multi_id": {
+            "type": ["string", "null"],
+            "description": "Alternative naming convention for use in multiple simulations"
+        },
+        "file_options": {
+            "type": "object",
+            "desription": "Options relating to files and directories",
+            "properties":{
+                "overwrite": {
+                    "type": "object",
+                    "description": "Classifiers for which data files to overwrite",
+                    "properties": {
+                        "preprocessing": {
+                            "type": "boolean",
+                            "description": "Overwrite half-lives, fission yields, and emission probabilities"
+                        },
+                        "concentrations": {
+                            "type": "boolean",
+                            "description": "Overwrite concentrations"
+                        },
+                        "count_rate": {
+                            "type": "boolean",
+                            "description": "Overwrite count rate"
+                        },
+                        "group_fitting": {
+                            "type": "boolean",
+                            "description": "Overwrite group parameters"
+                        },
+                        "postprocessing": {
+                            "type": "boolean",
+                            "description": "Overwrite postprocessing files"
+                        },
+                        "logger" : {
+                            "type": "boolean",
+                            "description": "Overwrite log file"
+                        }
+                    }
+                },
+                "unprocessed_data_dir": {
+                    "type": "string",
+                    "description": "Path to the directory storing unprocessed data"
+                },
+                "literature_data_dir": {
+                    "type": "string",
+                    "description": "Path to the directory storing literature data"
+                },
+                "reprocessing_data_dir": {
+                    "type": "string",
+                    "description": "Path to the directory storing chemical reprocessing data"
+                },
+                "processed_data_dir": {
+                    "type": "string",
+                    "description": "Path to the directory storing the data produced after preprocessing"
+                },
+                "output_dir": {
+                    "type": "string",
+                    "description": "Path to the directory where MoSDeN output is stored"
+                },
+                "log_level": {
+                    "type": "integer",
+                    "description": "Level of logger to use (see https://docs.python.org/3/library/logging.html#logging-levels)"
+                },
+                "log_file": {
+                    "type": "string",
+                    "description": "Path to the log file where logging messages are written"
+                }
+            }
+        },
+        "data_options": {
+            "type": "object",
+            "description": "Options regarding data and data evaluations",
+            "properties": {
+                "half_life": {
+                    "type": "string",
+                    "description": "Path to the half-life unprocessed data",
+                    "oneOf": [
+                    {
+                        "enum": ["iaea/eval.csv", "endfb71/decay/"]
+                    },
+                    {
+                        "pattern": "^[A-Za-z0-9]+/omcchain/.+\\.xml"
+                    }
+                    ]
+                },
+                "cross_section": {
+                    "type": "string",
+                    "description": "NotImplemented: This is a placeholder for a potential improvement incorporating cross sections into the CFY concentration calculation"
+                },
+                "emission_probability": {
+                    "type": "string",
+                    "description": "Path to the emission probability data",
+                    "enum": ["iaea/eval.csv", "endfb71/decay/"]
+                },
+                "fission_yield": {
+                    "type": "string",
+                    "description": "Path to the fission yield data",
+                    "enum": ["endfb71/nfy/", "jeff311/nfpy/"]
+                },
+                "decay_time_spacing": {
+                    "type": "string",
+                    "description": "The spacing between time nodes while the fissile sample decays",
+                    "enum": ["linear", "log"]
+                },
+                "temperature_K": {
+                    "type": "number",
+                    "description": "Temperature of the sample in Kelvin"
+                },
+                "density_g_cm3": {
+                    "type": "number",
+                    "description": "Density of the sample in grams per centimeter cubed"
+                },
+                "energy_MeV": {
+                    "type": "number",
+                    "description": "Incident neutron energy bombarding the sample "
+                },
+                "fissile_fractions": {
+                    "type": "object",
+                    "description": "The fission-weighted fissile nuclides present (if using OpenMC for concentration calculation, then the weight-percent mix of fissiles should be used",
+                    "additionalProperties": {
+                        "type": "number",
+                        "description": "These properties should be named the fissile nuclide (such as U235) and detail the weighting as a float (e.g. 0.3)"
+                    }
+                }
+            }
+        },
+        "modeling_options" : {
+            "type": "object",
+            "description": "Various options for modeling calculations",
+            "properties": {
+                "concentration_handling": {
+                    "type": "string",
+                    "description": "Method to use for concentration calculation. This include using independent fission yields (not suggested), cumulative fission yields (CFY), and OpenMC (OMC)",
+                    "enum": ["IFY", "CFY", "OMC"]
+                },
+                "count_rate_handling": {
+                    "type": "string",
+                    "description": "Method to use for calculating the delayed neutron count rate. This can either be from data or using existing group parameters from a MoSDeN output",
+                    "enum": ["data", "groupfit"]
+                },
+                "reprocessing_locations": {
+                    "type": "array",
+                    "description": "The locations where the reprocessing scheme provided occurs (NOTE: MoSDeN currently assumes all provided reprocessing parameters occur in the same spatial region",
+                    "items": {
+                        "type": "string",
+                        "enum": ["incore", "excore"]
+                    }
+                },
+                "spatial_scaling": {
+                    "type": "object",
+                    "description": "Set of booleans that inform if terms should be scaled (applied globally) or unscaled (applied locally)",
+                    "properties": {
+                        "flux": {
+                            "type": "boolean",
+                            "description": "Whether or not to scale the neutron flux"
+                        },
+                        "reprocessing": {
+                            "type": "boolean",
+                            "description": "Whether or not to scale the chemical reprocessing terms"
+                        }
+                    }
+                },
+                "base_removal_scaling": {
+                    "type": "number",
+                    "description": "The chemical reprocessing terms given to MoSDeN are assumed to be scaled terms (applied to the entire volume). This term indicates the scaling applied to those terms (1.0 if unscaled terms are provided instead)."
+                },
+                "reprocessing": {
+                    "type": "array",
+                    "description": "The reprocessing scheme to apply. Given in the form of elements (e.g. Xe) and their removal rates per second (e.g. 0.1).",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "irrad_type": {
+                    "type": "string",
+                    "description": "Type of irradiation to simulate. Saturation irradiation can be used to refer to any intermediate length irradiation as well. Pulse assumes a very short irradiation.",
+                    "enum": ["pulse", "saturation"]
+                },
+                "incore_s": {
+                    "type": "number",
+                    "description": "The residence time of the fuel salt in the core, in seconds"
+                },
+                "excore_s": {
+                    "type": "number",
+                    "description": "The residence time of the fuel salt outside the core, in seconds"
+                },
+                "net_irrad_s": {
+                    "type": "number",
+                    "description": "The total length of time the sample is irradiated, in seconds"
+                },
+                "decay_time": {
+                    "type": "number",
+                    "description": "The length of time the sample decays."
+                }
+
+            }
+        }
+    }
+}
