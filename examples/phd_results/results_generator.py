@@ -14,12 +14,12 @@ name = 'tintex'
 residence_time_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': True,
-        'overwrite': False,
+        'overwrite': True,
     },
-    'incore_s': [99, 99.9, 99.99, 100],
-    'excore_s': [0.01, 0.1, 1],
+    'incore_s': [100, 50],
+    'excore_s': [0, 50],
     'multi_id': [name]
 }
 analysis_list.append(residence_time_analysis)
@@ -92,7 +92,7 @@ def set_data(new_data: dict, dir_path: str, idx: int, combination: tuple) -> tup
     new_data['file_options']['processed_data_dir'] = str(file_dir)
     new_data['file_options']['output_dir'] = str(file_dir) + '/'
     new_data['file_options']['log_file'] = str(file_dir) + '/log.log'
-    new_data['modeling_options']['openmc_settings']['omc_dir'] = str(file_dir) + 'omc'
+    new_data['modeling_options']['openmc_settings']['omc_dir'] = str(file_dir) + '/omc'
     new_data['name'] = str(combination)
     if analysis['meta']['run_full']:
         create_directory(file_dir)
@@ -168,7 +168,7 @@ def run_mosden(analysis: dict, input_paths: list[str]) -> None:
 
 if __name__ == '__main__':
     for analysis in analysis_list:
-        dir_name = f'./{analysis["meta"]["name"]}'
+        dir_name = f'{os.getcwd()}/{analysis["meta"]["name"]}'
         if analysis['meta']['run_full'] or analysis['meta']['run_post']:
             input_paths = populate_inputs(analysis, dir_name)
             run_mosden(analysis, input_paths)
