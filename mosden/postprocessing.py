@@ -974,7 +974,7 @@ class PostProcess(BaseClass):
             label='Mean, This Work',
             markersize=5,
             markevery=5)
-        countrate.method = 'groupfit'
+        countrate.count_method = 'groupfit'
         if self.self_relative_data:
             base_name = mc_label
             base_counts = np.asarray(count_data['counts'])
@@ -1189,8 +1189,8 @@ class PostProcess(BaseClass):
         conc_nucs = list(concentration_data.keys())
         hl_nucs = list(halflife_data.keys())
         net_nucs = list(set(emission_nucs) & set(conc_nucs) & set(hl_nucs))
-        data_dict['net_nucs'] = net_nucs
         data_dict['nucs'] = {}
+        use_nucs = list()
 
         for nuc in net_nucs:
             data_dict['nucs'][nuc] = {}
@@ -1209,9 +1209,17 @@ class PostProcess(BaseClass):
             hl_data = halflife_data[nuc]
             uncert = hl_data.get('sigma half_life', 1e-12)
             hl = ufloat(hl_data['half_life'], uncert)
+            if Pn.n < 1e-24:
+                continue
+            if hl.n < 1e-24:
+                continue
+            if N.n < 1e-24:
+                continue
             data_dict['nucs'][nuc]['emission_probability'] = Pn
             data_dict['nucs'][nuc]['concentration'] = N
             data_dict['nucs'][nuc]['half_life'] = hl
+            use_nucs.append(nuc)
+        data_dict['net_nucs'] = use_nucs
         return data_dict
 
     def _get_sorted_dnp_data(self) -> tuple[dict, dict, dict]:
@@ -1236,7 +1244,8 @@ class PostProcess(BaseClass):
             N = data_dict['nucs'][nuc]['concentration']
             hl = data_dict['nucs'][nuc]['half_life']
             lam_val = np.log(2) / hl
-            nuc_yield[nuc] = Pn * N * lam_val / self.refined_fission_term
+            yield_val = Pn * N * lam_val / self.refined_fission_term
+            nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n
             halflife_times_yield[nuc] = nuc_yield[nuc] * np.log(2) / lam_val
             nuc_concs[nuc] = N
