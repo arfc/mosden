@@ -170,6 +170,7 @@ cython_debug/
 /examples/**
 !/examples/**/
 !/examples/**/input.json
+!/examples/**/*.py
 
 /examples/prelim_results/detailed_decay/*
 /examples/prelim_results/spacing_times/*

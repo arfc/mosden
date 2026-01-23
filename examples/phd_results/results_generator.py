@@ -15,100 +15,14 @@ residence_time_analysis = {
     'meta': {
         'name': name,
         'run_full': False,
-        'run_post': False,
-        'overwrite': True,
+        'run_post': True,
+        'overwrite': False,
     },
-    'incore_s': [0.1, 1, 10, 100],
-    'excore_s': [1],
+    'incore_s': [99, 99.9, 99.99, 100],
+    'excore_s': [0.01, 0.1, 1],
     'multi_id': [name]
 }
 analysis_list.append(residence_time_analysis)
-
-name = 'chem_long'
-chemical_long_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': False,
-        'run_post': False,
-        'overwrite': True
-    },
-    'reprocessing': [Reprocessing.MSBR_scheme(),
-                     Reprocessing.MSBR_scheme(include_long=False)],
-    'incore_s': [10],
-    'excore_s': [10],
-    'multi_id': [name]
-}
-analysis_list.append(chemical_long_analysis)
-
-name = 'chem_bool'
-chemical_bool_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': False,
-        'run_post': False,
-        'overwrite': True
-    },
-    'reprocessing': [Reprocessing.MSBR_scheme(),
-                     Reprocessing.MSBR_scheme(rate_scaling=0.0)],
-    'incore_s': [10],
-    'excore_s': [10],
-    'multi_id': [name]
-}
-analysis_list.append(chemical_bool_analysis)
-
-name = 'spacing_times'
-spacing_times_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': False,
-        'run_post': False,
-        'overwrite': True
-    },
-    'decay_time_spacing': ['log', 'linear'],
-    'multi_id': [name]
-}
-analysis_list.append(spacing_times_analysis)
-
-name = 'decay_time_nodes'
-decay_times_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': False,
-        'run_post': False,
-        'overwrite': True
-    },
-    'num_decay_times': [50, 100, 150, 200, 250, 400, 800],
-    'multi_id': [name]
-}
-analysis_list.append(decay_times_analysis)
-
-name = 'total_decay_time'
-total_decay_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': False,
-        'run_post': False,
-        'overwrite': True
-    },
-    'decay_time': [150, 300, 600, 1200, 2400, 4800],
-    'multi_id': [name]
-}
-analysis_list.append(total_decay_analysis)
-
-name = 'detailed_decay'
-detailed_decay_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': False,
-        'run_post': True,
-        'overwrite': True
-    },
-    'decay_time': [1200, 2400],
-    'num_decay_times': [800, 1600],
-    'multi_id': [name]
-}
-analysis_list.append(detailed_decay_analysis)
-
 
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:
@@ -176,8 +90,9 @@ def set_data(new_data: dict, dir_path: str, idx: int, combination: tuple) -> tup
     file_dir = dir_path / str(idx)
     file_path = file_dir / filename
     new_data['file_options']['processed_data_dir'] = str(file_dir)
-    new_data['file_options']['output_dir'] = str(file_dir)
+    new_data['file_options']['output_dir'] = str(file_dir) + '/'
     new_data['file_options']['log_file'] = str(file_dir) + '/log.log'
+    new_data['modeling_options']['openmc_settings']['omc_dir'] = str(file_dir) + 'omc'
     new_data['name'] = str(combination)
     if analysis['meta']['run_full']:
         create_directory(file_dir)
