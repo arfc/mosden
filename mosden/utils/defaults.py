@@ -83,7 +83,8 @@ DEFAULTS = {
         "self_relative_counts": False,
         "top_num_nuclides": {
             'yield_top': 20,
-            'conc_top': 15
+            'conc_top': 15,
+            'conc_over_time_top': 5
         },
         "num_stacked_nuclides": 2,
         "lit_data": ['keepin', 'brady', 'synetos'],

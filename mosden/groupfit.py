@@ -234,7 +234,7 @@ class Grouper(BaseClass):
         """
         if not self.omc:
             self.refined_fission_term = np.mean(self.fission_term)
-            return
+            return self.refined_fission_term
 
         refined_term = list()
         for t in fine_times:

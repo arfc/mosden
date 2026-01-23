@@ -1187,7 +1187,8 @@ class PostProcess(BaseClass):
 
         emission_nucs = list(emission_prob_data.keys())
         conc_nucs = list(concentration_data.keys())
-        net_nucs = list(set(emission_nucs) & set(conc_nucs))
+        hl_nucs = list(halflife_data.keys())
+        net_nucs = list(set(emission_nucs) & set(conc_nucs) & set(hl_nucs))
         data_dict['net_nucs'] = net_nucs
         data_dict['nucs'] = {}
 
@@ -1361,8 +1362,23 @@ class PostProcess(BaseClass):
         )
 
         ax.axis('equal')
-
         plt.tight_layout()
         fig.savefig(f'{self.img_dir}fission_fraction.png')
         plt.close()
+
+        if self.omc:
+            concentration_data = CSVHandler(self.concentration_path, create=False).read_csv_with_time()
+            for nuc in list(sorted_yields.keys())[:self.num_over_time]:
+                ts = list()
+                concs = list()
+                for t, (conc, _) in concentration_data[nuc].items():
+                    ts.append(t)
+                    concs.append(conc)
+                plt.plot(ts, concs, label=f'{self._convert_nuc_to_latex(nuc)}')
+            plt.xlabel(r'Time $[s]$')
+            plt.ylabel(r'Atoms $[\#]$')
+            plt.legend()
+            plt.savefig(f'{self.img_dir}/full_concs.png')
+            plt.close()
+
         return net_yield, avg_halflife

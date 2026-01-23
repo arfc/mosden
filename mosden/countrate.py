@@ -190,7 +190,7 @@ class CountRate(BaseClass):
                     hl_data['half_life'],
                     hl_data['sigma half_life'])
             except KeyError:
-                self.logger.warning('Half-life does not have uncertainties')
+                self.logger.debug(f'{nuc} half-life does not have uncertainties')
                 halflife = hl_data['half_life']
             decay_const = np.log(2) / halflife
 

@@ -135,6 +135,7 @@ class BaseClass:
         self.self_relative_data: bool = post_options.get('self_relative_counts', False)
         self.num_top_yield = self.num_top.get('yield_top', 3)
         self.num_top_conc = self.num_top.get('conc_top', 3)
+        self.num_over_time = self.num_top.get('conc_over_time_top', 3)
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
 
