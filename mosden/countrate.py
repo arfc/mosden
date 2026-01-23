@@ -205,6 +205,13 @@ class CountRate(BaseClass):
             post_irrad_index = self.get_irrad_index(single_time_val)
             conc = concentration_array[post_irrad_index]
 
+            if conc < 1e-24:
+                continue
+            if halflife < 1e-24:
+                continue
+            if Pn < 1e-24:
+                continue
+
             if MC_run and sampler_func:
                 if not single_time_val:
                     msg = 'Concentration not sampled over time; using initial'
