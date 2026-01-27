@@ -84,10 +84,10 @@
                     "description": "Path to the half-life unprocessed data",
                     "oneOf": [
                     {
-                        "enum": ["iaea/eval.csv", "endfb71/decay/"]
+                        "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv"]
                     },
                     {
-                        "pattern": "^[A-Za-z0-9]+/omcchain/.+\\.xml"
+                        "pattern": "^([A-Za-z0-9]+/)?omcchain/.+\\.xml"
                     }
                     ]
                 },
@@ -98,12 +98,12 @@
                 "emission_probability": {
                     "type": "string",
                     "description": "Path to the emission probability data",
-                    "enum": ["iaea/eval.csv", "endfb71/decay/"]
+                    "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv"]
                 },
                 "fission_yield": {
                     "type": "string",
                     "description": "Path to the fission yield data",
-                    "enum": ["endfb71/nfy/", "jeff311/nfpy/"]
+                    "pattern": "^(?:.*/)?(endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml)$"
                 },
                 "decay_time_spacing": {
                     "type": "string",
