@@ -151,7 +151,7 @@
                     "description": "The locations where the reprocessing scheme provided occurs (NOTE: MoSDeN currently assumes all provided reprocessing parameters occur in the same spatial region",
                     "items": {
                         "type": "string",
-                        "enum": ["incore", "excore"]
+                        "enum": ["incore", "excore", ""]
                     }
                 },
                 "spatial_scaling": {
@@ -218,7 +218,7 @@
                             "enum": ["eigenvalue", "fixed source"]
                         },
                         "batches": {
-                            "type": "string",
+                            "type": "number",
                             "description": "The number of (active) batches"
                         },
                         "source": {

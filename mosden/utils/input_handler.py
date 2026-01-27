@@ -1,6 +1,9 @@
 import json
 from mosden.utils.defaults import DEFAULTS
 import logging
+import jsonschema
+from jsonschema import validate
+import os
 
 class InputHandler:
     _default_counts = {}
@@ -23,8 +26,6 @@ class InputHandler:
             "fissile_fractions"
         ))
         
-        self.independent_fission_yields = ['omcchain']
-        self.cumulative_fission_yields = ['nfy', 'jeff']
         return None
     
     def read_input(self, check: bool=True, apply_defaults: bool=True) -> dict:
@@ -110,37 +111,13 @@ class InputHandler:
                 raise ValueError(f'Option {item} not supported in {options}')
             return None
 
-        if data['file_options']['unprocessed_data_dir'] == data['file_options']['processed_data_dir']:
-            raise ValueError("Unprocessed and processed data directories cannot be the same.")
-        if data['file_options']['unprocessed_data_dir'] == data['file_options']['output_dir']:
-            raise ValueError("Unprocessed data directory cannot be the same as the output directory.")
-        if data['modeling_options']['concentration_handling'] == 'IFY':
-            ify_in_yields = any(val in data['data_options']['fission_yield'] for val in self.independent_fission_yields)
-            if not ify_in_yields:
-                raise ValueError(f"IFY requires independent fission yield data {self.independent_fission_yields} (not in {data["data_options"]["fission_yield"]})")
-        if data['modeling_options']['concentration_handling'] == 'CFY':
-            cfy_in_yields = any(val in data['data_options']['fission_yield'] for val in self.cumulative_fission_yields)
-            if not cfy_in_yields:
-                raise ValueError(f"CFY requires cumulative fission yield data {self.cumulative_fission_yields} (not in {data["data_options"]["fission_yield"]})")
         if data['modeling_options']['base_removal_scaling'] == 0.0:
             self.logger.warning('Base removal scaling set to 0.0, see README for more information.')
+        json_schema_path = os.path.join(os.path.dirname(__file__), '../templates/input_schema.json')
+        with open(json_schema_path, 'r') as f:
+            schema = json.load(f)
         
-        possible_decay_spacings = ['linear', 'log']
-        _check_if_in_options(data['data_options']['decay_time_spacing'], possible_decay_spacings)
-        possible_concentration_options = ['CFY', 'IFY', 'OMC']
-        _check_if_in_options(data['modeling_options']['concentration_handling'], possible_concentration_options)
-        possible_irradiation_options = ['saturation', 'pulse']
-        _check_if_in_options(data['modeling_options']['irrad_type'], possible_irradiation_options)
-        possible_count_rate_options = ['data']
-        _check_if_in_options(data['modeling_options']['count_rate_handling'], possible_count_rate_options)
-        possible_group_method_options = ['nlls']
-        _check_if_in_options(data['group_options']['method'], possible_group_method_options)
-        possible_sampler_funcs = ['normal', 'uniform']
-        _check_if_in_options(data['group_options']['sample_func'], possible_sampler_funcs)
-
-        possible_reprocessing_locations = ['incore', 'excore', 'net', '']
-        for item in data['modeling_options']['reprocessing_locations']:
-            _check_if_in_options(item, possible_reprocessing_locations)
+        validate(data, schema=schema)
 
         if sum(data['data_options']['fissile_fractions'].values()) != 1.0:
             raise ValueError("Fissile fractions must sum to 1.0. Current sum: "

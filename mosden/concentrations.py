@@ -149,8 +149,8 @@ class Concentrations(BaseClass):
         env = Environment(loader=PackageLoader('mosden'))
         file = self.openmc_settings['omc_file']
         template = env.get_template(file)
-        chain_file = self.unprocessed_data_dir + self.openmc_settings['chain']
-        cross_sections = self.unprocessed_data_dir + self.openmc_settings['x_sections']
+        chain_file = os.path.join(self.unprocessed_data_dir, self.openmc_settings['chain'])
+        cross_sections = os.path.join(self.unprocessed_data_dir, self.openmc_settings['x_sections'])
         omc_dir = self.openmc_settings['omc_dir']
         render_data = {
             'nps': self.openmc_settings['nps'],
