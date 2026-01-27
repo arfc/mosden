@@ -172,6 +172,8 @@ cython_debug/
 !/examples/**/input.json
 !/examples/**/*.py
 
+/examples/phd_results/tintex/*
+
 /examples/prelim_results/detailed_decay/*
 /examples/prelim_results/spacing_times/*
 /examples/prelim_results/total_decay_time/*
