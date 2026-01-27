@@ -25,54 +25,7 @@ class Grouper(BaseClass):
         super().__init__(input_path)
         self.output_dir: str = self.input_data['file_options']['output_dir']
 
-        self.fission_term, self.fission_times = self._calculate_fission_term()
         return None
-
-    def _calculate_fission_term(self) -> list[float]:
-        """
-        Calculate the fission rate or number of fissions.
-        The fission rate is used for saturation irradiations, while the number
-        of fissions is used for pulse irradiations.
-
-        Returns
-        -------
-        fission_term : list[float]
-            The number/rate of fissions in the sample. The list is length > 1
-            when using OMC for concentration calculation due to variation in the
-            fission rate history.
-        
-        times : list[float]
-            The times at which the fission history is evaluated (None unless OMC
-            is used)
-
-        Raises
-        ------
-        NotImplementedError
-            Pulse irradiation not yet available.
-
-        NameError
-            Type of irradiation provided does not match any of the available
-            irradiation types.
-        """
-        conc_handler = Concentrations(self.input_path)
-        fission_term = [1.0]
-        times = None
-
-        if self.omc:
-            fission_term, times = conc_handler.read_omc_fission_json(only_incore=True)
-            fission_term = fission_term['net']
-
-        if self.irrad_type == 'pulse':
-            fission_term = [sum(fission_term)]
-            if not self.omc:
-                self.logger.error('Pulse irradiation fission term not treated')
-        elif self.irrad_type == 'saturation':
-            if conc_handler.spatial_scaling == 'scaled':
-                fission_term = [conc_handler.f_in * f for f in fission_term]
-        else:
-            raise NameError(f'{self.irrad_type = } not available')
-
-        return fission_term, times
 
     def generate_groups(self) -> None:
         """
@@ -232,6 +185,8 @@ class Grouper(BaseClass):
             The fission term calculated using the mean (future work may use the
             explicit fission rate history tracking, returning a np.ndarray)
         """
+        concs = Concentrations(self.input_path)
+        self.fission_term, self.fission_times = concs._calculate_fission_term()
         if not self.omc:
             self.refined_fission_term = np.mean(self.fission_term)
             return self.refined_fission_term
@@ -311,6 +266,7 @@ class Grouper(BaseClass):
         s = svd(J, compute_uv=False)
         condition_number = s[0] / s[-1]
         self.logger.info(f'{condition_number = }')
+        self.logger.info(result)
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
         sorted_params = self._sort_params_by_half_life(result.x)

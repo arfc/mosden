@@ -1,5 +1,5 @@
 {
-    "name": "IAEA HF",
+    "name": "OMC test",
     "file_options": {
         "overwrite": {
             "preprocessing": true,
@@ -9,8 +9,10 @@
             "postprocessing": true,
             "logger": true
         },
-        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
-        "log_level": 20
+        "processed_data_dir": "./tests/integration/output_omc",
+        "output_dir": "./tests/integration/output_omc",
+        "log_level": 15,
+        "log_file": "./tests/integration/output_omc/log.log"
     },
     "data_options": {
         "half_life": "endfb71/decay/",
@@ -47,6 +49,7 @@
             "nps": 5000,
             "batches": 10,
             "source": 1e3,
+            "omc_dir": "./tests/integration/output_omc/omc",
             "run_omc": true,
             "write_fission_json": true,
             "write_nuyield_json": true

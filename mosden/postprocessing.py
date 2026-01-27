@@ -44,9 +44,6 @@ class PostProcess(BaseClass):
         except KeyError:
             self.logger.warning('Postdata does not exist')
         grouper = Grouper(input_path)
-        fission_term, fission_times = grouper._calculate_fission_term()
-        grouper.fission_term = fission_term
-        grouper.fission_times = fission_times
         self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
 
         return None

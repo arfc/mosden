@@ -193,10 +193,12 @@ class Concentrations(BaseClass):
                 with open(f'{omc_dir}/omc_output.txt', 'w') as f:
                     f.write(completed_process.stdout)
             except subprocess.CalledProcessError as e:
-                print(f'OpenMC failed with return code {e.returncode}')
-                print(f'Error output: {e.stderr}')
+                self.logger.error(f'OpenMC failed with return code {e.returncode}')
+                self.logger.error(f'Error output: {e.stderr}')
+                raise RuntimeError('OpenMC did not complete run')
             except FileNotFoundError:
-                print(f'{full_name} not found')
+                self.logger.error(f'{full_name} not found')
+                raise FileNotFoundError
         
         data = list()
         results = openmc.deplete.Results(f'{omc_dir}/depletion_results.h5')
@@ -378,6 +380,51 @@ class Concentrations(BaseClass):
         with open(f'{self.output_dir}/omc_nuyield.json', 'w') as f:
             json.dump(nuyield, f, indent=4, default=self._json_default)
         return nuyield
+    
+    def _calculate_fission_term(self) -> list[float]:
+        """
+        Calculate the fission rate or number of fissions.
+        The fission rate is used for saturation irradiations, while the number
+        of fissions is used for pulse irradiations.
+
+        Returns
+        -------
+        fission_term : list[float]
+            The number/rate of fissions in the sample. The list is length > 1
+            when using OMC for concentration calculation due to variation in the
+            fission rate history.
+        
+        times : list[float]
+            The times at which the fission history is evaluated (None unless OMC
+            is used)
+
+        Raises
+        ------
+        NotImplementedError
+            Pulse irradiation not yet available.
+
+        NameError
+            Type of irradiation provided does not match any of the available
+            irradiation types.
+        """
+        fission_term = [1.0]
+        times = None
+
+        if self.omc:
+            fission_term, times = self.read_omc_fission_json(only_incore=True)
+            fission_term = fission_term['net']
+
+        if self.irrad_type == 'pulse':
+            fission_term = [sum(fission_term)]
+            if not self.omc:
+                self.logger.error('Pulse irradiation fission term not treated')
+        elif self.irrad_type == 'saturation':
+            if self.spatial_scaling == 'scaled':
+                fission_term = [self.f_in * f for f in fission_term]
+        else:
+            raise NameError(f'{self.irrad_type = } not available')
+
+        return fission_term, times
 
 
     def IFY_concentrations(self) -> list[dict]:
