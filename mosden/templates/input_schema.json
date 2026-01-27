@@ -173,9 +173,9 @@
                     "description": "The chemical reprocessing terms given to MoSDeN are assumed to be scaled terms (applied to the entire volume). This term indicates the scaling applied to those terms (1.0 if unscaled terms are provided instead)."
                 },
                 "reprocessing": {
-                    "type": "array",
+                    "type": "object",
                     "description": "The reprocessing scheme to apply. Given in the form of elements (e.g. Xe) and their removal rates per second (e.g. 0.1).",
-                    "items": {
+                    "additionalProperties": {
                         "type": "number"
                     }
                 },
@@ -198,9 +198,141 @@
                 },
                 "decay_time": {
                     "type": "number",
-                    "description": "The length of time the sample decays."
+                    "description": "The length of time the sample decays"
+                },
+                "num_decay_times": {
+                    "type": "number",
+                    "description": "The number of data points during sample decay"
+                },
+                "openmc_settings": {
+                    "type": "object",
+                    "description": "The settings to use in OpenMC",
+                    "properties": {
+                        "nps": {
+                            "type": "number",
+                            "description": "The number of source particles per generation"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": "The mode for OpenMC to use. `fixed source` should be used generally, but `eigenvalue` can be used for debugging",
+                            "enum": ["eigenvalue", "fixed source"]
+                        },
+                        "batches": {
+                            "type": "string",
+                            "description": "The number of (active) batches"
+                        },
+                        "source": {
+                            "type": "number",
+                            "description": "The number of source particles per second"
+                        },
+                        "chain": {
+                            "type": "string",
+                            "description": "The path to the OpenMC xml chain file"
+                        },
+                        "x_sections": {
+                            "type": "string",
+                            "description": "The path to the OpenMC xml cross sections"
+                        },
+                        "omc_file": {
+                            "type": "string",
+                            "description": "The path to the OpenMC template file",
+                            "enum": ["omc_run.jinja"]
+                        },
+                        "omc_dir": {
+                            "type": "string",
+                            "description": "The path to the OpenMC output directory"
+                        },
+                        "run_omc": {
+                            "type": "boolean",
+                            "description": "Whether or not to run OpenMC"
+                        },
+                        "write_fission_json": {
+                            "type": "boolean",
+                            "description": "Whether or not to write the fission output to a JSON file"
+                        },
+                        "write_nuyield_json": {
+                            "type": "boolean",
+                            "description": "Whether or not to write the delayed neutron yield output to a JSON file"
+                        }
+                    }
                 }
-
+            }
+        },
+        "group_options": {
+            "type": "object",
+            "description": "Options for group parameter calculation",
+            "properties": {
+                "num_groups": {
+                    "type": "integer",
+                    "description": "The number of delayed neutron precursor groups"
+                },
+                "method": {
+                    "type": "string",
+                    "description": "The method to use to convert from delayed neutron counts into delayed neutron precursor group parameters. This currently includes non-linear least squares (nlls)",
+                    "enum": ["nlls"]
+                },
+                "samples": {
+                    "type": "integer",
+                    "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)"
+                },
+                "sample_func": {
+                    "type": "string",
+                    "description": "The function type to use for randomly sampling data",
+                    "enum": ["normal", "uniform"]
+                },
+                "seed": {
+                    "type": "integer",
+                    "description": "The seed to use for random number generation (for sampling data)"
+                }
+            }
+        },
+        "post_options": {
+            "type": "object",
+            "description": "Post-processing options",
+            "properties": {
+                "sensitivity_subplots": {
+                    "type": "boolean",
+                    "description": "Whether to combine the sensitivty results into a larger plot composed of subplots"
+                },
+                "self_relative_counts": {
+                    "type": "boolean",
+                    "description": "Whether to plot delayed neutron counts normalized to self or first item in `lit_data` for the literature comparison figure"
+                },
+                "top_num_nuclides": {
+                    "type": "object",
+                    "properties": {
+                        "yield_top": {
+                            "type": "integer",
+                            "description": "The number of nuclides with the largest yields to include in figures"
+                        },
+                        "conc_top": {
+                            "type": "integer",
+                            "description": "The number of nuclides with the largest concentrations to include in figures"
+                        },
+                        "conc_over_time_top": {
+                            "type": "integer",
+                            "description": "The number of nuclides with the largest yields to plot the concentration over time"
+                        }
+                    }
+                },
+                "num_stacked_nuclides": {
+                    "type": "integer",
+                    "description": "Plots the top X nuclides at each time step, where X is this value"
+                },
+                "lit_data": {
+                    "type": "array",
+                    "description": "Data from the literature to compare against. Must be present in the data directory",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "nuc_colors": {
+                    "type": "object",
+                    "description": "Assign colors directly to nuclides",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
             }
         }
     }
