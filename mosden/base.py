@@ -91,6 +91,7 @@ class BaseClass:
         self.t_in: float = modeling_options.get('incore_s', 0.0)
         self.t_ex: float = modeling_options.get('excore_s', 0.0)
         self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
+        self.t_net = self._update_t_net()
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: dict[str: str] = modeling_options.get(
             'spatial_scaling', {})
@@ -166,6 +167,21 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+    
+    def _update_t_net(self) -> float:
+        """
+        Changes the net irradiation time to ensure the sample is in the core outlet.
+        This greatly improves the condition number of the least squares solve.
+
+        Returns
+        -------
+        t_net : float
+            The updated net irradiation time
+        """
+        cycle = self.t_in + self.t_ex
+        k = np.ceil((self.t_net - self.t_in) / cycle)
+        k = max(k, 0)
+        return k * cycle + self.t_in
     
     def get_irrad_index(self, single_time_val: bool) -> int:
         """
