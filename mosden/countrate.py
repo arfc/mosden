@@ -148,7 +148,7 @@ class CountRate(BaseClass):
         data : dict[str, list[float]]
             Dictionary containing the times, count rates, and uncertainties
         post_data : dict[str, list[float]] (optional)
-            Sensitivity parameters, specifying the specific samples values
+            Sensitivity parameters, specifying the specific sample's values
             Returned only if `MC_run` is True
         """
         def sample_parameter(val: ufloat, dist: str) -> float:
