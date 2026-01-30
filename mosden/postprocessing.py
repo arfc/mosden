@@ -1304,7 +1304,7 @@ class PostProcess(BaseClass):
             f'Finished nuclide emission times concentration (net yield)')
         remainder = net_yield.n - running_sum.n
         sizes.append(remainder)
-        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
+        labels.append('Other' + ', ' + str(round(100*remainder/net_yield.n)) + '\%')
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
@@ -1321,14 +1321,16 @@ class PostProcess(BaseClass):
             if nuc in self.nuc_colors.keys():
                 colors[index_val] = self.nuc_colors[nuc]
             sizes.append(conc_val.n)
-            labels.append(self._convert_nuc_to_latex(nuc))
-            running_sum += conc_val
+            fraction = 100 * conc_val.n / net_N.n
+            nuc_name = self._convert_nuc_to_latex(nuc)
+            labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
+            running_sum += conc_val.n
             counter += 1
             if counter > self.num_top_conc:
                 break
-        remainder = net_N.n - running_sum.n
+        remainder = net_N.n - running_sum
         sizes.append(remainder)
-        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
+        labels.append('Other' + ', ' + str(round(100*remainder/net_N.n)) + '\%')
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
