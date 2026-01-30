@@ -39,6 +39,8 @@ def setup_classes():
 def test_chemical_removal(setup_classes):
     input_path = setup_classes
     concs = Concentrations(input_path)
+    concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), 'output_omc/omc')
+    concs.logger.error(f'{concs.openmc_settings["omc_dir"]}')
     concs.t_in = 27
     concs.t_ex = 3
     concs.reprocess_locations = ['excore', 'incore']

@@ -42,14 +42,13 @@
         "base_removal_scaling": 0.5,
         "incore_s": 5,
         "excore_s": 2,
-        "net_irrad_s": 300,
+        "net_irrad_s": 30,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
             "source": 1e3,
-            "omc_dir": "./tests/integration/output_omc/omc",
             "run_omc": true,
             "write_fission_json": true,
             "write_nuyield_json": true
