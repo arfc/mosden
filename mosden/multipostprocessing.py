@@ -39,6 +39,9 @@ class MultiPostProcess():
             'summed_avg_halflife': r'$\bar{T} [s]$',
             'group_avg_halflife': r'$\bar{T} [s]$'
         }
+        for i in range(1, self.posts[0].num_groups + 1):
+            self.hm_z_names[f'group_{i}_yield'] = rf'$\bar{{\nu}}_{{d,{i}}}$'
+            self.hm_z_names[f'group_{i}_halflife'] = rf'$T_{i} [s]$'
         self._set_post_names()
         return None
 
@@ -141,15 +144,34 @@ class MultiPostProcess():
         summed_avg_halflife = list()
         group_yield = list()
         group_avg_halflife = list()
-        for post in self.posts:
+        group_yields = np.zeros((len(self.posts), self.posts[0].num_groups))
+        group_halflives = np.zeros((len(self.posts), self.posts[0].num_groups))
+
+
+        for posti, post in enumerate(self.posts):
+            if post.num_groups != self.posts[0].num_groups:
+                raise ValueError(f"Post {posti} has {post.num_groups} groups")
+
             summed_yield.append(post.summed_yield.n)
             summed_avg_halflife.append(post.summed_avg_halflife.n)
             group_yield.append(post.group_yield.n)
             group_avg_halflife.append(post.group_avg_halflife.n)
+
+            group_yield_values = post.MC_yields
+            group_halflife_values = post.MC_half_lives
+
+            group_yields[posti, :] = group_yield_values.ravel()
+            group_halflives[posti, :] = group_halflife_values.ravel()
+
         post_data['summed_yield'] = summed_yield
         post_data['summed_avg_halflife'] = summed_avg_halflife
         post_data['group_yield'] = group_yield
         post_data['group_avg_halflife'] = group_avg_halflife
+
+        for i in range(self.posts[0].num_groups):
+            post_data[f'group_{i+1}_yield'] = group_yields[:, i].tolist()
+            post_data[f'group_{i+1}_halflife'] = group_halflives[:, i].tolist()
+
         return post_data
 
     def heatmap_gen(self) -> None:
