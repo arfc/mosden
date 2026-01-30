@@ -5,7 +5,7 @@ import itertools
 import shutil
 from copy import deepcopy
 import subprocess
-from mosden.utils.chemical_schemes import MSBR_scheme
+from mosden.utils.chemical_schemes import Reprocessing
 
 base_input_file = './input.json'
 analysis_list = list()
@@ -32,8 +32,8 @@ chemical_long_analysis = {
         'run_post': False,
         'overwrite': True
     },
-    'reprocessing': [MSBR_scheme(),
-                     MSBR_scheme(include_long=False)],
+    'reprocessing': [Reprocessing(base_input_file).removal_scheme(),
+                     Reprocessing(base_input_file).removal_scheme(include_long=False)],
     'incore_s': [10],
     'excore_s': [10],
     'multi_id': [name]
@@ -48,8 +48,8 @@ chemical_bool_analysis = {
         'run_post': False,
         'overwrite': True
     },
-    'reprocessing': [MSBR_scheme(),
-                     MSBR_scheme(rate_scaling=0.0)],
+    'reprocessing': [Reprocessing(base_input_file).removal_scheme(),
+                     Reprocessing(base_input_file).removal_scheme(rate_scaling=0.0)],
     'incore_s': [10],
     'excore_s': [10],
     'multi_id': [name]
