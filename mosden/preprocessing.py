@@ -352,9 +352,9 @@ class Preprocess(BaseClass):
         evaluation = openmc.data.endf.Evaluation(file)
         fpys = openmc.data.FissionProductYields(evaluation)
         energies = fpys.energies
-        fys = fpys.cumulative
-        endf_nucs: list = list(fys[0].keys())
-        fit_FY_nfy = self._fit_fy_endf(energies, fys)
+        cumulative_yields = fpys.cumulative
+        endf_nucs: list = list(cumulative_yields[0].keys())
+        fit_FY_nfy = self._fit_fy_endf(energies, cumulative_yields)
 
         data: dict[str: dict[str: float]] = dict()
         for nuc in endf_nucs:
