@@ -41,7 +41,7 @@
         "base_removal_scaling": 0.5,
         "incore_s": 99.9,
         "excore_s": 0.1,
-        "net_irrad_s": 300,
+        "net_irrad_s": 30,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
