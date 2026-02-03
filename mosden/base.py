@@ -91,6 +91,8 @@ class BaseClass:
         self.t_in: float = modeling_options.get('incore_s', 0.0)
         self.t_ex: float = modeling_options.get('excore_s', 0.0)
         self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
+        if self.t_in/self.t_net >= 0.9:
+            self.logger.warning('It is suggested to use a smaller in-core residence time or a longer total time')
         self.t_net = self._update_t_net()
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: dict[str: str] = modeling_options.get(
