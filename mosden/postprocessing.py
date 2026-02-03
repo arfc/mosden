@@ -10,14 +10,13 @@ from mosden.utils.csv_handler import CSVHandler
 from mosden.base import BaseClass
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
-from scipy.integrate import cumulative_trapezoid
+from scipy.integrate import cumulative_trapezoid, simpson, trapezoid
 import re
 import pandas as pd
 from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
 from matplotlib.colors import LogNorm
-from scipy.integrate import simpson
 plt.style.use('mosden.plotting')
 
 
@@ -786,7 +785,7 @@ class PostProcess(BaseClass):
                      markersize=3)
 
         plt.xlabel('Time [s]')
-        plt.ylabel(r'Delayed Neutron Rate per Fission $[s^{-1}]$')
+        plt.ylabel(r'Delayed Neutron Count Rate $[s^{-1}]$')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -815,7 +814,7 @@ class PostProcess(BaseClass):
                      linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=0.1,
                      markersize=3)
         plt.xlabel('Time [s]')
-        plt.ylabel('Delayed Neutron Counts per Fission')
+        plt.ylabel('Delayed Neutron Counts')
         plt.xscale('log')
         plt.yscale('log')
         plt.legend()
@@ -826,7 +825,7 @@ class PostProcess(BaseClass):
         plt.stackplot(self.decay_times, stacked_data, labels=nuc_names,
                       colors=colors)
         plt.xlabel('Time [s]')
-        plt.ylabel('Delayed Neutron Counts per Fission')
+        plt.ylabel('Delayed Neutron Counts')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -1281,7 +1280,7 @@ class PostProcess(BaseClass):
                     std_devs.append(std_dev)
                 concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
                 delnus_over_time = concs_with_uncerts * Pn * lam_val
-                total_delnus = simpson(delnus_over_time, times)
+                total_delnus = trapezoid(delnus_over_time, times)
                 yield_val = total_delnus / total_fissions
 
 
