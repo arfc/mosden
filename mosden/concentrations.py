@@ -381,11 +381,16 @@ class Concentrations(BaseClass):
             json.dump(nuyield, f, indent=4, default=self._json_default)
         return nuyield
     
-    def _calculate_fission_term(self) -> list[float]:
+    def _calculate_fission_term(self, only_incore: bool=True) -> list[float]:
         """
         Calculate the fission rate or number of fissions.
         The fission rate is used for saturation irradiations, while the number
         of fissions is used for pulse irradiations.
+
+        Parameters
+        ----------
+        only_incore : bool
+            Whether or not to only return the non-zero fission term values 
 
         Returns
         -------
@@ -411,7 +416,7 @@ class Concentrations(BaseClass):
         times = None
 
         if self.omc:
-            fission_term, times = self.read_omc_fission_json(only_incore=True)
+            fission_term, times = self.read_omc_fission_json(only_incore=only_incore)
             fission_term = fission_term['net']
 
         if self.irrad_type == 'pulse':
