@@ -725,6 +725,11 @@ class PostProcess(BaseClass):
         data_dict = self._get_data()
         net_nucs = data_dict['net_nucs']
         count_rates = dict()
+        if self.omc:
+            concentration_data = CSVHandler(
+                self.concentration_path,
+                create=False).read_csv_with_time(trim=False)
+            irrad_index = self.get_irrad_index(False)
 
         for nuc in net_nucs:
             Pn = data_dict['nucs'][nuc]['emission_probability']
@@ -732,7 +737,19 @@ class PostProcess(BaseClass):
             hl = data_dict['nucs'][nuc]['half_life']
             lam = np.log(2) / hl
             count_rates[nuc] = list()
-            counts = Pn * lam * N * unumpy.exp(-lam * self.decay_times)
+            if not self.omc:
+                counts = Pn * lam * N * unumpy.exp(-lam * self.decay_times)
+            else:
+                times = list(concentration_data[nuc].keys())
+                nom_vals = list()
+                std_devs = list()
+                for t in times[irrad_index:]:
+                    nom_val = concentration_data[nuc][t][0]
+                    std_dev = concentration_data[nuc][t][1]
+                    nom_vals.append(nom_val)
+                    std_devs.append(std_dev)
+                concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
+                counts = Pn * lam * concs_with_uncerts
             count_rates[nuc] = counts
 
         biggest_nucs_list = list()
@@ -1295,14 +1312,14 @@ class PostProcess(BaseClass):
             nuc_name = self._convert_nuc_to_latex(nuc)
             fraction = 100 * yield_val.n / net_yield.n
             labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
-            running_sum += yield_val
+            running_sum += yield_val.n
             counter += 1
             extracted_vals[nuc] = yield_val
             if counter > self.num_top_yield:
                 break
         self.logger.info(
             f'Finished nuclide emission times concentration (net yield)')
-        remainder = net_yield.n - running_sum.n
+        remainder = net_yield.n - running_sum
         sizes.append(remainder)
         labels.append('Other' + ', ' + str(round(100*remainder/net_yield.n)) + '\%')
         fig, ax = plt.subplots()
