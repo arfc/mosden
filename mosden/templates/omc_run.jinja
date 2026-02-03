@@ -140,7 +140,8 @@ def get_times_and_rates():
     current_time = 0
     index_counter = 0
     in_core = True
-    while current_time < t_net:
+    time_close = np.isclose(current_time, t_net)
+    while current_time < t_net and not time_close:
         if in_core:
             t = t_in
             region = 'incore'
@@ -163,6 +164,7 @@ def get_times_and_rates():
             source = flux * f_in
         source_rates.append(source)
         index_counter += 1
+        time_close = np.isclose(current_time, t_net)
 
     diff = sum(timesteps) - t_net
     timesteps[-1] = timesteps[-1] - diff
