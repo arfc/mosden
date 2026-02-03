@@ -1249,6 +1249,7 @@ class PostProcess(BaseClass):
         data_dict = self._get_data()
         halflife_times_yield: dict = dict()
         net_nucs = data_dict['net_nucs']
+        df_data = dict()
 
         self.total_delayed_neutrons: float = 0.0
         nuc_concs: dict[str, float] = dict()
@@ -1263,6 +1264,7 @@ class PostProcess(BaseClass):
             total_fissions = np.sum(dx * fission_term)
 
         for nuc in net_nucs:
+            df_data[nuc] = dict()
             Pn = data_dict['nucs'][nuc]['emission_probability']
             N = data_dict['nucs'][nuc]['concentration']
             hl = data_dict['nucs'][nuc]['half_life']
@@ -1283,11 +1285,14 @@ class PostProcess(BaseClass):
                 total_delnus = trapezoid(delnus_over_time, times)
                 yield_val = total_delnus / total_fissions
 
-
             nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n
             halflife_times_yield[nuc] = nuc_yield[nuc] * np.log(2) / lam_val
             nuc_concs[nuc] = N
+            df_data[nuc]['Yield'] = yield_val.n
+            df_data[nuc]['Yield Std. Dev.'] = yield_val.s
+            df_data[nuc]['Concentration'] = N.n
+            df_data[nuc]['Concentration Std. Dev.'] = N.s
 
         sorted_yields = dict(
             sorted(
@@ -1299,6 +1304,14 @@ class PostProcess(BaseClass):
                 nuc_concs.items(),
                 key=lambda item: item[1].n,
                 reverse=True))
+        df_data = dict(
+            sorted(
+                df_data.items(),
+                key=lambda item: item[1]['Yield'],
+                reverse=True
+                )
+            )
+        pd.DataFrame.from_dict(df_data, orient='index').to_csv(f'{self.output_dir}yields.csv', index_label='Nuclide')
         return sorted_yields, sorted_concs, halflife_times_yield
 
     def _get_summed_params(self) -> tuple[float, float]:
