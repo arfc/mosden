@@ -17,6 +17,7 @@ from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
 from matplotlib.colors import LogNorm
+from scipy.integrate import simpson
 plt.style.use('mosden.plotting')
 
 
@@ -1253,12 +1254,37 @@ class PostProcess(BaseClass):
         self.total_delayed_neutrons: float = 0.0
         nuc_concs: dict[str, float] = dict()
 
+        if self.omc:
+            concs = Concentrations(self.input_path)
+            fission_term, fission_times = concs._calculate_fission_term(only_incore=False)
+            concentration_data = CSVHandler(
+                self.concentration_path,
+                create=False).read_csv_with_time(trim=False)
+            dx = np.diff(fission_times)
+            total_fissions = np.sum(dx * fission_term)
+
         for nuc in net_nucs:
             Pn = data_dict['nucs'][nuc]['emission_probability']
             N = data_dict['nucs'][nuc]['concentration']
             hl = data_dict['nucs'][nuc]['half_life']
             lam_val = np.log(2) / hl
-            yield_val = Pn * N * lam_val / self.refined_fission_term
+            if not self.omc:
+                yield_val = Pn * N * lam_val / self.refined_fission_term
+            else:
+                times = list(concentration_data[nuc].keys())
+                nom_vals = list()
+                std_devs = list()
+                for t in times:
+                    nom_val = concentration_data[nuc][t][0]
+                    std_dev = concentration_data[nuc][t][1]
+                    nom_vals.append(nom_val)
+                    std_devs.append(std_dev)
+                concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
+                delnus_over_time = concs_with_uncerts * Pn * lam_val
+                total_delnus = simpson(delnus_over_time, times)
+                yield_val = total_delnus / total_fissions
+
+
             nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n
             halflife_times_yield[nuc] = nuc_yield[nuc] * np.log(2) / lam_val
