@@ -114,8 +114,6 @@ class InputHandler:
             raise ValueError("Unprocessed and processed data directories cannot be the same.")
         if data['file_options']['unprocessed_data_dir'] == data['file_options']['output_dir']:
             raise ValueError("Unprocessed data directory cannot be the same as the output directory.")
-        if data['modeling_options']['parent_feeding'] and not data['modeling_options']['concentration_handling'] == 'depletion':
-            raise ValueError("Parent feeding option requires depletion method for concentration handling")
         if data['modeling_options']['concentration_handling'] == 'IFY':
             ify_in_yields = any(val in data['data_options']['fission_yield'] for val in self.independent_fission_yields)
             if not ify_in_yields:
@@ -124,6 +122,8 @@ class InputHandler:
             cfy_in_yields = any(val in data['data_options']['fission_yield'] for val in self.cumulative_fission_yields)
             if not cfy_in_yields:
                 raise ValueError(f"CFY requires cumulative fission yield data {self.cumulative_fission_yields} (not in {data["data_options"]["fission_yield"]})")
+        if data['modeling_options']['base_removal_scaling'] == 0.0:
+            self.logger.warning('Base removal scaling set to 0.0, see README for more information.')
         
         possible_decay_spacings = ['linear', 'log']
         _check_if_in_options(data['data_options']['decay_time_spacing'], possible_decay_spacings)

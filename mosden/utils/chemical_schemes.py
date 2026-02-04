@@ -1,54 +1,56 @@
-def MSBR_scheme(include_long=True,
-                rate_scaling=1) -> dict[str: float]:
-    rate = 1/20 * rate_scaling
-    repr_dict = {'Kr': rate,
-                'Xe': rate,
-                'Se': rate,
-                'Nb': rate,
-                'Mo': rate,
-                'Tc': rate,
-                'Ru': rate,
-                'Rh': rate,
-                'Pd': rate,
-                'Ag': rate,
-                'Sb': rate,
-                'Te': rate,
-                } 
-    if not include_long:
+from mosden.base import BaseClass
+import pandas as pd
+import os
+
+
+class Reprocessing(BaseClass):
+    def __init__(self, input_path: str) -> None:
+        """
+        This class holds data from the literature for chemical removal rates.
+
+        Parameters
+        ----------
+        input_path : str
+            Path to the input file containing relevant data paths
+        """
+        super().__init__(input_path)
+        return None
+
+    def removal_scheme(self, rate_csv: str='MSBR.csv', include_long: bool=True,
+                    rate_scaling: float=1.0) -> dict[str, float]:
+        """
+        Returns the removal scheme with rate scaling and optional longer cycle time
+        elemental removal included
+
+        Parameters
+        ----------
+        rate_csv : str
+            The name of the removal rate CSV file to use (defaults to MSBR.csv)
+        include_long : bool
+            True to include long cycle time elements (defaults to True)
+        rate_scaling : float
+            The scaling to apply to removal rates (defaults to 1.0)
+        
+        Returns
+        -------
+        dict[str, float]
+            Elemental chemical removal rates [per second]
+        """
+        repr_dict = {}
+        repr_dir: str = os.path.join(self.repr_dir, rate_csv)
+        repr_data: pd.DataFrame = pd.read_csv(repr_dir)
+        repr_dict_dirty: dict = repr_data.to_dict(index=False, orient='tight')
+        repr_dict_clean: list[list] = repr_dict_dirty['data']
+        for element, rate in repr_dict_clean:
+            if (not include_long) and (rate < 0.05):
+                continue
+            repr_dict[element] = float(rate) * rate_scaling
+        
         return repr_dict
-
-    rate = 1/(3*24*3600) * rate_scaling
-    more_data = {'Pa': rate}
-    repr_dict.update(more_data)
-
-    rate = 1/(50*24*3600) * rate_scaling
-    more_data = {'Y': rate,
-                'La': rate,
-                'Ce': rate,
-                'Pr': rate,
-                'Nd': rate,
-                'Pm': rate,
-                'Sm': rate,
-                'Gd': rate,
-    }
-    repr_dict.update(more_data)
-
-    rate = 1/(60*24*3600) * rate_scaling
-    more_data = {'Br': rate,
-                'I': rate
-    }
-    repr_dict.update(more_data)
-
-    rate = 1/(200*24*3600) * rate_scaling
-    more_data = {'Zr': rate,
-                'Cd': rate,
-                'In': rate,
-                'Sn': rate
-    }
-    repr_dict.update(more_data)
-
-    rate = 1/(500*24*3600) * rate_scaling
-    more_data = {'Eu': rate}
-    repr_dict.update(more_data)
-
-    return repr_dict
+    
+if __name__ == '__main__':
+    input_path = "../../examples/huynh_2014/input.json"
+    repr = Reprocessing(input_path)
+    data = repr.removal_scheme('MSBR.csv')
+    print(data)
+    

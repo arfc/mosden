@@ -24,19 +24,6 @@ class Grouper(BaseClass):
         """
         super().__init__(input_path)
         self.output_dir: str = self.input_data['file_options']['output_dir']
-        file_options: dict = self.input_data.get('file_options', {})
-        overwrite: dict = file_options.get('overwrite', {})
-
-        self.model_method: str = self.input_data['group_options']['method']
-        self.num_groups: int = self.input_data['group_options']['num_groups']
-        self.overwrite: bool = overwrite.get('group_fitting', False)
-        self.MC_samples: int = self.input_data['group_options']['samples']
-
-        self.t_in: float = self.input_data['modeling_options']['incore_s']
-        self.t_ex: float = self.input_data['modeling_options']['excore_s']
-        self.t_net: float = self.input_data['modeling_options']['net_irrad_s']
-        self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
-        self.sample_func: str = self.input_data['group_options']['sample_func']
 
         self.fission_term: float = self._calculate_fission_term()
         return None
@@ -66,7 +53,7 @@ class Grouper(BaseClass):
         if self.irrad_type == 'pulse':
             self.logger.error('Pulse irradiation fission term not treated')
         elif self.irrad_type == 'saturation':
-            if conc_handler.model_method == 'CFY' and conc_handler.spatial_scaling == 'scaled':
+            if conc_handler.conc_method == 'CFY' and conc_handler.spatial_scaling == 'scaled':
                 fission_term = conc_handler.f_in
         else:
             raise NameError(f'{self.irrad_type = } not available')
@@ -78,14 +65,14 @@ class Grouper(BaseClass):
         """
         start = time()
         data: dict[str: dict[str: float]] = dict()
-        if self.model_method == 'nlls':
+        if self.group_method == 'nlls':
             data = self._nonlinear_least_squares()
         else:
             raise NotImplementedError(
-                f'{self.model_method} is not implemented')
+                f'{self.group_method} is not implemented')
         CSVHandler(
             self.group_path,
-            self.overwrite).write_groups_csv(
+            self.group_overwrite).write_groups_csv(
             data,
             sortby='half_life')
         self.save_postproc()
@@ -282,11 +269,13 @@ class Grouper(BaseClass):
         sampled_params.append(sorted_params)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
+        post_data_save = []
         for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                data = countrate.calculate_count_rate(
+                data, post_data = countrate.calculate_count_rate(
                     MC_run=True, sampler_func=self.sample_func)
+                post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
                 result = least_squares(
@@ -308,6 +297,17 @@ class Grouper(BaseClass):
             sorted_params = self._sort_params_by_half_life(result.x)
             sampled_params.append(sorted_params)
         sampled_params: np.ndarray[float] = np.asarray(sampled_params)
+
+        if 'PnMC' not in self.post_data.keys():
+            self.post_data['PnMC'] = list()
+        if 'hlMC' not in self.post_data.keys():
+            self.post_data['hlMC'] = list()
+        if 'concMC' not in self.post_data.keys():
+            self.post_data['concMC'] = list()
+        for post_data_vals in post_data_save:
+            for key in self.post_data.keys():
+                self.post_data[key].append(post_data_vals[key])
+        self.save_postproc()
 
         yields = np.zeros((self.num_groups, self.MC_samples))
         half_lives = np.zeros((self.num_groups, self.MC_samples))

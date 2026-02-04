@@ -174,10 +174,6 @@ cython_debug/
 /examples/huynh_2014/postproc.json
 /examples/huynh_2014/images/*
 
-/examples/empty_run/*.csv
-/examples/empty_run/postproc.json
-/examples/empty_run/images/*
-
 /examples/msre/*.csv
 /examples/msre/postproc.json
 /examples/msre/images/*

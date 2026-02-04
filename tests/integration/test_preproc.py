@@ -19,10 +19,10 @@ def test_preprocess(input_path, reference_output_path):
     preproc.postproc_path = os.path.join(reference_output_path, 'postproc.json')
     preproc.run()
 
-    output_dir = Path(preproc.out_dir)
+    output_dir = Path(preproc.processed_data_dir)
     assert output_dir.exists(), f"Output directory {output_dir} does not exist."
     
-    file = Path(preproc.out_dir) / 'half_life.csv'
+    file = Path(preproc.processed_data_dir) / 'half_life.csv'
     assert file.exists(), f'Output file {file} does not exist.'
     reference_file = Path(reference_output_path) / 'half_life.csv'
     assert reference_file.exists(), f"Reference file {reference_file} does not exist."
@@ -30,7 +30,7 @@ def test_preprocess(input_path, reference_output_path):
     data = CSVHandler(file).read_csv()
     assert data == reference_data, f"Output data for {file} does not match reference data."
 
-    file = Path(preproc.out_dir) / 'fission_yield.csv'
+    file = Path(preproc.processed_data_dir) / 'fission_yield.csv'
     assert file.exists(), f'Output file {file} does not exist.'
     reference_file = Path(reference_output_path) / 'fission_yield.csv'
     assert reference_file.exists(), f"Reference file {reference_file} does not exist."
@@ -38,7 +38,7 @@ def test_preprocess(input_path, reference_output_path):
     data = CSVHandler(file).read_csv()
     assert data == reference_data, f"Output data for {file} does not match reference data." 
 
-    file = Path(preproc.out_dir) / 'emission_probability.csv'
+    file = Path(preproc.processed_data_dir) / 'emission_probability.csv'
     assert file.exists(), f'Output file {file} does not exist.'
     data = CSVHandler(file).read_csv() 
     assert data, "Output CSV file is empty."

@@ -1,0 +1,13 @@
+name,category,group,value,uncertainty
+keepin,yield,1,0.0005356,4.6753074765195924e-05
+keepin,yield,2,0.005644400000000001,0.00024704689838166355
+keepin,yield,3,0.0066744000000000005,0.0008688044428984006
+keepin,yield,4,0.0159856,0.0008243200349378875
+keepin,yield,5,0.00927,0.0006581592588424173
+keepin,yield,6,0.00309,0.00024226483442712026
+keepin,half_life,1,52.38,1.29
+keepin,half_life,2,21.58,0.39
+keepin,half_life,3,4.53,0.19
+keepin,half_life,4,1.93,0.07
+keepin,half_life,5,0.49,0.023
+keepin,half_life,6,0.172,0.009

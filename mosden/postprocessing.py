@@ -30,46 +30,13 @@ class PostProcess(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
-        file_options: dict = self.input_data.get('file_options', {})
-        modeling_options: dict = self.input_data.get('modeling_options', {})
-        data_options: dict = self.input_data['data_options']
-        overwrite: dict = file_options.get('overwrite', {})
-        self.processed_data_dir: str = file_options.get('processed_data_dir',
-                                                        '')
-        self.output_dir: str = os.path.join(file_options.get('output_dir', ''),
-                                            'images/')
-        self.overwrite: bool = overwrite.get('postprocessing', False)
-        self.num_groups: int = self.input_data['group_options']['num_groups']
-        self.MC_samples: int = self.input_data['group_options']['samples']
-        self.irrad_type: str = self.input_data['modeling_options']['irrad_type']
-        self.sens_subplot: bool = self.input_data['post_options']['sensitivity_subplots']
-        self.use_data: list[str] = [
-            'keepin', 'brady', 'synetos']#, 'Modified 0D Scaled']
         self.self_relative_data: bool = False
-        self.nuclides: list[str] = [
-            'Br87',
-            'I137',
-            'Br88',
-            'Br89',
-            'I138',
-            'Rb94',
-            'Rb93',
-            'Te136',
-            'Ge86',
-            'As86',
-            'Br90',
-            'As85']
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
         self.linestyles: list[str] = ['-', '--', ':', '-.']
         self.load_post_data()
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
-        self.num_decay_times = modeling_options['num_decay_times']
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-        self.t_in: float = modeling_options.get('incore_s', 0.0)
-        self.t_ex: float = modeling_options.get('excore_s', 0.0)
-        self.decay_time_spacing: str = data_options['decay_time_spacing']
-        self.total_decay_time: float = modeling_options['decay_time']
+        if not os.path.exists(self.img_dir):
+            os.makedirs(self.img_dir)
         self.group_data = None
 
         try:
@@ -165,7 +132,7 @@ class PostProcess(BaseClass):
         plt.xscale('log')
         plt.ylabel('Relative Difference [\\%]')
         plt.tight_layout()
-        plt.savefig(f'{self.output_dir}pcnt_diff_counts.png')
+        plt.savefig(f'{self.img_dir}pcnt_diff_counts.png')
         plt.close()
         return None
     
@@ -201,7 +168,7 @@ class PostProcess(BaseClass):
         cbar.set_label(cbar_label)
         plt.xlabel("Number of neutrons (N)")
         plt.ylabel("Number of protons (Z)")
-        plt.savefig(f'{self.output_dir}chart_{name}.png')
+        plt.savefig(f'{self.img_dir}chart_{name}.png')
         plt.close()
         return None 
 
@@ -356,7 +323,7 @@ class PostProcess(BaseClass):
             plt.legend(handles, dnp_vals, title="DNP Value")
             plt.xlabel(r"$U_{i}$")
             plt.tight_layout()
-            plt.savefig(f'{self.output_dir}pcc-bar.png')
+            plt.savefig(f'{self.img_dir}pcc-bar.png')
             plt.close()
             table_latex = table_df_data.to_latex(index=False)
             self.logger.info(f'\n{table_latex}')
@@ -364,7 +331,7 @@ class PostProcess(BaseClass):
             plt.yscale('log')
             plt.xlabel(r'$\Sigma\left|PCC\right|$')
             plt.ylabel(r'Frequency')
-            plt.savefig(f'{self.output_dir}pcc-frequency.png')
+            plt.savefig(f'{self.img_dir}pcc-frequency.png')
             plt.close()
 
             
@@ -526,7 +493,7 @@ class PostProcess(BaseClass):
 
         """
 
-        nuclides = nuclides or self.nuclides or list(data[0].keys())
+        nuclides = nuclides or list(data[0].keys())
         xlab_new, ylab_new = self._configure_x_y_labels(
             xlab, ylab, off_nominal, relative_diff)
         num_colors = self.num_groups
@@ -579,13 +546,13 @@ class PostProcess(BaseClass):
         subplot : bool, optional
             Whether to create subplots for each nuclide, by default True
         """
-        pn_save_dir = os.path.join(self.output_dir, 'sens_pn/')
+        pn_save_dir = os.path.join(self.img_dir, 'sens_pn/')
         if not os.path.exists(pn_save_dir):
             os.makedirs(pn_save_dir)
-        lam_save_dir = os.path.join(self.output_dir, 'sens_hl/')
+        lam_save_dir = os.path.join(self.img_dir, 'sens_hl/')
         if not os.path.exists(lam_save_dir):
             os.makedirs(lam_save_dir)
-        conc_save_dir = os.path.join(self.output_dir, 'sens_conc/')
+        conc_save_dir = os.path.join(self.img_dir, 'sens_conc/')
         if not os.path.exists(conc_save_dir):
             os.makedirs(conc_save_dir)
         processed_data_dict = self._get_data()
@@ -659,7 +626,7 @@ class PostProcess(BaseClass):
                 relative_diff=relative_diff,
                 processed_data_dict=processed_data_dict)
         else:
-            subplot_save_dir = os.path.join(self.output_dir, 'sens_subplots/')
+            subplot_save_dir = os.path.join(self.img_dir, 'sens_subplots/')
             if not os.path.exists(subplot_save_dir):
                 os.makedirs(subplot_save_dir)
             group_data = [self.MC_yields, self.MC_half_lives]
@@ -725,9 +692,7 @@ class PostProcess(BaseClass):
         Compare the total DN yields from summing individuals and from
           group parameters
         """
-        num_top = 4
-        num_stack = 2
-        summed_yield, summed_avg_halflife = self._get_summed_params(num_top)
+        summed_yield, summed_avg_halflife = self._get_summed_params()
         group_yield, group_avg_halflife = self._get_group_params()
 
         self.summed_yield = summed_yield
@@ -735,7 +700,7 @@ class PostProcess(BaseClass):
         self.group_yield = group_yield
         self.group_avg_halflife = group_avg_halflife
 
-        self._plot_nuclide_count_rates(num_stack)
+        self._plot_nuclide_count_rates(self.num_stack)
         self.logger.info(f'{summed_yield = }')
         self.logger.info(f'{summed_avg_halflife = } s')
         self.logger.info(f'{group_yield = }')
@@ -787,6 +752,8 @@ class PostProcess(BaseClass):
         for nuci, nuc in enumerate(biggest_nucs):
             rate_n = unumpy.nominal_values(count_rates[nuc])
             rate_s = unumpy.std_devs(count_rates[nuc])
+            if nuc in self.nuc_colors:
+                colors[nuci] = self.nuc_colors[nuc]
             upper = rate_n + rate_s
             lower = rate_n - rate_s
             plt.fill_between(self.decay_times, lower, upper, color=colors[nuci],
@@ -800,7 +767,7 @@ class PostProcess(BaseClass):
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{self.output_dir}individual_nuclide_rates.png')
+        plt.savefig(f'{self.img_dir}individual_nuclide_rates.png')
         plt.close()
 
         stacked_data = list()
@@ -830,7 +797,7 @@ class PostProcess(BaseClass):
         plt.yscale('log')
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{self.output_dir}individual_nuclide_counts.png')
+        plt.savefig(f'{self.img_dir}individual_nuclide_counts.png')
         plt.close()
 
         plt.stackplot(self.decay_times, stacked_data, labels=nuc_names,
@@ -840,7 +807,7 @@ class PostProcess(BaseClass):
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f'{self.output_dir}individual_nuclide_counts_stacked.png')
+        plt.savefig(f'{self.img_dir}individual_nuclide_counts_stacked.png')
         plt.close()
 
         return None
@@ -923,7 +890,7 @@ class PostProcess(BaseClass):
             plt.ylabel('Frequency')
             plt.legend()
             plt.tight_layout()
-            plt.savefig(f'{self.output_dir}MC_group{group + 1}_{name}.png')
+            plt.savefig(f'{self.img_dir}MC_group{group + 1}_{name}.png')
             plt.close()
         return None
 
@@ -1024,7 +991,7 @@ class PostProcess(BaseClass):
             edgecolor='black')
         literature_data = Literature(
             self.input_path).get_group_data(
-            self.use_data)
+            self.lit_data)
         first: bool = True
         colors = self.get_colors(len(literature_data.keys()))
 
@@ -1059,7 +1026,7 @@ class PostProcess(BaseClass):
             if line.get_label() == mc_label:
                 line.set_alpha(0.5)
         plt.tight_layout()
-        plt.savefig(f'{self.output_dir}MC_counts.png')
+        plt.savefig(f'{self.img_dir}MC_counts.png')
         plt.close()
 
         for MC_iterm, count_val in enumerate(counts):
@@ -1134,7 +1101,7 @@ class PostProcess(BaseClass):
                 line.set_alpha(0.5)
         plt.xscale('log')
         plt.tight_layout()
-        plt.savefig(f'{self.output_dir}{base_name}_counts.png')
+        plt.savefig(f'{self.img_dir}{base_name}_counts.png')
         plt.close()
 
         return None
@@ -1256,16 +1223,11 @@ class PostProcess(BaseClass):
                 reverse=True))
         return sorted_yields, sorted_concs, halflife_times_yield
 
-    def _get_summed_params(self, num_top: int = 10) -> tuple[float, float]:
+    def _get_summed_params(self) -> tuple[float, float]:
         """
         Get the summed parameters from the postprocessing data
 
-        Parameters
-        ----------
-        num_top : int, optional
-            Number of top contributors to consider, by default 10
-
-        returns
+        Returns
         -------
         net_yield, avg_half_life : tuple[float, float]
             net yield and average half-life of the group.
@@ -1285,45 +1247,50 @@ class PostProcess(BaseClass):
         running_sum = 0
         sizes = list()
         labels = list()
+        colors = self.get_colors(self.num_top_yield + 2)
         counter = 0
         self.logger.info(
             f'Writing nuclide emission times concentration (net yield)')
-        for nuc, yield_val in sorted_yields.items():
+        for index_val, (nuc, yield_val) in enumerate(sorted_yields.items()):
             self.logger.info(
                 f'{nuc} - {round(yield_val.n, 5)} +/- {round(yield_val.s, 5)}')
             sizes.append(yield_val.n)
+            if nuc in self.nuc_colors.keys():
+                colors[index_val] = self.nuc_colors[nuc]
             nuc_name = self._convert_nuc_to_latex(nuc)
             fraction = 100 * yield_val.n / net_yield.n
             labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
             running_sum += yield_val
             counter += 1
             extracted_vals[nuc] = yield_val
-            if counter > num_top:
+            if counter > self.num_top_yield:
                 break
         self.logger.info(
             f'Finished nuclide emission times concentration (net yield)')
         remainder = net_yield.n - running_sum.n
         sizes.append(remainder)
         labels.append('Other' + ', ' + str(round(remainder)) + '\%')
-        colors = self.get_colors(num_top + 2)
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
-        fig.savefig(f'{self.output_dir}dnp_yield.png')
+        fig.savefig(f'{self.img_dir}dnp_yield.png')
         plt.close()
 
         sizes = list()
         labels = list()
+        colors = self.get_colors(self.num_top_conc + 2)
         counter = 0
         running_sum = 0
-        for nuc, conc_val in sorted_concs.items():
+        for index_val, (nuc, conc_val) in enumerate(sorted_concs.items()):
             N = data_dict['nucs'][nuc]['concentration']
+            if nuc in self.nuc_colors.keys():
+                colors[index_val] = self.nuc_colors[nuc]
             sizes.append(conc_val.n)
             labels.append(self._convert_nuc_to_latex(nuc))
             running_sum += conc_val
             counter += 1
-            if counter > num_top:
+            if counter > self.num_top_conc:
                 break
         remainder = net_N.n - running_sum.n
         sizes.append(remainder)
@@ -1332,7 +1299,7 @@ class PostProcess(BaseClass):
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
-        fig.savefig(f'{self.output_dir}dnp_conc.png')
+        fig.savefig(f'{self.img_dir}dnp_conc.png')
         plt.close()
 
         labels = [
@@ -1360,6 +1327,6 @@ class PostProcess(BaseClass):
         ax.axis('equal')
 
         plt.tight_layout()
-        fig.savefig(f'{self.output_dir}fission_fraction.png')
+        fig.savefig(f'{self.img_dir}fission_fraction.png')
         plt.close()
         return net_yield, avg_halflife
