@@ -181,8 +181,8 @@
                 },
                 "irrad_type": {
                     "type": "string",
-                    "description": "Type of irradiation to simulate. Saturation irradiation can be used to refer to any intermediate length irradiation as well. Pulse assumes a very short irradiation.",
-                    "enum": ["pulse", "saturation"]
+                    "description": "Type of irradiation to simulate. Saturation irradiation can be used to refer to any intermediate length irradiation as well. Pulse assumes a very short irradiation. Intermediate enables numerical integration of the fission rate for generic fission rates.",
+                    "enum": ["pulse", "saturation", "intermediate"]
                 },
                 "incore_s": {
                     "type": "number",

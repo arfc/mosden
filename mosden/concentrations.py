@@ -423,7 +423,7 @@ class Concentrations(BaseClass):
             fission_term = [sum(fission_term)]
             if not self.omc:
                 self.logger.error('Pulse irradiation fission term not treated')
-        elif self.irrad_type == 'saturation':
+        elif self.irrad_type == 'saturation' or self.irrad_type == 'intermediate':
             if self.spatial_scaling == 'scaled':
                 fission_term = [self.f_in * f for f in fission_term]
         else:

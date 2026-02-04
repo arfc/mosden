@@ -167,6 +167,49 @@ class Grouper(BaseClass):
                 group_counts += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
             counts += nu * group_counts
         return self.refined_fission_term * counts
+
+
+    def _intermediate_numerical_fit_function(self,
+                                 times: np.ndarray[float | object],
+                                 parameters: np.ndarray[float | object]
+                                 ) -> np.ndarray[float | object]:
+        """
+        Fit function for any irradiation using numerical integration
+
+        Parameters
+        ----------
+        times : np.ndarray[float|object]
+            Times at which to evaluate the fit function
+        parameters : np.ndarray[float|object]
+            Fit parameters for the model
+
+        Returns
+        -------
+        counts : np.ndarray[float|object]
+            Array of counts for each time point (can be float or ufloat)
+        """
+        yields = parameters[:self.num_groups]
+        half_lives = parameters[self.num_groups:]
+        counts: np.ndarray[float] = np.zeros(len(times))
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+        except TypeError:
+            exp = unumpy.exp
+            counts: np.ndarray[object] = np.zeros(
+                len(times), dtype=object)
+
+        for k in range(self.num_groups):
+            lam = np.log(2) / half_lives[k]
+            nu = yields[k]
+            fission_component = 0
+            for ti, t in enumerate(self.fission_times[:-1]):
+                fission_component += self.full_fission_term[ti] * (exp(lam*self.fission_times[ti+1]) - exp(lam*t))/lam
+
+            group_counts = nu * lam * exp(-lam * (self.t_net+times)) * fission_component
+
+            counts += group_counts
+        return counts
     
     def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
         """
@@ -187,6 +230,7 @@ class Grouper(BaseClass):
         """
         concs = Concentrations(self.input_path)
         self.fission_term, self.fission_times = concs._calculate_fission_term()
+        self.full_fission_term, _ = concs._calculate_fission_term(False)
         if not self.omc:
             self.refined_fission_term = np.mean(self.fission_term)
             return self.refined_fission_term
@@ -232,6 +276,8 @@ class Grouper(BaseClass):
             fit_function = self._pulse_fit_function
         elif self.irrad_type == 'saturation':
             fit_function = self._saturation_fit_function
+        elif self.irrad_type == 'intermediate':
+            fit_function = self._intermediate_numerical_fit_function
         else:
             raise NotImplementedError(
                 f'{self.irrad_type} not supported in nonlinear least squares')

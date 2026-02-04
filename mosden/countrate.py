@@ -92,6 +92,8 @@ class CountRate(BaseClass):
             fit_function = grouper._pulse_fit_function
         elif self.irrad_type == 'saturation':
             fit_function = grouper._saturation_fit_function
+        elif self.irrad_type == 'intermediate':
+            fit_function = grouper._intermediate_numerical_fit_function
         else:
             raise NotImplementedError(msg)
 
