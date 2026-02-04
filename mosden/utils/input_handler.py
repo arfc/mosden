@@ -122,6 +122,8 @@ class InputHandler:
         if sum(data['data_options']['fissile_fractions'].values()) != 1.0:
             raise ValueError("Fissile fractions must sum to 1.0. Current sum: "
                              f"{sum(data['data_options']['fissile_fractions'].values())}")
+        if data['modeling_options']['irrad_type'] == 'intermediate' and data['modeling_options']['concentration_handling'] != 'OMC':
+            raise ValueError('Intermediate numerical integration is only available with OpenMC concentration modeling')
         return
 
 
