@@ -147,7 +147,7 @@ class BaseClass:
                 0, self.decay_time, self.num_times)
         elif self.decay_time_spacing == 'log':
             self.decay_times: np.ndarray = np.geomspace(
-                1e-2, self.decay_time, self.num_times)
+                1e-3, self.decay_time, self.num_times)
         else:
             raise ValueError(
                 f"Decay time spacing '{self.decay_time_spacing}' not supported.")
@@ -215,9 +215,9 @@ class BaseClass:
             cur_t += t_add
 
         if self.t_in == 0:
-            post_irrad_index = int(np.ceil(self.t_net/self.t_ex)) + 1
+            post_irrad_index = int(np.ceil(self.t_net/self.t_ex))
         elif self.t_ex == 0:
-            post_irrad_index = int(np.ceil(self.t_net/self.t_in)) + 1
+            post_irrad_index = int(np.ceil(self.t_net/self.t_in))
         return post_irrad_index
 
     def load_post_data(self) -> dict[str: float | str | list]:

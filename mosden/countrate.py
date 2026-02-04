@@ -238,8 +238,28 @@ class CountRate(BaseClass):
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * self.decay_times)
                 else:
-                    counts = Pn * decay_const * concentration_array[1+post_irrad_index:]
-                count_rate += unumpy.nominal_values(counts)
+                    counts = Pn * decay_const * concentration_array[post_irrad_index+1:]
+                try:
+                    count_rate += unumpy.nominal_values(counts)
+                except ValueError:
+                    self.logger.error('Counts shape does not match count rate')
+                    self.logger.error(f'{self.decay_times = }')
+                    self.logger.error(f'{counts = }')
+                    self.logger.error(f'{count_rate = }')
+                    self.logger.error(f'{np.shape(counts) = }')
+                    self.logger.error(f'{np.shape(count_rate) = }')
+                    self.logger.error(f'{MC_run = }')
+                    self.logger.error(f'{sampler_func = }')
+                    self.logger.error(f'{single_time_val = }')
+                    self.logger.error(f'{nuc = }')
+                    self.logger.error(f'{Pn = }')
+                    self.logger.error(f'{decay_const = }')
+                    self.logger.error(f'{concentration_array[post_irrad_index:] = }')
+                    self.logger.error(f'{np.shape(concentration_array[post_irrad_index:]) = }')
+                    self.logger.error(f'{post_irrad_index = }')
+                    self.logger.error(f'{self.t_net = }')
+                    self.logger.error(f'{conc_data = }')
+
                 sigma_count_rate += unumpy.std_devs(counts)
 
             Pn_post_data[nuc] = Pn

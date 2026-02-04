@@ -743,7 +743,7 @@ class PostProcess(BaseClass):
                 times = list(concentration_data[nuc].keys())
                 nom_vals = list()
                 std_devs = list()
-                for t in times[irrad_index:]:
+                for t in times[irrad_index+1:]:
                     nom_val = concentration_data[nuc][t][0]
                     std_dev = concentration_data[nuc][t][1]
                     nom_vals.append(nom_val)
