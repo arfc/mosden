@@ -238,7 +238,7 @@ class CountRate(BaseClass):
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * self.decay_times)
                 else:
-                    counts = Pn * decay_const * concentration_array[post_irrad_index:]
+                    counts = Pn * decay_const * concentration_array[1+post_irrad_index:]
                 count_rate += unumpy.nominal_values(counts)
                 sigma_count_rate += unumpy.std_devs(counts)
 

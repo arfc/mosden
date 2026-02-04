@@ -202,20 +202,22 @@ class BaseClass:
         post_irrad_index: int = 0
         if single_time_val:
             return post_irrad_index
-        adjust_index_start_decay = 1
+        cur_t = 0
+        incore = True
+        while cur_t < self.t_net:
+            post_irrad_index += 1
+            if incore:
+                t_add = self.t_in
+                incore = False
+            else:
+                t_add = self.t_ex
+                incore = True
+            cur_t += t_add
 
-        full_cycles = np.floor(self.t_net/(self.t_in + self.t_ex))
-        partial_time = self.t_net - full_cycles * (self.t_ex + self.t_in)
-        if partial_time > 0.0:
-            post_irrad_index += 1
-        if partial_time > self.t_in:
-            post_irrad_index += 1
-        post_irrad_index += 2 * int(full_cycles)
         if self.t_in == 0:
-            post_irrad_index = int(np.ceil(self.t_net/self.t_ex))
+            post_irrad_index = int(np.ceil(self.t_net/self.t_ex)) + 1
         elif self.t_ex == 0:
-            post_irrad_index = int(np.ceil(self.t_net/self.t_in)) 
-        post_irrad_index += adjust_index_start_decay
+            post_irrad_index = int(np.ceil(self.t_net/self.t_in)) + 1
         return post_irrad_index
 
     def load_post_data(self) -> dict[str: float | str | list]:
