@@ -147,7 +147,7 @@ class BaseClass:
                 0, self.decay_time, self.num_times)
         elif self.decay_time_spacing == 'log':
             self.decay_times: np.ndarray = np.geomspace(
-                1e-3, self.decay_time, self.num_times)
+                1e-2, self.decay_time, self.num_times)
         else:
             raise ValueError(
                 f"Decay time spacing '{self.decay_time_spacing}' not supported.")
