@@ -57,7 +57,7 @@ value from 0 to 1, the ex-core fraction (assuming chemical removal in the that
 region). Whatever chemical removal rates are used, this term should represent 
 the scaling that has been applied to that data (for example, if the removal 
 occurs everywhere in the primary loop, then the scaling would be 1.0 since this 
-term captures the spatial component.)
+term captures the spatial component).
 - The group parameter data from the literature should be given as absolute 
 yields (calculable from the relative yield and total yield values).
 
@@ -83,7 +83,6 @@ For example, using an in-core residence time of 30 seconds with a net
 irradiation time of 30 seconds (1 OpenMC simulation) will give less accurate 
 measures of the summed data than an in-core residence time of 30 seconds (30 
 OpenMC simulations).
-TODO: Add a `sims_per_cycle` setting that slices up the residence times.
 
 The generation of the delayed neutron count rate and non-linear least squares
 fitting methods do not change between different models.
