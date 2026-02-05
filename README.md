@@ -72,10 +72,18 @@ The generation of concentrations varies based on the model used.
 The simplest model is the 0D scaled model, and uses cumulative fission yields.
 The concentration of each DNP is calculated as the cumulative fission yield over 
 the decay constant of that DNP.
-The 0D flow model (not implemented as of 2025-09-02) uses OpenMC to incorporate 
+The 0D flow model uses OpenMC to incorporate 
 decay chains and parasitic absorption effects, offering a better model of 
 the DNP concentrations at each point during the irradiation and subsequent 
 decay.
+When using the OpenMC (or OMC) model, the `summed` yields and average half-life
+data may be less accurate. This is because fewer time steps worth of data are
+collected, based on the residence times used.
+For example, using an in-core residence time of 30 seconds with a net
+irradiation time of 30 seconds (1 OpenMC simulation) will give less accurate 
+measures of the summed data than an in-core residence time of 30 seconds (30 
+OpenMC simulations).
+TODO: Add a `sims_per_cycle` setting that slices up the residence times.
 
 The generation of the delayed neutron count rate and non-linear least squares
 fitting methods do not change between different models.
