@@ -1,7 +1,7 @@
 import numpy as np
 from mosden.utils.csv_handler import CSVHandler
 from mosden.concentrations import Concentrations
-from uncertainties import unumpy
+from uncertainties import unumpy, wrap
 from mosden.base import BaseClass
 from scipy.optimize import least_squares
 from typing import Callable
@@ -10,6 +10,7 @@ from time import time
 import warnings
 from tqdm import tqdm
 from scipy.linalg import svd
+from scipy.integrate import simpson
 
 
 class Grouper(BaseClass):
@@ -194,19 +195,27 @@ class Grouper(BaseClass):
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
+            expm1 = np.expm1
         except TypeError:
             exp = unumpy.exp
             counts: np.ndarray[object] = np.zeros(
                 len(times), dtype=object)
+            expm1 = wrap(np.expm1)
 
         for k in range(self.num_groups):
             lam = np.log(2) / half_lives[k]
             nu = yields[k]
             fission_component = 0
-            for ti, t in enumerate(self.fission_times[:-1]):
-                fission_component += self.full_fission_term[ti] * (exp(lam*self.fission_times[ti+1]) - exp(lam*t))/lam
 
-            group_counts = nu * lam * exp(-lam * (self.t_net+times)) * fission_component
+            for ti, t in enumerate(self.fission_times[:-1]):
+                t2 = self.fission_times[ti+1]
+                t1 = self.fission_times[ti]
+                exponential_term = (exp(-lam*(self.t_net - t2)) * expm1(-lam*(t1 - t2)))
+                fission_component += self.full_fission_term[ti] * exponential_term
+
+            t0 = np.min(times)
+            exp_term = exp(-lam * (times - t0)) * exp(-lam * t0)
+            group_counts = nu * exp_term * fission_component
 
             counts += group_counts
         return counts

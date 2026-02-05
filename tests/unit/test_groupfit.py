@@ -83,6 +83,13 @@ def test_grouper_saturation_noex_fitting():
     grouper.t_ex = 0
     run_grouper_fit_test('saturation', '_saturation_fit_function', grouper)
 
+@pytest.mark.slow
+def test_grouper_intermediate_noex_fitting():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 0
+    run_grouper_fit_test('intermediate', '_intermediate_numerical_fit_function', grouper)
+
 
 @pytest.mark.slow
 def test_grouper_saturation_ex_fitting():
@@ -91,3 +98,11 @@ def test_grouper_saturation_ex_fitting():
     grouper.t_ex = 10
 
     run_grouper_fit_test('saturation_ex', '_saturation_fit_function', grouper)
+
+
+@pytest.mark.slow
+def test_grouper_intermediate_ex_fitting():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 10
+    run_grouper_fit_test('intermediate', '_intermediate_numerical_fit_function', grouper)

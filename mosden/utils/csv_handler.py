@@ -66,7 +66,7 @@ class CSVHandler:
         data = df.to_dict(orient='index')
         return data
 
-    def read_csv_with_time(self, trim:bool = False) -> dict[str, dict[float, (float, float)]]:
+    def read_csv_with_time(self, trim:bool = False) -> dict[str, dict[float, tuple[float, float]]]:
         """
         Read the CSV file and return the data as a dictionary.
 
