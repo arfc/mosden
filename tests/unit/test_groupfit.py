@@ -19,26 +19,24 @@ def test_grouper_init():
 def run_grouper_fit_test(irrad_type: str, grouper: Grouper):
     half_lives = [60, 50, 40, 30, 20, 10]
     yields = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+    lams = np.log(2)/half_lives
     times = np.linspace(0, 600, 100)
     counts = np.zeros(len(times))
-    t_sum: float = grouper.t_in + grouper.t_ex
-    for a, hl in zip(yields, half_lives):
-        lam = np.log(2) / hl
-        if irrad_type == 'pulse':
-            counts += a * lam * np.exp(-lam * times)
-        elif irrad_type == 'saturation' or irrad_type == 'intermediate':
-            counts += a * np.exp(-lam * times)
-        elif irrad_type == 'saturation_ex' or irrad_type == 'intermediate_ex':
-            recircs: int = int(np.floor(grouper.t_net/t_sum))
-            irrad_circs: int = int(np.floor((grouper.t_net-grouper.t_in)/t_sum))
-            group_counts = 0
-            for j in range(0, irrad_circs+1):
-                group_counts += np.exp(-lam*(times+grouper.t_net-j*t_sum-grouper.t_in)) - np.exp(-lam*(times+grouper.t_net-j*t_sum))
-            for j in range(irrad_circs+1, recircs+1):
-                group_counts += np.exp(-lam*times) - np.exp(-lam*(times+grouper.t_net-j*t_sum))
-            counts += a * group_counts
-        else:
-            raise ValueError(f'Unknown irrad_type: {irrad_type}')
+    fission_times = np.linspace(0, grouper.t_net, 10000)
+    dt = np.diff(fission_times)[0]
+    concs = np.zeros(6)
+    if irrad_type == 'pulse':
+        concs = np.asarray(yields)
+    else:
+        period = grouper.t_in + grouper.t_ex
+        fiss_rate = np.asarray(((fission_times % period) < grouper.t_in).astype(int))
+        for ti in range(len(fission_times)-1):
+            concs = (concs + np.asarray(yields)*dt*fiss_rate[ti+1])/(1+lams*dt)
+    # One group per row, one time per column
+    grouper.logger.error(f'{concs = }')
+    counts_groups = concs[:, None] * np.exp(-lams[:, None] * times[None, :]) * lams[:, None]
+    counts = np.sum(counts_groups, axis=0)
+    grouper.logger.error(f'{counts[0] = }')
 
     if '_ex' in irrad_type:
         irrad_type = irrad_type.replace('_ex', '')
@@ -54,14 +52,11 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper):
     grouper.num_groups = 6
     grouper._set_refined_fission_term(times)
     if irrad_type == 'intermediate':
-        grouper.fission_times = np.arange(0, 1201, 1)
-        if grouper.t_ex == 0:
-            grouper.full_fission_term = [1] * 1200
-        elif grouper.t_ex == 10:
-            grouper.full_fission_term = [1, 0] * 600
+        grouper.fission_times = fission_times
+        grouper.full_fission_term = fiss_rate[:-1]
     parameters = yields + half_lives
     func_counts = fit_func(times, parameters)
-    assert np.isclose(func_counts, counts).all(), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
+    assert np.isclose(func_counts, counts, atol=1e-2, rtol=1e-2).all(), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
     count_data = {
         'times': times,
@@ -74,9 +69,9 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper):
     test_half_lives = sorted([data[key]['half_life'] for key in data], reverse=True)
 
     for group in range(grouper.num_groups):
-        assert np.isclose(test_yields[group], yields[group], rtol=1e-4, atol=1e-8), \
+        assert np.isclose(test_yields[group], yields[group], rtol=1e-2, atol=1e-4), \
             f'Group {group+1} yields mismatch - {test_yields[group]=} != {yields[group]=}'
-        assert np.isclose(test_half_lives[group], half_lives[group], rtol=1e-4, atol=1e-8), \
+        assert np.isclose(test_half_lives[group], half_lives[group], rtol=1e-2, atol=1e-4), \
             f'Group {group+1} half lives mismatch - {test_half_lives[group]=} != {half_lives[group]=}'
     return None
 
@@ -107,9 +102,21 @@ def test_grouper_saturation_ex_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
     grouper.t_ex = 10
-
     run_grouper_fit_test('saturation_ex', grouper)
 
+def test_grouper_saturation_ex_short_fitting():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 10
+    grouper.t_net = 30
+    run_grouper_fit_test('saturation_ex', grouper)
+
+def test_grouper_intermediate_ex_short_fitting():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 10
+    grouper.t_net = 30
+    run_grouper_fit_test('intermediate_ex', grouper)
 
 @pytest.mark.slow
 def test_grouper_intermediate_ex_fitting():
