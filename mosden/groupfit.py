@@ -206,15 +206,16 @@ class Grouper(BaseClass):
             lam = np.log(2) / half_lives[k]
             nu = yields[k]
             fission_component = 0
-
             for ti, t in enumerate(self.fission_times[:-1]):
                 t2 = self.fission_times[ti+1]
                 t1 = self.fission_times[ti]
-                exponential_term = (exp(-lam*(self.t_net - t2)) * expm1(-lam*(t1 - t2)))
+                dt = t2 - t1
+                a = -lam * (self.t_net - t2)
+                b = -lam * dt
+                exponential_term = exp(a) * (-expm1(b))
                 fission_component += self.full_fission_term[ti] * exponential_term
 
-            t0 = np.min(times)
-            exp_term = exp(-lam * (times - t0)) * exp(-lam * t0)
+            exp_term = exp(-lam * times)
             group_counts = nu * exp_term * fission_component
 
             counts += group_counts
@@ -256,7 +257,8 @@ class Grouper(BaseClass):
         return self.refined_fission_term
 
     def _nonlinear_least_squares(self,
-                                 count_data: dict[str: np.ndarray[float]] = None
+                                 count_data: dict[str: np.ndarray[float]] = None,
+                                 set_refined_fiss: bool = False
                                  ) -> dict[str: dict[str: float]]:
         """
         Run nonlinear least squares fit on the delayed neutron count rate curve
@@ -266,6 +268,8 @@ class Grouper(BaseClass):
         ----------
         count_data : dict[str: np.ndarray[float]], optional
             Dictionary containing the count data, by default None
+        set_refined_fiss : bool, optional
+            Set the refined fission rate (deafult True)
 
         Returns
         -------
@@ -278,7 +282,8 @@ class Grouper(BaseClass):
         if count_data is None:
             count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
-        self._set_refined_fission_term(times)
+        if set_refined_fiss:
+            self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
         if self.irrad_type == 'pulse':
