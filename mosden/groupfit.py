@@ -201,24 +201,20 @@ class Grouper(BaseClass):
             counts: np.ndarray[object] = np.zeros(
                 len(times), dtype=object)
             expm1 = wrap(np.expm1)
-
-        for k in range(self.num_groups):
-            lam = np.log(2) / half_lives[k]
-            nu = yields[k]
-            fission_component = 0
-            for ti, t in enumerate(self.fission_times[:-1]):
-                t2 = self.fission_times[ti+1]
-                t1 = self.fission_times[ti]
-                dt = t2 - t1
-                a = -lam * (self.t_net - t2)
-                b = -lam * dt
-                exponential_term = exp(a) * (-expm1(b))
-                fission_component += self.full_fission_term[ti] * exponential_term
-
-            exp_term = exp(-lam * times)
-            group_counts = nu * exp_term * fission_component
-
-            counts += group_counts
+        lam = np.log(2) / np.asarray(half_lives)
+        nu = np.asarray(yields)
+        t1 = self.fission_times[:-1]
+        t2 = self.fission_times[1:]
+        dt = t2 - t1
+        # One group per row, one time per column
+        a = -lam[:, None] * np.asarray(self.t_net - t2)[None, :]
+        b = -lam[:, None] * dt[None, :]
+        exponential_term = exp(a) * -expm1(b)
+        # Sum each groups' contribution
+        fission_component = np.sum(self.full_fission_term * exponential_term, axis=1)
+        count_exponential = exp(-lam[:, None] * times[None, :])
+        group_counts = nu[:, None] * count_exponential * fission_component[:, None]
+        counts = np.sum(group_counts, axis=0)
         return counts
     
     def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
@@ -361,6 +357,11 @@ class Grouper(BaseClass):
             sorted_params = self._sort_params_by_half_life(result.x)
             sampled_params.append(sorted_params)
         sampled_params: np.ndarray[float] = np.asarray(sampled_params)
+
+        try:
+            self.post_data
+        except AttributeError:
+            self.load_post_data()
 
         if 'PnMC' not in self.post_data.keys():
             self.post_data['PnMC'] = list()
