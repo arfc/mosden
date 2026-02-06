@@ -10,7 +10,7 @@
             "logger": true
         },
         "processed_data_dir": "./tests/integration/output_omc",
-        "output_dir": "./tests/integration/output_omc",
+        "output_dir": "./tests/integration/output_omc/",
         "log_level": 15,
         "log_file": "./tests/integration/output_omc/log.log"
     },
@@ -30,7 +30,7 @@
     "modeling_options": {
         "concentration_handling": "OMC",
         "count_rate_handling": "data",
-        "reprocessing_locations": ["excore"],
+        "reprocessing_locations": ["incore", "excore"],
         "reprocessing": {
             "Xe": 0.0
         },
@@ -39,10 +39,10 @@
             "flux": false,
             "reprocessing": false
         },
-        "base_removal_scaling": 0.5,
+        "base_removal_scaling": 1.0,
         "incore_s": 5,
         "excore_s": 2,
-        "net_irrad_s": 30,
+        "net_irrad_s": 33,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {

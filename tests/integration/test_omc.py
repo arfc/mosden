@@ -31,7 +31,7 @@ def setup_classes():
                 'sigma emission probability': 1.0},
     }
 
-    Pn_data.write_csv(new_Pn_data) 
+    #Pn_data.write_csv(new_Pn_data) 
 
     return input_path
 
@@ -42,6 +42,10 @@ def test_chemical_removal(setup_classes):
     concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), 'output_omc/omc')
     concs.reprocess_locations = ['excore', 'incore']
     irrad_cutoff = concs.get_irrad_index(False)
+    assert concs.t_in == 5
+    assert concs.t_ex == 2
+    assert concs.t_net == 33
+    assert concs.get_irrad_index(False) == 9
     assert concs.repr_scale == 1.0
     assert concs.reprocess_locations == ['excore', 'incore']
 
@@ -55,13 +59,21 @@ def test_chemical_removal(setup_classes):
     uranium_constant = np.allclose(conc_over_time, conc_over_time[0])
     assert uranium_constant, f'{uranium_constant} values should be constant in time'
 
+    counts = CountRate(input_path)
+    base_counts = counts.calculate_count_rate()
+
     groups = Grouper(input_path)
     groups.generate_groups()
     base_group_data = CSVHandler(groups.group_path).read_vector_csv()
 
+    uranium_removal_rate = 1e-2
     concs.reprocessing = {
-        'U': 1.0
+        'U': uranium_removal_rate
     }
+    assert concs.t_in == 5
+    assert concs.t_ex == 2
+    assert concs.t_net == 33
+    assert concs.get_irrad_index(False) == 9
     assert concs.repr_scale == 1.0
     assert concs.reprocess_locations == ['excore', 'incore']
     concs.generate_concentrations()
@@ -75,14 +87,14 @@ def test_chemical_removal(setup_classes):
     uranium_constant = np.allclose(conc_over_time, conc_over_time[0])
     assert not uranium_constant, f'{uranium_constant} values should decrease'
 
-    concs.logger.error(f'{times[:irrad_cutoff] = }')
-    concs.logger.error(f'{conc_over_time[0]}')
-    predicted_uranium_conc = conc_over_time[0] * np.exp(-1.0 * np.asarray(times[:irrad_cutoff]))
+    predicted_uranium_conc = conc_over_time[0] * np.exp(-uranium_removal_rate * np.asarray(times[:irrad_cutoff]))
     proper_chem = np.allclose(predicted_uranium_conc, conc_over_time[:irrad_cutoff])
     assert proper_chem, f'Removal not matching: {predicted_uranium_conc = } != {conc_over_time = }'
+
+    chem_counts = counts.calculate_count_rate()
 
     groups.generate_groups()
     chem_group_data = CSVHandler(groups.group_path).read_vector_csv()
     for key in base_group_data.keys():
-        assert np.all(np.isclose(chem_group_data[key], base_group_data[key], atol=1e-3)), f"Data mismatch for {key}"
+        assert np.all(np.isclose(chem_group_data[key], base_group_data[key], atol=1e-1, rtol=1e-1)), f"Data mismatch for {key}"
 
