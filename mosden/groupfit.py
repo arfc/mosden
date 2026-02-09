@@ -196,13 +196,17 @@ class Grouper(BaseClass):
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
             expm1 = np.expm1
+            lam = np.log(2) / np.asarray(half_lives)
+            nu = np.asarray(yields)
         except TypeError:
             exp = unumpy.exp
+            expm1 = unumpy.expm1
             counts: np.ndarray[object] = np.zeros(
                 len(times), dtype=object)
-            expm1 = wrap(np.expm1)
-        lam = np.log(2) / np.asarray(half_lives)
-        nu = np.asarray(yields)
+            lam = unumpy.uarray([hl.n for hl in half_lives],
+                                [hl.s for hl in half_lives])
+            nu = unumpy.uarray([v.n for v in yields],
+                               [v.s for v in yields])
         t1 = self.fission_times[:-1]
         t2 = self.fission_times[1:]
         dt = t2 - t1
