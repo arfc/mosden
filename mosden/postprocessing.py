@@ -1262,6 +1262,7 @@ class PostProcess(BaseClass):
                 create=False).read_csv_with_time(trim=False)
             dx = np.diff(fission_times)
             total_fissions = np.sum(dx * fission_term)
+            self.logger.info(f'{total_fissions = }')
 
         for nuc in net_nucs:
             df_data[nuc] = dict()

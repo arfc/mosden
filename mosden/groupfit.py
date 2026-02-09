@@ -254,7 +254,7 @@ class Grouper(BaseClass):
 
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None,
-                                 set_refined_fiss: bool = False
+                                 set_refined_fiss: bool = True
                                  ) -> dict[str: dict[str: float]]:
         """
         Run nonlinear least squares fit on the delayed neutron count rate curve
