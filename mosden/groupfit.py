@@ -203,8 +203,9 @@ class Grouper(BaseClass):
             expm1 = unumpy.expm1
             counts: np.ndarray[object] = np.zeros(
                 len(times), dtype=object)
-            lam = unumpy.uarray([hl.n for hl in half_lives],
-                                [hl.s for hl in half_lives])
+            lams = np.log(2) / half_lives
+            lam = unumpy.uarray([lam.n for lam in lams],
+                                [lam.s for lam in lams])
             nu = unumpy.uarray([v.n for v in yields],
                                [v.s for v in yields])
         t1 = self.fission_times[:-1]
