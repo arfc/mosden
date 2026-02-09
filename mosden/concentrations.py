@@ -271,7 +271,7 @@ class Concentrations(BaseClass):
         if self.openmc_settings['mode'] != 'fixed source':
             raise NotImplementedError('Only fixed source fission tracking enabled')
         fissions = dict()
-        num_files = self.get_irrad_index(False) - 1
+        num_files = self.get_irrad_index(False)
         for i in range(num_files):
             sp = openmc.StatePoint(f'{self.openmc_settings["omc_dir"]}/openmc_simulation_n{i}.h5')
             for tally in sp.tallies.keys():
