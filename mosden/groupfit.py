@@ -137,13 +137,6 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
-        t_sum: float = self.t_in + self.t_ex
-        try:
-            recircs: int = int(np.floor(self.t_net/t_sum))
-            irrad_circs: int = int(np.floor((self.t_net-self.t_in)/t_sum))
-        except ZeroDivisionError:
-            recircs = 0
-            irrad_circs = 0
         
         try:
             np.exp(-np.log(2)/half_lives[0])
@@ -156,19 +149,35 @@ class Grouper(BaseClass):
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             nu = yields[group]
-            group_counts = 0
+            fiss_term = self._get_saturation_fission_term(lam, exp, times)
+            group_counts = fiss_term * exp(-lam*times) * nu
 
-            if self.t_ex == 0:
-                group_counts += exp(-lam*times) * (1 - exp(-lam*self.t_net))
-                counts += nu * group_counts
-                continue
+            counts += group_counts
+        return counts
+    
+    def _get_saturation_fission_term(self, lam: float, exp: Callable,
+                                times: np.ndarray[float]) -> float:
+        t_sum: float = self.t_in + self.t_ex
+        try:
+            recircs: int = int(np.floor(self.t_net/t_sum))
+            irrad_circs: int = int(np.floor((self.t_net-self.t_in)/t_sum))
+        except ZeroDivisionError:
+            recircs = 0
+            irrad_circs = 0
 
+        if self.t_ex == 0:
+            fiss_term = (1 - exp(-lam*self.t_net))
+        else:
+            fiss_term = 0
             for j in range(0, irrad_circs+1):
-                group_counts += exp(-lam*(times+self.t_net-j*t_sum-self.t_in)) - exp(-lam*(times+self.t_net-j*t_sum))
+                fiss_term += exp(-lam*(times+self.t_net-j*t_sum-self.t_in)) - exp(-lam*(times+self.t_net-j*t_sum))
             for j in range(irrad_circs+1, recircs+1):
-                group_counts += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
-            counts += nu * group_counts
-        return self.refined_fission_term * counts
+                fiss_term += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
+
+        return fiss_term * self.refined_fission_term
+
+            
+
 
 
     def _intermediate_numerical_fit_function(self,

@@ -63,8 +63,6 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
         grouper.fission_times = fission_times
         grouper.full_fission_term = fiss_rate[:-1]
         grouper.refined_fission_term = np.mean(fiss_rate)
-        assert grouper.full_fission_term is not None, "Full fission term is none"
-        assert grouper.fission_times is not None, "Fission times are none"
 
     if check_scaling_term:
         sat_term = grouper.refined_fission_term * (1 - np.exp(-lams * grouper.t_net))
@@ -94,15 +92,19 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     test_yields = sorted([data[key]['yield'] for key in data], reverse=True)
     test_half_lives = sorted([data[key]['half_life'] for key in data], reverse=True)
     parameters = test_yields + test_half_lives
-    residual = np.linalg.norm(grouper._residual_function(parameters, times, counts, None, fit_func))
-    grouper.logger.error(f'{residual = }')
-    assert np.isclose(residual, expected_residual), "Residual did not match expected value"
 
     for group in range(grouper.num_groups):
         assert np.isclose(test_yields[group], yields[group], rtol=1e-1, atol=1e-1), \
             f'Group {group+1} yields mismatch - {test_yields[group]=} != {yields[group]=}'
         assert np.isclose(test_half_lives[group], half_lives[group], rtol=1e-1, atol=1e-1), \
             f'Group {group+1} half lives mismatch - {test_half_lives[group]=} != {half_lives[group]=}'
+        
+    residual = np.linalg.norm(grouper._residual_function(parameters, times, counts, None, fit_func))
+    grouper.logger.error(f'{parameters = }')
+    grouper.logger.error(f'{counts = }')
+    grouper.logger.error(f'{fit_func(times, parameters) = }')
+    grouper.logger.error(f'{residual = }')
+    assert np.isclose(residual, expected_residual), "Residual did not match expected value"
     return None
 
 def test_grouper_pulse_fitting():
