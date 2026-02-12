@@ -16,10 +16,19 @@ def test_grouper_init():
 
     return
 
+def get_yield_halflives(which='default'):
+    if which == 'default':
+        half_lives = [60, 50, 40, 30, 20, 10]
+        yields = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+    elif which == 'standard':
+        half_lives = [55.4, 22.8, 7.2, 2.3, 0.58, 0.12]
+        yields = [0.00058, 0.00308, 0.00237, 0.00722, 0.00386, 0.00157]
+    return half_lives, yields
+
 def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
-                         expected_residual: float=0.0):
-    half_lives = [60, 50, 40, 30, 20, 10]
-    yields = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
+                         data_type: str='default'):
+    expected_residual = 0.0
+    half_lives, yields = get_yield_halflives(data_type)
     lams = np.log(2)/half_lives
     times = np.linspace(0, 600, 100)
     counts = np.zeros(len(times))
@@ -72,7 +81,6 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
         assert grouper.full_fission_term is not None, "Full fission term is none"
         assert grouper.fission_times is not None, "Fission times are none"
     parameters = yields + half_lives
-    assert grouper.fission_times is not None
     func_counts = fit_func(times, parameters)
     assert np.isclose(func_counts, counts, atol=1e-2, rtol=1e-2).all(), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
@@ -99,8 +107,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
 
 def test_grouper_pulse_fitting():
     input_path = './tests/unit/input/input.json'
-    grouper = Grouper(input_path)
-    
+    grouper = Grouper(input_path) 
     run_grouper_fit_test('pulse', grouper)
 
 
@@ -112,11 +119,25 @@ def test_grouper_saturation_noex_fitting():
     run_grouper_fit_test('saturation', grouper)
 
 @pytest.mark.slow
+def test_grouper_saturation_noex_fitting_standard_params():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 0
+    run_grouper_fit_test('saturation', grouper, 'standard')
+
+@pytest.mark.slow
 def test_grouper_intermediate_noex_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
     grouper.t_ex = 0
     run_grouper_fit_test('intermediate', grouper)
+
+@pytest.mark.slow
+def test_grouper_intermediate_noex_fitting_standard_params():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 0
+    run_grouper_fit_test('intermediate', grouper, 'standard')
 
 
 @pytest.mark.slow
