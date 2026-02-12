@@ -191,7 +191,6 @@ class Grouper(BaseClass):
         """
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
-        counts: np.ndarray[float] = np.zeros(len(times))
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
@@ -325,8 +324,13 @@ class Grouper(BaseClass):
                                args=(times, counts, count_err, fit_function))
         J = result.jac
         s = svd(J, compute_uv=False)
+        self.logger.info(f'{s = }')
         condition_number = s[0] / s[-1]
         self.logger.info(f'{condition_number = }')
+        cov = np.linalg.pinv(J.T @ J)
+        self.logger.info(f'{np.diag(cov) = }')
+        sigma = np.sqrt(np.diag(cov))
+        self.logger.info(f'{sigma = }')
         self.logger.info(result)
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
