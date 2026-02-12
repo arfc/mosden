@@ -16,7 +16,8 @@ def test_grouper_init():
 
     return
 
-def run_grouper_fit_test(irrad_type: str, grouper: Grouper):
+def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
+                         expected_residual: float=0.0):
     half_lives = [60, 50, 40, 30, 20, 10]
     yields = [0.6, 0.5, 0.4, 0.3, 0.2, 0.1]
     lams = np.log(2)/half_lives
@@ -65,6 +66,10 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper):
     data = grouper._nonlinear_least_squares(count_data=count_data, set_refined_fiss=False)
     test_yields = sorted([data[key]['yield'] for key in data], reverse=True)
     test_half_lives = sorted([data[key]['half_life'] for key in data], reverse=True)
+    parameters = test_yields + test_half_lives
+    residual = np.linalg.norm(grouper._residual_function(parameters, times, counts, None, fit_func))
+    grouper.logger.error(f'{residual = }')
+    assert np.isclose(residual, expected_residual), "Residual did not match expected value"
 
     for group in range(grouper.num_groups):
         assert np.isclose(test_yields[group], yields[group], rtol=1e-1, atol=1e-1), \
