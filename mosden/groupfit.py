@@ -11,6 +11,7 @@ import warnings
 from tqdm import tqdm
 from scipy.linalg import svd
 from scipy.integrate import simpson
+from typing import Callable
 
 
 class Grouper(BaseClass):
@@ -207,6 +208,31 @@ class Grouper(BaseClass):
                                 [lam.s for lam in lams])
             nu = unumpy.uarray([v.n for v in yields],
                                [v.s for v in yields])
+        fission_component = self._get_effective_fission(lam, exp, expm1)
+        count_exponential = exp(-lam[:, None] * times[None, :])
+        group_counts = nu[:, None] * count_exponential * fission_component[:, None]
+        counts = np.sum(group_counts, axis=0)
+        return counts
+    
+    def _get_effective_fission(self, lam: np.ndarray[float], exp: Callable, 
+                               expm1: Callable):
+        """
+        Calculate the effective fission term scaled over time
+
+        Parameters
+        ----------
+        lam : np.ndarray[float]
+            Decay constants for each group
+        exp : callable
+            Exponential function
+        expm1 : callable
+            e^x - 1 function
+
+        Returns
+        -------
+        fission_component : np.ndarray[float]
+            The effective fission rate for each group
+        """
         t1 = self.fission_times[:-1]
         t2 = self.fission_times[1:]
         dt = t2 - t1
@@ -216,10 +242,7 @@ class Grouper(BaseClass):
         exponential_term = exp(a) * -expm1(b)
         # Sum each groups' contribution
         fission_component = np.sum(self.full_fission_term * exponential_term, axis=1)
-        count_exponential = exp(-lam[:, None] * times[None, :])
-        group_counts = nu[:, None] * count_exponential * fission_component[:, None]
-        counts = np.sum(group_counts, axis=0)
-        return counts
+        return fission_component
     
     def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
         """

@@ -268,6 +268,7 @@ def test_chemical_removal(setup_classes):
     assert concs.get_irrad_index(False) == 9
     assert concs.repr_scale == 1.0
     assert concs.reprocess_locations == ['excore', 'incore']
+    assert concs.conc_method == 'OMC'
     concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_chem{name_mod}')
     concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
@@ -287,11 +288,13 @@ def test_chemical_removal(setup_classes):
 
     counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
+    assert counts.count_method == 'data'
     chem_counts = counts.calculate_count_rate()
 
     groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
+    assert groups.irrad_type == 'intermediate'
     groups.generate_groups()
     chem_group_data = CSVHandler(groups.group_path).read_vector_csv()
     for key in base_group_data.keys():

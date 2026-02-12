@@ -37,23 +37,42 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     counts_groups = concs[:, None] * np.exp(-lams[:, None] * times[None, :]) * lams[:, None]
     counts = np.sum(counts_groups, axis=0)
 
+    check_scaling_term = True
     if '_ex' in irrad_type:
         irrad_type = irrad_type.replace('_ex', '')
+        check_scaling_term = False
 
     if irrad_type == 'pulse':
+        check_scaling_term = False
         fit_func = grouper._pulse_fit_function
     elif irrad_type == 'saturation':
         fit_func = grouper._saturation_fit_function
     elif irrad_type == 'intermediate':
         fit_func = grouper._intermediate_numerical_fit_function
 
+    if irrad_type != 'pulse':
+        grouper.fission_times = fission_times
+        grouper.full_fission_term = fiss_rate[:-1]
+        grouper.refined_fission_term = np.mean(fiss_rate)
+        assert grouper.full_fission_term is not None, "Full fission term is none"
+        assert grouper.fission_times is not None, "Fission times are none"
+
+    if check_scaling_term:
+        sat_term = grouper.refined_fission_term * (1 - np.exp(-lams * grouper.t_net))
+        inter_term = grouper._get_effective_fission(lams, np.exp, np.expm1)
+        assert np.all(np.isclose(sat_term, inter_term)), "Terms do not agree"
+
     grouper.irrad_type = irrad_type
     grouper.num_groups = 6
     grouper._set_refined_fission_term(times)
-    if irrad_type == 'intermediate':
+    if irrad_type != 'pulse':
         grouper.fission_times = fission_times
         grouper.full_fission_term = fiss_rate[:-1]
+        grouper.refined_fission_term = np.mean(fiss_rate)
+        assert grouper.full_fission_term is not None, "Full fission term is none"
+        assert grouper.fission_times is not None, "Fission times are none"
     parameters = yields + half_lives
+    assert grouper.fission_times is not None
     func_counts = fit_func(times, parameters)
     assert np.isclose(func_counts, counts, atol=1e-2, rtol=1e-2).all(), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
