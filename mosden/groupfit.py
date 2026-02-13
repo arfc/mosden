@@ -149,14 +149,13 @@ class Grouper(BaseClass):
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             nu = yields[group]
-            fiss_term = self._get_saturation_fission_term(lam, exp, times)
+            fiss_term = self._get_saturation_fission_term(lam, exp)
             group_counts = fiss_term * exp(-lam*times) * nu
 
             counts += group_counts
         return counts
     
-    def _get_saturation_fission_term(self, lam: float, exp: Callable,
-                                times: np.ndarray[float]) -> float:
+    def _get_saturation_fission_term(self, lam: float, exp: Callable) -> float:
         t_sum: float = self.t_in + self.t_ex
         try:
             recircs: int = int(np.floor(self.t_net/t_sum))
@@ -170,9 +169,9 @@ class Grouper(BaseClass):
         else:
             fiss_term = 0
             for j in range(0, irrad_circs+1):
-                fiss_term += exp(-lam*(times+self.t_net-j*t_sum-self.t_in)) - exp(-lam*(times+self.t_net-j*t_sum))
+                fiss_term += exp(-lam*(self.t_net-j*t_sum-self.t_in)) - exp(-lam*(self.t_net-j*t_sum))
             for j in range(irrad_circs+1, recircs+1):
-                fiss_term += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
+                fiss_term += 1 - exp(-lam*(self.t_net-j*t_sum))
 
         return fiss_term * self.refined_fission_term
 
@@ -250,7 +249,7 @@ class Grouper(BaseClass):
         b = -lam[:, None] * dt[None, :]
         exponential_term = exp(a) * -expm1(b)
         # Sum each groups' contribution
-        fission_component = np.sum(self.full_fission_term * exponential_term, axis=1)
+        fission_component = np.sum(np.asarray(self.full_fission_term)[None, :] * exponential_term, axis=1)
         return fission_component
     
     def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
