@@ -271,6 +271,10 @@
                     "description": "The method to use to convert from delayed neutron counts into delayed neutron precursor group parameters. This currently includes non-linear least squares (nlls)",
                     "enum": ["nlls"]
                 },
+                "parameter_guesses": {
+                    "type": "integer",
+                    "description": "The number of guesses to use to calculate the optimal group parameters to avoid local minima"
+                },
                 "samples": {
                     "type": "integer",
                     "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)"

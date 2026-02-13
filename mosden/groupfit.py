@@ -309,7 +309,6 @@ class Grouper(BaseClass):
               (yield, sigma yield, half_life, sigma half_life)
         """
         from mosden.countrate import CountRate
-        initial_parameter_guess = np.ones(self.num_groups * 2)
         if count_data is None:
             count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
@@ -343,16 +342,31 @@ class Grouper(BaseClass):
                 max_half_life))
 
         bounds = (lower_bounds, upper_bounds)
-        result = least_squares(self._residual_function,
-                               initial_parameter_guess,
-                               bounds=bounds,
-                               method='trf',
-                               ftol=1e-12,
-                               gtol=1e-12,
-                               xtol=1e-12,
-                               verbose=0,
-                               max_nfev=1e5,
-                               args=(times, counts, count_err, fit_function))
+        n_restarts = self.num_starts
+        starts = []
+        starts.append(np.ones(self.num_groups*2))
+        for _ in range(n_restarts-1):
+            y_noise = 10 ** np.random.uniform(-4, -1, size=self.num_groups)
+            hl_noise = 10 ** np.random.uniform(-2, 1, size=self.num_groups)
+            x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
+            starts.append(x0)
+
+        best = None
+        for x0 in tqdm(starts):
+            result = least_squares(self._residual_function,
+                                x0,
+                                bounds=bounds,
+                                method='trf',
+                                x_scale='jac',
+                                ftol=1e-12,
+                                gtol=1e-12,
+                                xtol=1e-12,
+                                verbose=0,
+                                max_nfev=1e6,
+                                args=(times, counts, count_err, fit_function))
+            if best is None or result.cost < best.cost:
+                best = result
+        result = best
         J = result.jac
         s = svd(J, compute_uv=False)
         self.logger.info(f'{s = }')

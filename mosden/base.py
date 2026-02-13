@@ -114,6 +114,7 @@ class BaseClass:
         self.seed: int = group_options.get('seed', 0)
 
         self.group_method: str = group_options.get('method', 'nlls')
+        self.num_starts: int = group_options.get('parameter_guesses', 10)
         self.num_groups: int = group_options.get('num_groups', 6)
         self.group_overwrite: bool = overwrite_options.get('group_fitting', False)
         self.MC_samples: int = group_options.get('samples', 1)
@@ -142,15 +143,7 @@ class BaseClass:
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
 
-        if self.decay_time_spacing == 'linear':
-            self.decay_times: np.ndarray = np.linspace(
-                0, self.decay_time, self.num_times)
-        elif self.decay_time_spacing == 'log':
-            self.decay_times: np.ndarray = np.geomspace(
-                1e-2, self.decay_time, self.num_times)
-        else:
-            raise ValueError(
-                f"Decay time spacing '{self.decay_time_spacing}' not supported.")
+        self.decay_times = self._set_decay_times()
 
         np.random.seed(self.seed)
 
@@ -169,6 +162,19 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+    
+    def _set_decay_times(self) -> np.ndarray[float]:
+        if self.decay_time_spacing == 'linear':
+            self.decay_times: np.ndarray = np.linspace(
+                0, self.decay_time, self.num_times)
+        elif self.decay_time_spacing == 'log':
+            self.decay_times: np.ndarray = np.geomspace(
+                1e-2, self.decay_time, self.num_times)
+        else:
+            raise ValueError(
+                f"Decay time spacing '{self.decay_time_spacing}' not supported.")
+        return self.decay_times
+
     
     def _update_t_net(self) -> float:
         """

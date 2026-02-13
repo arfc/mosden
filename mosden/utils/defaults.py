@@ -74,6 +74,7 @@ DEFAULTS = {
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
+        "parameter_guesses": 10,
         "samples": 1,
         "sample_func": "normal",
         "seed": seed
