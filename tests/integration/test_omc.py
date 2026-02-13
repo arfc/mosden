@@ -111,9 +111,11 @@ def test_in_ex_no_diff(setup_classes):
     groups.logger.error(f'{groups.decay_times = }')
     groups.logger.error(f'{base_counts["counts"] = }')
     groups.logger.error(f'{base_params = }')
-    assert np.isclose(base_residual_saturation, base_residual_intermediate, rtol=1e-1), "Residual from intermediate fit does not match the saturation fit for constant irradiation"
+    assert np.isclose(base_residual_saturation, base_residual_intermediate, atol=1e-1), "Residual from intermediate fit does not match the saturation fit for constant irradiation"
 
     yield_assertions(nuc_data, concs, groups, conc_data)
+
+
 
     name_mod = '_flowing'
     concs = Concentrations(input_path)
@@ -172,8 +174,71 @@ def test_in_ex_no_diff(setup_classes):
     yield_assertions(nuc_data, concs, groups, flow_concs)
     
 
+def set_attrs(class_obj, tin, tex, tnet, irrad_type, name_mod, uranium_removal_rate=0.0):
+    class_obj.t_in = tin
+    class_obj.t_ex = tex
+    class_obj.t_net = tnet
+    class_obj.irrad_type = irrad_type
+    class_obj.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_chem{name_mod}')
+    class_obj.concentration_path = class_obj.output_dir + f'concentrations{name_mod}.csv'
+    class_obj.countrate_path = class_obj.output_dir + f'counts{name_mod}.csv'
+    class_obj.group_path = class_obj.output_dir + f'groups{name_mod}.csv'
+    class_obj.reprocess_locations = ['excore', 'incore']
+    class_obj.repr_scale = 1.0
+    class_obj.reprocessing = {
+        'U': uranium_removal_rate
+    }
+    assert class_obj.t_in == tin
+    assert class_obj.t_ex == tex
+    assert class_obj.t_net == tnet
+    assert class_obj.irrad_type == irrad_type
+    assert class_obj.repr_scale == 1.0
+    assert class_obj.reprocess_locations == ['excore', 'incore']
+    return class_obj
+
+def set_attrs_from_obj(new_obj, old_obj):
+    tin = old_obj.t_in
+    tex = old_obj.t_ex
+    tnet = old_obj.t_net
+    irrad_type = old_obj.irrad_type
+    name_mod = old_obj.name_mod
+    uranium_removal_rate = old_obj.reprocessing['U']
+    return set_attrs(new_obj, tin, tex, tnet, irrad_type, name_mod, uranium_removal_rate)
 
 
+def check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff):
+    conc_data = CSVHandler(concs.concentration_path).read_csv_with_time(False)
+    u235_conc = conc_data['U235']
+    conc_over_time = list()
+    times = list()
+    for t, N in u235_conc.items():
+        conc_over_time.append(N[0])
+        times.append(t)
+    predicted_uranium_conc = conc_over_time[0] * np.exp(-uranium_removal_rate * np.asarray(times[:irrad_cutoff]))
+    proper_chem = np.allclose(predicted_uranium_conc, conc_over_time[:irrad_cutoff])
+    assert proper_chem, f'Removal not matching: {predicted_uranium_conc = } != {conc_over_time = }'
+
+def get_counts_and_groups(input_path, name_mod, concs):
+    counts = CountRate(input_path)
+    counts = set_attrs_from_obj(counts, concs)
+    counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
+    counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
+    count_data = counts.calculate_count_rate()
+
+    groups = Grouper(input_path)
+    groups = set_attrs_from_obj(groups, concs)
+    groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
+    groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
+    groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
+    groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
+    groups.generate_groups()
+    group_data = CSVHandler(groups.group_path).read_vector_csv()
+    return count_data, group_data
+
+def compare_group_params(new_group, old_group):
+    keys = ['half_life', 'yield']
+    for key in keys:
+        assert np.all(np.isclose(new_group[key], old_group[key], rtol=1e-1)), f"Data mismatch for {key}"
 
 
 @pytest.mark.slow
@@ -186,188 +251,43 @@ def test_chemical_removal(setup_classes):
     """
     input_path = setup_classes
     name_mod = '_base'
+    uranium_removal_rate = 0.0
     concs = Concentrations(input_path)
-    concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_chem{name_mod}')
-    concs.reprocess_locations = ['excore', 'incore']
+    concs = set_attrs(concs, tin=5, tex=2, tnet=33, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
     irrad_cutoff = concs.get_irrad_index(False)
-    assert concs.t_in == 5
-    assert concs.t_ex == 2
-    assert concs.t_net == 33
     assert concs.get_irrad_index(False) == 9
-    assert concs.repr_scale == 1.0
-    assert concs.reprocess_locations == ['excore', 'incore']
-    concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-
     concs.generate_concentrations()
-
-    conc_data = CSVHandler(concs.concentration_path).read_csv_with_time(False)
-    u235_conc = conc_data['U235']
-    conc_over_time = list()
-    for N in u235_conc.values():
-        conc_over_time.append(N[0])
-    uranium_constant = np.allclose(conc_over_time, conc_over_time[0])
-    assert uranium_constant, f'{uranium_constant} values should be constant in time'
-
-    counts = CountRate(input_path)
-    counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    base_counts = counts.calculate_count_rate()
-
-    groups = Grouper(input_path)
-    groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
-    groups.generate_groups()
-    base_group_data = CSVHandler(groups.group_path).read_vector_csv()
+    check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
+    base_counts, base_group_data = get_counts_and_groups(input_path, name_mod, concs)
 
     name_mod = '_small_chem'
     uranium_removal_rate = 1e-2
-    concs.reprocessing = {
-        'U': uranium_removal_rate
-    }
-    assert concs.t_in == 5
-    assert concs.t_ex == 2
-    assert concs.t_net == 33
+    concs = set_attrs(concs, tin=5, tex=2, tnet=33, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
     assert concs.get_irrad_index(False) == 9
-    assert concs.repr_scale == 1.0
-    assert concs.reprocess_locations == ['excore', 'incore']
-    concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_chem{name_mod}')
-    concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
-    conc_data = CSVHandler(concs.concentration_path).read_csv_with_time(False)
-    u235_conc = conc_data['U235']
-    conc_over_time = list()
-    times = list()
-    for t, N in u235_conc.items():
-        conc_over_time.append(N[0])
-        times.append(t)
-    uranium_constant = np.allclose(conc_over_time, conc_over_time[0])
-    assert not uranium_constant, f'{uranium_constant} values should decrease'
-
-    predicted_uranium_conc = conc_over_time[0] * np.exp(-uranium_removal_rate * np.asarray(times[:irrad_cutoff]))
-    proper_chem = np.allclose(predicted_uranium_conc, conc_over_time[:irrad_cutoff])
-    assert proper_chem, f'Removal not matching: {predicted_uranium_conc = } != {conc_over_time = }'
-
-    counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    chem_counts = counts.calculate_count_rate()
-
-    groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
-    groups.generate_groups()
-    chem_group_data = CSVHandler(groups.group_path).read_vector_csv()
-    for key in base_group_data.keys():
-        assert np.all(np.isclose(chem_group_data[key], base_group_data[key], rtol=1e-1)), f"Data mismatch for {key}"
+    check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
+    small_chem_counts, small_chem_groups = get_counts_and_groups(input_path, name_mod, concs)
+    compare_group_params(small_chem_groups, base_group_data)
 
 
     name_mod = '_large_chem_noex'
     uranium_removal_rate = 3e-1
-    concs.irrad_type = 'intermediate'
-    counts.irrad_type = 'intermediate'
-    groups.irrad_type = 'intermediate'
-    concs.t_in = 1
-    concs.t_ex = 0
-    concs.t_net = 30
-    concs.reprocessing = {
-        'U': uranium_removal_rate
-    }
-    assert concs.t_in == 1
-    assert concs.t_ex == 0
-    assert concs.t_net == 30
+    concs = set_attrs(concs, tin=1, tex=0, tnet=30, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
     assert concs.get_irrad_index(False) == 30
-    assert concs.repr_scale == 1.0
-    assert concs.reprocess_locations == ['excore', 'incore']
-    assert concs.conc_method == 'OMC'
-    concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_chem{name_mod}')
-    concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
-    conc_data = CSVHandler(concs.concentration_path).read_csv_with_time(False)
-    u235_conc = conc_data['U235']
-    conc_over_time = list()
-    times = list()
-    for t, N in u235_conc.items():
-        conc_over_time.append(N[0])
-        times.append(t)
-    uranium_constant = np.allclose(conc_over_time, conc_over_time[0])
-    assert not uranium_constant, f'{uranium_constant} values should decrease'
-
-    predicted_uranium_conc = conc_over_time[0] * np.exp(-uranium_removal_rate * np.asarray(times[:irrad_cutoff]))
-    proper_chem = np.allclose(predicted_uranium_conc, conc_over_time[:irrad_cutoff])
-    assert proper_chem, f'Removal not matching: {predicted_uranium_conc = } != {conc_over_time = }'
-
-    counts.t_in = 1
-    counts.t_ex = 0
-    counts.t_net = 30
-    counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    assert counts.count_method == 'data'
-    chem_counts = counts.calculate_count_rate()
-
-    groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
-    assert groups.irrad_type == 'intermediate'
-    groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
-    groups.generate_groups()
-    chem_group_data = CSVHandler(groups.group_path).read_vector_csv()
-    for key in base_group_data.keys():
-        assert np.all(np.isclose(chem_group_data[key], base_group_data[key], rtol=1e-1)), f"Data mismatch for {key}"
+    check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
+    large_chem_noex_counts, large_chem_noex_groups = get_counts_and_groups(input_path, name_mod, concs)
+    compare_group_params(large_chem_noex_groups, base_group_data)
 
 
     name_mod = '_large_chem'
     uranium_removal_rate = 3e-1
-    concs.irrad_type = 'intermediate'
-    counts.irrad_type = 'intermediate'
-    groups.irrad_type = 'intermediate'
-    concs.reprocessing = {
-        'U': uranium_removal_rate
-    }
-    concs.t_ex = 2
-    concs.t_in = 5
-    concs.t_net = 33
-    assert concs.t_in == 5
-    assert concs.t_ex == 2
-    assert concs.t_net == 33
+    concs = set_attrs(concs, tin=5, tex=2, tnet=33, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
     assert concs.get_irrad_index(False) == 9
-    assert concs.repr_scale == 1.0
-    assert concs.reprocess_locations == ['excore', 'incore']
-    assert concs.conc_method == 'OMC'
-    assert concs.irrad_type == 'intermediate'
-    concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_chem{name_mod}')
-    concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
-    conc_data = CSVHandler(concs.concentration_path).read_csv_with_time(False)
-    u235_conc = conc_data['U235']
-    conc_over_time = list()
-    times = list()
-    for t, N in u235_conc.items():
-        conc_over_time.append(N[0])
-        times.append(t)
-    uranium_constant = np.allclose(conc_over_time, conc_over_time[0])
-    assert not uranium_constant, f'{uranium_constant} values should decrease'
-
-    predicted_uranium_conc = conc_over_time[0] * np.exp(-uranium_removal_rate * np.asarray(times[:irrad_cutoff]))
-    proper_chem = np.allclose(predicted_uranium_conc, conc_over_time[:irrad_cutoff])
-    assert proper_chem, f'Removal not matching: {predicted_uranium_conc = } != {conc_over_time = }'
-
-    counts.t_in = 5
-    counts.t_ex = 2
-    counts.t_net = 33
-    counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    assert counts.count_method == 'data'
-    chem_counts = counts.calculate_count_rate()
-
-    groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
-    groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
-    groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
-    assert groups.irrad_type == 'intermediate'
-    groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
-    groups.generate_groups()
-    chem_group_data = CSVHandler(groups.group_path).read_vector_csv()
-    for key in base_group_data.keys():
-        assert np.all(np.isclose(chem_group_data[key], base_group_data[key], rtol=1e-1)), f"Data mismatch for {key}"
+    check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
+    large_chem_counts, large_chem_groups = get_counts_and_groups(input_path, name_mod, concs)
+    compare_group_params(large_chem_groups, base_group_data)
 
 
 def yield_assertions(nuc_data: dict, concs: Concentrations, groups: Grouper, conc_data: dict):

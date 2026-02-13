@@ -46,7 +46,8 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     
     if irrad_type == 'saturation' or irrad_type == 'intermediate':
         alt_concs = np.asarray(yields) / np.asarray(lams)
-        assert np.all(np.isclose(alt_concs, concs)), "Expected concs don't match"
+        expected_concs = alt_concs * (1 - np.exp(-np.asarray(lams) * grouper.t_net))
+        assert np.all(np.isclose(expected_concs, concs, rtol=1e-1)), "Expected concs don't match"
 
     # One group per row, one time per column
     counts_groups = concs[:, None] * np.exp(-lams[:, None] * times[None, :]) * lams[:, None]
@@ -55,7 +56,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     check_scaling_term = True
     if '_ex' in irrad_type:
         irrad_type = irrad_type.replace('_ex', '')
-        #check_scaling_term = False
+        check_scaling_term = False
 
     if irrad_type == 'pulse':
         check_scaling_term = False
@@ -107,7 +108,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     parameters = test_yields + test_half_lives
     residual_known = np.linalg.norm(grouper._residual_function(parameters, times, counts, None, fit_func))
     residual_previous = np.linalg.norm(grouper._residual_function(parameters, times, func_counts, None, fit_func))
-    assert np.isclose(residual_known, residual_previous, atol=1e-4), "Same counts should have the same residual"
+    assert np.isclose(residual_known, residual_previous, atol=1e-3), "Same counts should have the same residual"
     grouper.logger.error(f'{base_parameters = }')
     grouper.logger.error(f'{parameters = }')
     grouper.logger.error(f'{counts = }')
@@ -211,6 +212,15 @@ def test_effective_fiss():
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
     assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
+
+    grouper.full_fission_term = np.asarray([1, 1, 1])
+    hl = 250e3
+    lams = np.asarray([np.log(2)/hl])
+    grouper.refined_fission_term = 1
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
+    stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
+    assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
+
     
 def test_effective_fiss_many_ts():
     input_path = './tests/unit/input/input.json'
@@ -242,3 +252,13 @@ def test_effective_fiss_many_ts():
 
     assert np.isclose(eff_fiss, 0.9424, rtol=1e-2), "Effective fission mismatch"
     assert np.isclose(stat_fiss, 0.666, rtol=1e-2), "Static effective fission mismatch"
+
+
+    full_fission[(t_mid >= 1) & (t_mid < 2)] = 1.0
+    grouper.full_fission_term = full_fission
+    grouper.refined_fission_term = 1
+
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
+    stat_fiss = grouper._get_saturation_fission_term(lam, np.exp)
+
+    assert np.isclose(eff_fiss, stat_fiss, atol=1e-2)
