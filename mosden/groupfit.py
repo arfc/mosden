@@ -282,7 +282,8 @@ class Grouper(BaseClass):
         self.refined_fission_term = np.mean(self.fission_term)
         return self.refined_fission_term
     
-    def _restructure_intermediate_yields(self, parameters: np.ndarray[float|object]) -> np.ndarray[float|object]:
+    def _restructure_intermediate_yields(self, parameters: np.ndarray[float|object],
+                                         to_yield: bool=True) -> np.ndarray[float|object]:
         """
         Because the intermediate solve includes the effective fission term, 
         that value is divided out and then the parameters are returned in
@@ -292,6 +293,9 @@ class Grouper(BaseClass):
         ----------
         parameters : np.ndarray[float|object]
             Parameters for the group fit
+        to_yield : bool (optional)
+            If going from weighted yield to yield. If going from yield to
+            weighted yield, this should be false
         """
         if self.irrad_type != 'intermediate':
             return parameters
@@ -310,7 +314,10 @@ class Grouper(BaseClass):
             lams = unumpy.uarray([lam.n for lam in lams],
                                 [lam.s for lam in lams])
         fission_per_group = self._get_effective_fission(lams, exp, expm1)
-        actual_yields = np.asarray(scaled_yields) / fission_per_group
+        if to_yield:
+            actual_yields = np.asarray(scaled_yields) / fission_per_group
+        else:
+            actual_yields = fission_per_group * np.asarray(scaled_yields)
         actual_parameters = np.concatenate((actual_yields, half_lives))
         return actual_parameters
 
