@@ -176,9 +176,6 @@ class Grouper(BaseClass):
         return fiss_term * self.refined_fission_term
 
             
-
-
-
     def _intermediate_numerical_fit_function(self,
                                  times: np.ndarray[float | object],
                                  parameters: np.ndarray[float | object]
@@ -216,14 +213,13 @@ class Grouper(BaseClass):
                                 [lam.s for lam in lams])
             nu = unumpy.uarray([v.n for v in yields],
                                [v.s for v in yields])
-        fission_component = self._get_effective_fission(lam, exp, expm1)
         count_exponential = exp(-lam[:, None] * times[None, :])
-        group_counts = nu[:, None] * count_exponential * fission_component[:, None]
+        group_counts = nu[:, None] * count_exponential
         counts = np.sum(group_counts, axis=0)
         return counts
     
     def _get_effective_fission(self, lam: np.ndarray[float], exp: Callable, 
-                               expm1: Callable):
+                               expm1: Callable) -> np.ndarray[float]:
         """
         Calculate the effective fission term scaled over time
 
@@ -244,12 +240,11 @@ class Grouper(BaseClass):
         t1 = self.fission_times[:-1]
         t2 = self.fission_times[1:]
         dt = t2 - t1
-        # One group per row, one time per column
         a = -lam[:, None] * np.asarray(self.t_net - t2)[None, :]
         b = -lam[:, None] * dt[None, :]
         exponential_term = exp(a) * -expm1(b)
-        # Sum each groups' contribution
-        fission_component = np.sum(np.asarray(self.full_fission_term)[None, :] * exponential_term, axis=1)
+        scaled_fission = np.asarray(self.full_fission_term)[None, :] * exponential_term
+        fission_component = np.sum(scaled_fission, axis=1)
         return fission_component
     
     def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
@@ -286,6 +281,39 @@ class Grouper(BaseClass):
         self.logger.debug('Time dependent fission rate history not enabled')
         self.refined_fission_term = np.mean(self.fission_term)
         return self.refined_fission_term
+    
+    def _restructure_intermediate_yields(self, parameters: np.ndarray[float|object]) -> np.ndarray[float|object]:
+        """
+        Because the intermediate solve includes the effective fission term, 
+        that value is divided out and then the parameters are returned in
+        yield, half-life form.
+
+        Parameters
+        ----------
+        parameters : np.ndarray[float|object]
+            Parameters for the group fit
+        """
+        if self.irrad_type != 'intermediate':
+            return parameters
+
+        scaled_yields = parameters[:self.num_groups]
+        half_lives = parameters[self.num_groups:]
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+            expm1 = np.expm1
+            lams = np.log(2) / np.asarray(half_lives)
+        except TypeError:
+            exp = unumpy.exp
+            expm1 = unumpy.expm1
+            lams = np.log(2) / half_lives
+            lams = unumpy.uarray([lam.n for lam in lams],
+                                [lam.s for lam in lams])
+        fission_per_group = self._get_effective_fission(lams, exp, expm1)
+        actual_yields = np.asarray(scaled_yields) / fission_per_group
+        actual_parameters = np.concatenate((actual_yields, half_lives))
+        return actual_parameters
+
 
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None,
@@ -329,6 +357,8 @@ class Grouper(BaseClass):
         min_half_life = 1e-3
         max_half_life = 1e3
         max_yield = 1.0
+        if self.irrad_type == 'intermediate':
+            max_yield = np.max(counts)
         lower_bounds = np.concatenate(
             (np.zeros(
                 self.num_groups), np.ones(
@@ -344,9 +374,10 @@ class Grouper(BaseClass):
         bounds = (lower_bounds, upper_bounds)
         n_restarts = self.num_starts
         starts = []
-        starts.append(np.ones(self.num_groups*2))
-        for _ in range(n_restarts-1):
+        for _ in range(n_restarts):
             y_noise = 10 ** np.random.uniform(-4, -1, size=self.num_groups)
+            if self.irrad_type == 'intermediate':
+                y_noise = np.asarray(counts[0] / self.num_groups)
             hl_noise = 10 ** np.random.uniform(-2, 1, size=self.num_groups)
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
@@ -380,6 +411,7 @@ class Grouper(BaseClass):
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
         sorted_params = self._sort_params_by_half_life(result.x)
+        sorted_params = self._restructure_intermediate_yields(sorted_params)
         sampled_params.append(sorted_params)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
@@ -409,6 +441,7 @@ class Grouper(BaseClass):
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)
+            sorted_params = self._restructure_intermediate_yields(sorted_params)
             sampled_params.append(sorted_params)
         sampled_params: np.ndarray[float] = np.asarray(sampled_params)
 
