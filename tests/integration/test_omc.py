@@ -6,7 +6,7 @@ from mosden.concentrations import Concentrations
 from mosden.countrate import CountRate
 from mosden.groupfit import Grouper
 import os
-from scipy.integrate import simpson
+from scipy.integrate import simpson, trapezoid
 
 @pytest.fixture
 def setup_classes():
@@ -105,14 +105,14 @@ def test_in_ex_no_diff(setup_classes):
     half_lives = base_group_data['half_life']
     base_params = yields + half_lives
     fit_func = groups._intermediate_numerical_fit_function
-    assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, base_params), rtol=1e-2), "Intermediate counts do not match"
-    base_residual_intermediate = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, base_counts['counts'], None, fit_func))
+    groups.irrad_type = 'intermediate'
+    adjusted_params = groups._restructure_intermediate_yields(base_params, to_yield=False)
+    groups.irrad_type = 'saturation'
+    assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, adjusted_params), rtol=1e-2), "Intermediate counts do not match"
+    base_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, base_counts['counts'], None, fit_func))
     fit_func = groups._saturation_fit_function
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, base_params), rtol=1e-2), "Saturation counts do not match"
     base_residual_saturation = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, base_counts['counts'], None, fit_func))
-    groups.logger.error(f'{groups.decay_times = }')
-    groups.logger.error(f'{base_counts["counts"] = }')
-    groups.logger.error(f'{base_params = }')
     assert np.isclose(base_residual_saturation, base_residual_intermediate, atol=1e-1), "Residual from intermediate fit does not match the saturation fit for constant irradiation"
 
     yield_assertions(nuc_data, concs, groups, conc_data)
@@ -128,10 +128,11 @@ def test_in_ex_no_diff(setup_classes):
     concs.t_net = 30
     concs.openmc_settings['source'] = source_mult
     t_net_new = concs._update_t_net()
-    assert t_net_new == 30
+    concs.t_net = t_net_new
+    assert t_net_new == 31
     assert concs.t_in == 1
     assert concs.t_ex == 1
-    assert concs.t_net == 30
+    assert concs.t_net == 31
     assert concs.openmc_settings['source'] == source_mult
     assert concs.get_irrad_index(False) == 30
     concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
@@ -162,10 +163,13 @@ def test_in_ex_no_diff(setup_classes):
     half_lives = flow_groups['half_life']
     flow_params = yields + half_lives
     fit_func = groups._intermediate_numerical_fit_function
-    assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, flow_params), rtol=1e-2), "Intermediate counts do not match"
-    flow_residual_intermediate = np.linalg.norm(groups._residual_function(flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
-    stat_params_on_flow_residual_intermediate = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, flow_counts['counts'], None, fit_func))
+    groups.irrad_type = 'intermediate'
+    adjusted_flow_params = groups._restructure_intermediate_yields(base_params)
+    assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, adjusted_flow_params), rtol=1e-2), "Intermediate counts do not match"
+    flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
+    stat_params_on_flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, flow_counts['counts'], None, fit_func))
     fit_func = groups._saturation_fit_function
+    groups.irrad_type = 'saturation'
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, flow_params), rtol=1e-2), "Saturation counts do not match"
     flow_residual_saturation = np.linalg.norm(groups._residual_function(flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
     stat_params_on_flow_residual_saturation = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, flow_counts['counts'], None, fit_func))
@@ -303,7 +307,6 @@ def test_chemical_removal(setup_classes):
 def yield_assertions(nuc_data: dict, concs: Concentrations, groups: Grouper, conc_data: dict):
     groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
     dts = np.diff(groups.fission_times)
-    groups.logger.error(f'{groups.fission_times = }')
     # Constant fission source over each time step
     irrad_conc_index = groups.get_irrad_index(False)
     fission_integral = [groups.full_fission_term[ti] * dts[ti] for ti in range(len(dts))]
@@ -311,24 +314,22 @@ def yield_assertions(nuc_data: dict, concs: Concentrations, groups: Grouper, con
         yield_val = data['yield']
         lam = data['lam']
         pn = data['pn']
-        exp_decays = np.exp(-lam*(groups.t_net - groups.fission_times))
-        effective_fission_integral = [groups.full_fission_term[ti] * exp_decays[ti] * dts[ti] for ti in range(len(dts))]
+        effective_fission_integral = groups._get_effective_fission(np.asarray([lam]), np.exp, np.expm1)[0] / lam
         nuc_conc = conc_data[nuc]
         conc_times = []
         conc_vals = []
-        groups.logger.error(f'{nuc_conc = }')
         for time, conc_with_uncert in nuc_conc.items():
             conc_times.append(time)
             conc_vals.append(conc_with_uncert[0])
         conc_vals = np.asarray(conc_vals)
 
         # Calculation 1 - total delnu over total fissions
-        total_delnu = simpson(lam*pn*conc_vals, conc_times)
+        total_delnu = trapezoid(lam*pn*conc_vals, conc_times)
         total_fissions = np.sum(fission_integral)
         calc_1_yield = total_delnu / total_fissions
         assert np.isclose(calc_1_yield, yield_val, atol=1e-3), f'{nuc = } delnu over fission yield does not match'
 
         # Calculation 2 - Delayed neutrons post-irrad over effective fission integral form
         post_irrad_delnu = pn*conc_vals[irrad_conc_index]
-        calc_2_yield = post_irrad_delnu / np.sum(effective_fission_integral)
+        calc_2_yield = post_irrad_delnu / effective_fission_integral
         assert np.isclose(calc_2_yield, yield_val, atol=1e-3), f'{nuc = } post-irrad delnu over effective fission yield does not match'

@@ -221,6 +221,21 @@ def test_effective_fiss():
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
     assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
 
+    hl = 1e10
+    lams = np.asarray([np.log(2)/hl])
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams[0]
+    stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp) / lams[0]
+    assert np.isclose(eff_fiss, grouper.t_net), "Limit for long-lived incorrect"
+    assert np.isclose(stat_fiss, grouper.t_net), "Limit for long-lived incorrect"
+
+    hl = 1e-10
+    lams = np.asarray([np.log(2)/hl])
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams[0]
+    stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp) / lams[0]
+    assert np.isclose(eff_fiss, 0), "Limit for long-lived incorrect"
+    assert np.isclose(stat_fiss, 0), "Limit for long-lived incorrect"
+
+
     
 def test_effective_fiss_many_ts():
     input_path = './tests/unit/input/input.json'
