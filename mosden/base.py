@@ -213,13 +213,14 @@ class BaseClass:
         cur_t = 0
         incore = True
         while cur_t < self.t_net:
-            post_irrad_index += 1
             if incore:
                 t_add = self.t_in
-                incore = False
             else:
                 t_add = self.t_ex
-                incore = True
+            incore = not incore
+
+            if cur_t + t_add <= self.t_net:
+                post_irrad_index += 1
             cur_t += t_add
 
         if self.t_in == 0:

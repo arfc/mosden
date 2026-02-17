@@ -71,3 +71,12 @@ def test_irrad_and_update():
     index = base.get_irrad_index(False)
     assert index == 3
 
+
+    base.t_net = 30
+    base.t_in = 1
+    base.t_ex = 0.2
+    base.t_net = base._update_t_net()
+    assert base.t_net == 31
+    index = base.get_irrad_index(False)
+    assert index == 51
+
