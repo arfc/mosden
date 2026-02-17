@@ -134,15 +134,19 @@ def test_in_ex_no_diff(setup_classes):
     assert concs.t_ex == 1
     assert concs.t_net == 31
     assert concs.openmc_settings['source'] == source_mult
-    assert concs.get_irrad_index(False) == 30
+    assert concs.get_irrad_index(False) == 31
     concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
     flow_concs = CSVHandler(concs.concentration_path).read_csv_with_time(False)
 
     counts.t_in = 1
     counts.t_ex = 1
-    counts.t_net = 30
+    counts.t_net = 31
     counts = CountRate(input_path)
+    assert counts.t_in == 1
+    assert counts.t_ex == 1
+    assert counts.t_net == 31
+    assert counts.get_irrad_index(False) == 31
     counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     flow_counts = counts.calculate_count_rate()
@@ -150,7 +154,7 @@ def test_in_ex_no_diff(setup_classes):
     groups = Grouper(input_path)
     groups.t_in = 1
     groups.t_ex = 1
-    groups.t_net = 30
+    groups.t_net = 31
     groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     groups.group_path = concs.output_dir + f'groups{name_mod}.csv'

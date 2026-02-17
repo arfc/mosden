@@ -119,6 +119,8 @@ class BaseClass:
         self.group_overwrite: bool = overwrite_options.get('group_fitting', False)
         self.MC_samples: int = group_options.get('samples', 1)
         self.sample_func: str = group_options.get('sample_func', 'normal')
+        self.initial_params: dict = group_options.get('initial_params', {'yields': [],
+                                                                         "half_lives": []})
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.unprocessed_data_dir: str = file_options['unprocessed_data_dir']

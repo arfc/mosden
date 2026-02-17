@@ -124,6 +124,11 @@ class InputHandler:
                              f"{sum(data['data_options']['fissile_fractions'].values())}")
         if data['modeling_options']['irrad_type'] == 'intermediate' and data['modeling_options']['concentration_handling'] != 'OMC':
             raise ValueError('Intermediate numerical integration is only available with OpenMC concentration modeling')
+        if data['group_options']['initial_params']['yields']:
+            if len(data['group_options']['initial_params']['yields']) != data['group_options']['num_groups']:
+                raise ValueError('Initial yield guess does not match number of groups')
+            if len(data['group_options']['initial_params']['half_lives']) != data['group_options']['num_groups']:
+                raise ValueError('Initial half life guess does not match number of groups')
         return
 
 

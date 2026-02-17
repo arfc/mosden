@@ -75,6 +75,10 @@ DEFAULTS = {
         "num_groups": 6,
         "method": "nlls",
         "parameter_guesses": 10,
+        "initial_params": {
+            "yields": [],
+            "half_lives": []
+        },
         "samples": 1,
         "sample_func": "normal",
         "seed": seed

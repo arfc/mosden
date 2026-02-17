@@ -381,6 +381,13 @@ class Grouper(BaseClass):
         bounds = (lower_bounds, upper_bounds)
         n_restarts = self.num_starts
         starts = []
+        if self.initial_params['yields'] and self.initial_params['half_lives']:
+            parameters = self.initial_params['yields']+self.initial_params['half_lives']
+            self.logger.error(f'{parameters = }')
+            parameters = self._restructure_intermediate_yields(parameters, False)
+            self.logger.error(f'{parameters = }')
+            starts.append(parameters)
+
         for _ in range(n_restarts):
             y_noise = 10 ** np.random.uniform(-4, -1, size=self.num_groups)
             if self.irrad_type == 'intermediate':
