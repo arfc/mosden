@@ -207,26 +207,24 @@ class BaseClass:
         post_irrad_index: int
             Integer index position of initial decay
         """
-        post_irrad_index: int = 0
         if single_time_val:
-            return post_irrad_index
-        cur_t = 0
-        incore = True
-        while cur_t < self.t_net:
-            if incore:
-                t_add = self.t_in
-            else:
-                t_add = self.t_ex
-            incore = not incore
-
-            if cur_t + t_add <= self.t_net:
-                post_irrad_index += 1
-            cur_t += t_add
+            return 0
 
         if self.t_in == 0:
-            post_irrad_index = int(np.ceil(self.t_net/self.t_ex))
-        elif self.t_ex == 0:
-            post_irrad_index = int(np.ceil(self.t_net/self.t_in))
+            return int(np.ceil(self.t_net / self.t_ex))
+        if self.t_ex == 0:
+            return int(np.ceil(self.t_net / self.t_in))
+
+        cycle_time = self.t_in + self.t_ex
+        n_full = np.floor(self.t_net / cycle_time)
+        post_irrad_index = int(2 * n_full)
+
+        remainder = self.t_net - n_full * cycle_time
+        eps = 1e-12 * max(1.0, self.t_net)
+
+        if remainder > eps:
+            post_irrad_index += 1
+
         return post_irrad_index
 
     def load_post_data(self) -> dict[str: float | str | list]:

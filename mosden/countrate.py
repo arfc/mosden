@@ -246,6 +246,7 @@ class CountRate(BaseClass):
                     self.logger.error(f'{np.shape(self.decay_times) = }')
                     self.logger.error(f'{np.shape(counts) = }')
                     self.logger.error(f'{np.shape(count_rate) = }')
+                    self.logger.error(f'{np.shape(concentration_array) = }')
                     self.logger.error(f'{np.shape(concentration_array[post_irrad_index:]) = }')
                     self.logger.error(f'{np.shape(concentration_array[post_irrad_index+1:]) = }')
                     self.logger.error(f'{MC_run = }')

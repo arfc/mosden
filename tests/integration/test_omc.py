@@ -139,10 +139,10 @@ def test_in_ex_no_diff(setup_classes):
     concs.generate_concentrations()
     flow_concs = CSVHandler(concs.concentration_path).read_csv_with_time(False)
 
+    counts = CountRate(input_path)
     counts.t_in = 1
     counts.t_ex = 1
     counts.t_net = 31
-    counts = CountRate(input_path)
     assert counts.t_in == 1
     assert counts.t_ex == 1
     assert counts.t_net == 31
@@ -168,7 +168,12 @@ def test_in_ex_no_diff(setup_classes):
     flow_params = yields + half_lives
     fit_func = groups._intermediate_numerical_fit_function
     groups.irrad_type = 'intermediate'
-    adjusted_flow_params = groups._restructure_intermediate_yields(base_params)
+    adjusted_flow_params = groups._restructure_intermediate_yields(flow_params, to_yield=False)
+    initial_count_from_params = np.sum(adjusted_flow_params[:6])
+    groups.logger.error(f'{base_params = }')
+    groups.logger.error(f'{flow_params = }')
+    groups.logger.error(f'{adjusted_flow_params = }')
+    assert np.isclose(base_counts['counts'][0], initial_count_from_params), "Initial count mismatch"
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, adjusted_flow_params), rtol=1e-2), "Intermediate counts do not match"
     flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
     stat_params_on_flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, flow_counts['counts'], None, fit_func))
