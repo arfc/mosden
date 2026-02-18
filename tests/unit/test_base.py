@@ -1,4 +1,5 @@
 from mosden.base import BaseClass
+import numpy as np
 
 def test_get_irrad_index():
     """
@@ -79,4 +80,13 @@ def test_irrad_and_update():
     assert base.t_net == 31
     index = base.get_irrad_index(False)
     assert index == 51
+
+
+    base.t_net = 30
+    base.t_in = 1
+    base.t_ex = 0.1
+    base.t_net = base._update_t_net()
+    assert np.isclose(base.t_net, 30.7)
+    index = base.get_irrad_index(False)
+    assert index == 55
 
