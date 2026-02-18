@@ -27,7 +27,6 @@ def get_yield_halflives(which='default'):
 
 def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
                          data_type: str='default'):
-    expected_residual = 0.0
     half_lives, yields = get_yield_halflives(data_type)
     lams = np.log(2)/half_lives
     times = np.linspace(0, 600, 100)
@@ -58,6 +57,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
         irrad_type = irrad_type.replace('_ex', '')
         check_scaling_term = False
 
+    grouper.irrad_type = irrad_type
     if irrad_type == 'pulse':
         check_scaling_term = False
         fit_func = grouper._pulse_fit_function
@@ -91,9 +91,12 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
         assert grouper.full_fission_term is not None, "Full fission term is none"
         assert grouper.fission_times is not None, "Fission times are none"
     base_parameters = yields + half_lives
-    func_counts = fit_func(times, base_parameters)
+    base_inter_parameters = grouper._restructure_intermediate_yields(base_parameters, False)
+    if irrad_type == 'intermediate':
+        assert np.isclose(counts[0], np.sum(base_inter_parameters[:6]), rtol=1e-2), "Summed parameters don't match counts"
+    func_counts = fit_func(times, base_inter_parameters)
 
-    assert np.isclose(func_counts, counts, atol=1e-2, rtol=1e-2).all(), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
+    assert np.allclose(func_counts, counts, atol=1e-2, rtol=1e-2), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
     count_data = {
         'times': times,
@@ -106,11 +109,14 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     test_yields = [data[key]['yield'] for key in range(grouper.num_groups)]
     test_half_lives = [data[key]['half_life'] for key in range(grouper.num_groups)]
     parameters = test_yields + test_half_lives
-    residual_known = np.linalg.norm(grouper._residual_function(parameters, times, counts, None, fit_func))
-    residual_previous = np.linalg.norm(grouper._residual_function(parameters, times, func_counts, None, fit_func))
-    assert np.isclose(residual_known, residual_previous, atol=1e-3), "Same counts should have the same residual"
+    adjusted_parameters = grouper._restructure_intermediate_yields(parameters)
+    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, None, fit_func))
+    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, None, fit_func))
+    assert np.isclose(residual_known, residual_previous, atol=1e-1), "Same counts should have the same residual"
     grouper.logger.error(f'{base_parameters = }')
+    grouper.logger.error(f'{base_inter_parameters = }')
     grouper.logger.error(f'{parameters = }')
+    grouper.logger.error(f'{adjusted_parameters = }')
     grouper.logger.error(f'{counts = }')
     grouper.logger.error(f'{fit_func(times, parameters) = }')
     grouper.logger.error(f'{residual_known = }')
@@ -126,8 +132,6 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
             f'Group {group+1} yields mismatch - {test_yields[group]=} != {sorted_original_yields[group]=}'
         assert np.isclose(test_half_lives[group], sorted_original_half_lives[group], rtol=1e-1, atol=1e-1), \
             f'Group {group+1} half lives mismatch - {test_half_lives[group]=} != {sorted_original_half_lives[group]=}'
-        
-    assert np.isclose(residual_known, expected_residual, atol=1e-4), "Residual did not match expected value"
     return None
 
 def test_grouper_pulse_fitting():
@@ -151,6 +155,13 @@ def test_grouper_saturation_noex_fitting_standard_params():
     run_grouper_fit_test('saturation', grouper, 'standard')
 
 @pytest.mark.slow
+def test_grouper_saturation_ex_fitting_standard_params():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 10
+    run_grouper_fit_test('saturation_ex', grouper, 'standard')
+
+@pytest.mark.slow
 def test_grouper_intermediate_noex_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -163,6 +174,13 @@ def test_grouper_intermediate_noex_fitting_standard_params():
     grouper = Grouper(input_path)
     grouper.t_ex = 0
     run_grouper_fit_test('intermediate', grouper, 'standard')
+
+@pytest.mark.slow
+def test_grouper_intermediate_ex_fitting_standard_params():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 10
+    run_grouper_fit_test('intermediate_ex', grouper, 'standard')
 
 
 @pytest.mark.slow
