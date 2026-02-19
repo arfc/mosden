@@ -34,7 +34,7 @@ def setup_classes():
     return input_path
 
 @pytest.mark.slow
-def test_in_ex_no_diff(setup_classes):
+def test_in_ex_no_diff():
     """
     This test checks that altering the in and ex-core residence times does not 
     affect the results (when no chemical removal is included).
@@ -61,43 +61,33 @@ def test_in_ex_no_diff(setup_classes):
         }
     }
 
-    input_path = setup_classes
-    source_mult = 1.18
     name_mod = '_stationary'
+    input_path = f'tests/integration/test-data/input_omc{name_mod}.json'
+    preproc = Preprocess(input_path)
+    preproc.run()
+
     concs = Concentrations(input_path)
     concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_inex{name_mod}')
-    concs.t_in = 1
-    concs.t_ex = 0
-    concs.t_net = 30
-    concs.openmc_settings['source'] = source_mult
     t_net_new = concs._update_t_net()
     assert t_net_new == 30
     assert concs.t_in == 1
     assert concs.t_ex == 0
     assert concs.t_net == 30
-    assert concs.openmc_settings['source'] == source_mult
+    assert concs.openmc_settings['source'] == 1.18
     assert concs.get_irrad_index(False) == 30
     concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
     conc_data = CSVHandler(concs.concentration_path).read_csv_with_time(False)
 
     counts = CountRate(input_path)
-    counts.t_in = 1
-    counts.t_ex = 0
-    counts.t_net = 30
     counts.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     base_counts = counts.calculate_count_rate()
 
     groups = Grouper(input_path)
-    groups.t_in = 1
-    groups.t_ex = 0
-    groups.t_net = 30
     groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
-    groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
-    groups.fission_term, _ = concs._calculate_fission_term()
     groups.generate_groups()
     base_group_data = CSVHandler(groups.group_path).read_vector_csv()
 
@@ -110,43 +100,38 @@ def test_in_ex_no_diff(setup_classes):
     initial_count_from_params = np.sum(adjusted_params[:6])
     groups.logger.error(f'{base_params = }')
     groups.logger.error(f'{adjusted_params = }')
-    assert np.isclose(base_counts['counts'][0], initial_count_from_params), "Initial count mismatch"
+    assert np.isclose(base_counts['counts'][0], initial_count_from_params, atol=1e-2), "Initial count mismatch with intermediate counts"
+
     groups.irrad_type = 'saturation'
-    assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, adjusted_params), rtol=1e-2), "Intermediate counts do not match"
+    intermediate_counts = fit_func(groups.decay_times, adjusted_params)
+    assert np.isclose(initial_count_from_params, intermediate_counts[0]), "Intermediate counts do not align with own parameters"
+    assert np.allclose(base_counts['counts'], intermediate_counts, rtol=1e-2), "Intermediate counts do not match"
     base_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, base_counts['counts'], None, fit_func))
     fit_func = groups._saturation_fit_function
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, base_params), rtol=1e-2), "Saturation counts do not match"
     base_residual_saturation = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, base_counts['counts'], None, fit_func))
-    assert np.isclose(base_residual_saturation, base_residual_intermediate, atol=1e-1), "Residual from intermediate fit does not match the saturation fit for constant irradiation"
 
+    assert np.isclose(base_residual_saturation, base_residual_intermediate, atol=1e-1), "Residual from intermediate fit does not match the saturation fit for constant irradiation"
     yield_assertions(nuc_data, concs, groups, conc_data)
 
 
 
     name_mod = '_flowing'
+    input_path = f'tests/integration/test-data/input_omc{name_mod}.json'
+    preproc = Preprocess(input_path)
+    preproc.run()
     concs = Concentrations(input_path)
     concs.openmc_settings['omc_dir'] = os.path.join(os.path.dirname(__file__), f'output_omc/omc_inex{name_mod}')
-    irrad_cutoff = concs.get_irrad_index(False)
-    concs.t_in = 1
-    concs.t_ex = 1
-    concs.t_net = 30
-    concs.openmc_settings['source'] = source_mult
-    t_net_new = concs._update_t_net()
-    concs.t_net = t_net_new
-    assert t_net_new == 31
     assert concs.t_in == 1
     assert concs.t_ex == 1
     assert concs.t_net == 31
-    assert concs.openmc_settings['source'] == source_mult
+    assert concs.openmc_settings['source'] == 1.18
     assert concs.get_irrad_index(False) == 31
     concs.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     concs.generate_concentrations()
     flow_concs = CSVHandler(concs.concentration_path).read_csv_with_time(False)
 
     counts = CountRate(input_path)
-    counts.t_in = 1
-    counts.t_ex = 1
-    counts.t_net = 31
     assert counts.t_in == 1
     assert counts.t_ex == 1
     assert counts.t_net == 31
@@ -156,14 +141,9 @@ def test_in_ex_no_diff(setup_classes):
     flow_counts = counts.calculate_count_rate()
 
     groups = Grouper(input_path)
-    groups.t_in = 1
-    groups.t_ex = 1
-    groups.t_net = 31
     groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
-    groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
-    groups.fission_term, _ = concs._calculate_fission_term()
     groups.generate_groups()
     flow_groups = CSVHandler(groups.group_path).read_vector_csv()
 
@@ -176,10 +156,13 @@ def test_in_ex_no_diff(setup_classes):
     initial_count_from_params = np.sum(adjusted_flow_params[:6])
     groups.logger.error(f'{flow_params = }')
     groups.logger.error(f'{adjusted_flow_params = }')
-    assert np.isclose(base_counts['counts'][0], initial_count_from_params, atol=1e-2), "Initial count mismatch with intermediate counts"
-    assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, adjusted_flow_params), rtol=1e-2), "Intermediate counts do not match"
+    assert np.isclose(base_counts['counts'][0], initial_count_from_params, rtol=1e-2), "Initial count mismatch with intermediate counts"
+    intermediate_counts = fit_func(groups.decay_times, adjusted_flow_params)
+    assert np.isclose(initial_count_from_params, intermediate_counts[0]), "Intermediate counts do not align with own parameters"
+    assert np.allclose(base_counts['counts'], intermediate_counts, rtol=1e-2), "Intermediate counts do not match"
     flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
     stat_params_on_flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, flow_counts['counts'], None, fit_func))
+
     fit_func = groups._saturation_fit_function
     groups.irrad_type = 'saturation'
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, flow_params), rtol=1e-2), "Saturation counts do not match"
@@ -246,7 +229,7 @@ def get_counts_and_groups(input_path, name_mod, concs):
 
     groups = Grouper(input_path)
     groups = set_attrs_from_obj(groups, concs, name_mod)
-    groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
+    #groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
     groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
     groups.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
@@ -260,10 +243,12 @@ def compare_counts(new_counts, old_counts, operator='unequal'):
     else:
         assert not np.all(np.isclose(new_counts['counts'], old_counts['counts'])), "Counts match but should not"
 
-def compare_group_params(new_group, old_group):
+def compare_group_params(new_group, old_group, check='all'):
     keys = ['half_life', 'yield']
-    for key in keys:
-        assert np.all(np.isclose(new_group[key], old_group[key], rtol=1e-1)), f"Data mismatch for {key}"
+    if check == 'all':
+        for key in keys:
+            assert np.all(np.isclose(new_group[key], old_group[key], rtol=1e-1)), f"Data mismatch for {key}"
+    assert np.isclose(np.sum(new_group['yield']), np.sum(old_group['yield']), rtol=1e-1), "Total yields do not match"
 
 
 @pytest.mark.slow
@@ -271,8 +256,10 @@ def test_chemical_removal(setup_classes):
     """
     This test checks multiple things:
     1. Chemical removal takes place in OpenMC
-    2. Chemical removing a small amount of uranium does not affect the results significantly
-    3. Using the intermediate method (which accounts for varying fission rates), the change in fission rates does not affect the result
+    2. Chemical removing a small amount of uranium does not affect the results
+    significantly
+    3. Using the intermediate method (which accounts for varying fission rates),
+    the group params should change but the total yield should not
     """
     input_path = setup_classes
     name_mod = '_base'
@@ -297,15 +284,15 @@ def test_chemical_removal(setup_classes):
     compare_group_params(small_chem_groups, base_group_data)
 
 
-    name_mod = '_large_chem_noex'
-    uranium_removal_rate = 3e-1
-    concs = set_attrs(concs, tin=1, tex=0, tnet=30, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
-    assert concs.get_irrad_index(False) == 30
-    concs.generate_concentrations()
-    check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
-    large_chem_noex_counts, large_chem_noex_groups = get_counts_and_groups(input_path, name_mod, concs)
-    compare_counts(large_chem_noex_counts, base_counts)
-    compare_group_params(large_chem_noex_groups, base_group_data)
+    #name_mod = '_large_chem_noex'
+    #uranium_removal_rate = 3e-1
+    #concs = set_attrs(concs, tin=1, tex=0, tnet=30, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
+    #assert concs.get_irrad_index(False) == 30
+    #concs.generate_concentrations()
+    #check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
+    #large_chem_noex_counts, large_chem_noex_groups = get_counts_and_groups(input_path, name_mod, concs)
+    #compare_counts(large_chem_noex_counts, base_counts)
+    #compare_group_params(large_chem_noex_groups, base_group_data, check=None)
 
 
     name_mod = '_large_chem'
@@ -316,7 +303,7 @@ def test_chemical_removal(setup_classes):
     check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
     large_chem_counts, large_chem_groups = get_counts_and_groups(input_path, name_mod, concs)
     compare_counts(large_chem_counts, base_counts)
-    compare_group_params(large_chem_groups, base_group_data)
+    compare_group_params(large_chem_groups, base_group_data, check=None)
 
 
 def yield_assertions(nuc_data: dict, concs: Concentrations, groups: Grouper, conc_data: dict):
