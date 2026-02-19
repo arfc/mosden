@@ -97,15 +97,15 @@ def test_in_ex_no_diff():
     fit_func = groups._intermediate_numerical_fit_function
     groups.irrad_type = 'intermediate'
     adjusted_params = groups._restructure_intermediate_yields(base_params, to_yield=False)
-    initial_count_from_params = np.sum(adjusted_params[:6])
     groups.logger.error(f'{base_params = }')
     groups.logger.error(f'{adjusted_params = }')
-    assert np.isclose(base_counts['counts'][0], initial_count_from_params, atol=1e-2), "Initial count mismatch with intermediate counts"
+    groups.logger.error(f'{base_counts["counts"][0] = }')
+    assert np.isclose(base_counts['counts'][0], np.sum(adjusted_params[:6]), atol=1e-2), "Initial count mismatch with intermediate counts"
+    intermediate_counts = fit_func(groups.decay_times, adjusted_params)
+    assert np.isclose(np.sum(adjusted_params[:6]), intermediate_counts[0], rtol=1e-2), "Intermediate counts do not align with own parameters"
+    assert np.allclose(base_counts['counts'], intermediate_counts, rtol=1e-2), "Intermediate counts do not match"
 
     groups.irrad_type = 'saturation'
-    intermediate_counts = fit_func(groups.decay_times, adjusted_params)
-    assert np.isclose(initial_count_from_params, intermediate_counts[0]), "Intermediate counts do not align with own parameters"
-    assert np.allclose(base_counts['counts'], intermediate_counts, rtol=1e-2), "Intermediate counts do not match"
     base_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, base_counts['counts'], None, fit_func))
     fit_func = groups._saturation_fit_function
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, base_params), rtol=1e-2), "Saturation counts do not match"
@@ -227,7 +227,7 @@ def get_counts_and_groups(input_path, name_mod, concs):
     counts.concentration_path = concs.output_dir + f'concentrations{name_mod}.csv'
     count_data = counts.calculate_count_rate()
 
-    groups = Grouper(input_path)
+    groups: Grouper = Grouper(input_path)
     groups = set_attrs_from_obj(groups, concs, name_mod)
     #groups.full_fission_term, groups.fission_times = concs._calculate_fission_term(False)
     groups.countrate_path = counts.output_dir + f'counts{name_mod}.csv'
@@ -235,7 +235,8 @@ def get_counts_and_groups(input_path, name_mod, concs):
     groups.group_path = concs.output_dir + f'groups{name_mod}.csv'
     groups.generate_groups()
     group_data = CSVHandler(groups.group_path).read_vector_csv()
-    return count_data, group_data
+    fiss_vals = groups._get_effective_fission(np.asarray(group_data['yield']), np.exp, np.expm1)
+    return count_data, group_data, fiss_vals
 
 def compare_counts(new_counts, old_counts, operator='unequal'):
     if operator is 'equal':
@@ -248,7 +249,10 @@ def compare_group_params(new_group, old_group, check='all'):
     if check == 'all':
         for key in keys:
             assert np.all(np.isclose(new_group[key], old_group[key], rtol=1e-1)), f"Data mismatch for {key}"
-    assert np.isclose(np.sum(new_group['yield']), np.sum(old_group['yield']), rtol=1e-1), "Total yields do not match"
+        assert np.isclose(np.sum(new_group['yield']), np.sum(old_group['yield']), rtol=1e-1), "Total yields do not match"
+    elif check == 'less':
+        assert (new_group['yield']) < np.sum(old_group['yield']), "Yield should decrease due to chemical removal"
+
 
 
 @pytest.mark.slow
@@ -270,8 +274,9 @@ def test_chemical_removal(setup_classes):
     assert concs.get_irrad_index(False) == 9
     concs.generate_concentrations()
     check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
-    base_counts, base_group_data = get_counts_and_groups(input_path, name_mod, concs)
+    base_counts, base_group_data, base_fissions = get_counts_and_groups(input_path, name_mod, concs)
     compare_counts(base_counts, base_counts, operator='equal')
+    
 
     name_mod = '_small_chem'
     uranium_removal_rate = 1e-2
@@ -279,20 +284,10 @@ def test_chemical_removal(setup_classes):
     assert concs.get_irrad_index(False) == 9
     concs.generate_concentrations()
     check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
-    small_chem_counts, small_chem_groups = get_counts_and_groups(input_path, name_mod, concs)
+    small_chem_counts, small_chem_groups, small_fissions = get_counts_and_groups(input_path, name_mod, concs)
+    assert np.all(small_fissions < base_fissions), "Effective fissions did not decrease with uranium removal"
     compare_counts(small_chem_counts, base_counts)
     compare_group_params(small_chem_groups, base_group_data)
-
-
-    #name_mod = '_large_chem_noex'
-    #uranium_removal_rate = 3e-1
-    #concs = set_attrs(concs, tin=1, tex=0, tnet=30, irrad_type='intermediate', name_mod=name_mod, uranium_removal_rate=uranium_removal_rate)
-    #assert concs.get_irrad_index(False) == 30
-    #concs.generate_concentrations()
-    #check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
-    #large_chem_noex_counts, large_chem_noex_groups = get_counts_and_groups(input_path, name_mod, concs)
-    #compare_counts(large_chem_noex_counts, base_counts)
-    #compare_group_params(large_chem_noex_groups, base_group_data, check=None)
 
 
     name_mod = '_large_chem'
@@ -301,9 +296,11 @@ def test_chemical_removal(setup_classes):
     assert concs.get_irrad_index(False) == 9
     concs.generate_concentrations()
     check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
-    large_chem_counts, large_chem_groups = get_counts_and_groups(input_path, name_mod, concs)
+    large_chem_counts, large_chem_groups, large_chem_fissions = get_counts_and_groups(input_path, name_mod, concs)
+    assert np.all(large_chem_fissions < base_fissions), "Effective fissions did not decrease with uranium removal"
+    assert np.all(large_chem_fissions < small_fissions), "Effective fissions did not decrease with uranium removal"
     compare_counts(large_chem_counts, base_counts)
-    compare_group_params(large_chem_groups, base_group_data, check=None)
+    compare_group_params(large_chem_groups, base_group_data, check='less')
 
 
 def yield_assertions(nuc_data: dict, concs: Concentrations, groups: Grouper, conc_data: dict):
