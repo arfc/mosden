@@ -32,8 +32,8 @@ chemical_long_analysis = {
         'run_post': False,
         'overwrite': True
     },
-    'reprocessing': [Reprocessing.MSBR_scheme(),
-                     Reprocessing.MSBR_scheme(include_long=False)],
+    'reprocessing': [Reprocessing(base_input_file).removal_scheme(),
+                     Reprocessing(base_input_file).removal_scheme(include_long=False)],
     'incore_s': [10],
     'excore_s': [10],
     'multi_id': [name]
@@ -48,8 +48,8 @@ chemical_bool_analysis = {
         'run_post': False,
         'overwrite': True
     },
-    'reprocessing': [Reprocessing.MSBR_scheme(),
-                     Reprocessing.MSBR_scheme(rate_scaling=0.0)],
+    'reprocessing': [Reprocessing(base_input_file).removal_scheme(),
+                     Reprocessing(base_input_file).removal_scheme(rate_scaling=0.0)],
     'incore_s': [10],
     'excore_s': [10],
     'multi_id': [name]
