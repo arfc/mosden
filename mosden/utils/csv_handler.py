@@ -165,13 +165,13 @@ class CSVHandler:
         df.to_csv(self.file_path, index=True)
         return None
     
-    def write_csv_with_time(self, data: dict[str: dict[str, float]]) -> None:
+    def write_csv_with_time(self, data: dict[str, dict[str, float]]) -> None:
         """
         Write the time-dependent data to a CSV file.
 
         Parameters
         ----------
-        data : list[dict]
+        data : dict[str, dict[str, float]]
             The data to write to the CSV file, listed over time
         """
         if not self.overwrite and self._file_exists():
