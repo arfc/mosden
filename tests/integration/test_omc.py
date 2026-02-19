@@ -111,7 +111,7 @@ def test_in_ex_no_diff():
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, base_params), rtol=1e-2), "Saturation counts do not match"
     base_residual_saturation = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, base_counts['counts'], None, fit_func))
 
-    assert np.isclose(base_residual_saturation, base_residual_intermediate, rtol=1e-1), "Residual from intermediate fit does not match the saturation fit for constant irradiation"
+    assert base_residual_saturation > base_residual_intermediate, "Residual from intermediate fit should be better than saturation for stationary problem"
     yield_assertions(nuc_data, concs, groups, conc_data)
 
 
@@ -167,7 +167,7 @@ def test_in_ex_no_diff():
     assert np.allclose(flow_counts['counts'], fit_func(groups.decay_times, flow_params), rtol=1e-2), "Saturation counts do not match"
     flow_residual_saturation = np.linalg.norm(groups._residual_function(flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
     stat_params_on_flow_residual_saturation = np.linalg.norm(groups._residual_function(base_params, groups.decay_times, flow_counts['counts'], None, fit_func))
-    assert np.isclose(flow_residual_saturation, flow_residual_intermediate), "Residual from intermediate fit does not match the saturation fit for (1,1) irradiation"
+    assert flow_residual_saturation > flow_residual_intermediate, "Residual from intermediate fit should be better than saturation fit for (1,1) irradiation"
 
     assert np.isclose(stat_params_on_flow_residual_saturation, stat_params_on_flow_residual_intermediate, rtol=1e-1), "Stationary parameters applied to (1,1) don't have matching residuals"
 
