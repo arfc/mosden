@@ -166,6 +166,21 @@ class BaseClass:
         return None
     
     def _set_decay_times(self) -> np.ndarray[float]:
+        """
+        Set the decay times based on the time spacing, final time, and
+        number of times provided.
+
+        Returns
+        -------
+        decay_times : np.ndarray[float]
+            The array of time values
+        
+        Raises
+        ------
+        ValueError
+            If the provided decay time spacing is invalid
+        
+        """
         if self.decay_time_spacing == 'linear':
             self.decay_times: np.ndarray = np.linspace(
                 0, self.decay_time, self.num_times)
