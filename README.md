@@ -84,6 +84,20 @@ irradiation time of 30 seconds (1 OpenMC simulation) will give less accurate
 measures of the summed data than an in-core residence time of 30 seconds (30 
 OpenMC simulations).
 
+Chemical removal of DNPs changes the group parameters (as expected). However,
+chemical removal of fission products also has an effect due to the way MoSDeN 
+handles accounting for the fission rates. This can be understood by running and 
+comparing MoSDeN simulations with and without this removal. Within the first 
+time step, there will be a decrease in the yield of DNPs, but the fission rate 
+will remain unchanged. This is because the chemical removal rate is applied 
+continuously over time timestep, while the fission rate is calculated without 
+accounting for this effect. To accurately model the effects of removing fissile 
+nuclides from the system (which should result in no change, which can be itself 
+tested by altering the starting sample mass in the OpenMC template), a very 
+small time step must be used such that the fission rate is updated sufficiently 
+frequently to capture the effects of fission product removal from the system. 
+Generally, there is no scenario in which this needs to be modeled in MoSDeN.
+
 The generation of the delayed neutron count rate and non-linear least squares
 fitting methods do not change between different models.
 

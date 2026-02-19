@@ -383,9 +383,14 @@ class Grouper(BaseClass):
         starts = []
         if self.initial_params['yields'] and self.initial_params['half_lives']:
             parameters = self.initial_params['yields']+self.initial_params['half_lives']
-            self.logger.error(f'{parameters = }')
+            self.logger.debug(f'Pre restructured {parameters = }')
             parameters = self._restructure_intermediate_yields(parameters, False)
-            self.logger.error(f'{parameters = }')
+            self.logger.debug(f'Post restructured {parameters = }')
+            for param_index, param in enumerate(parameters[:self.num_groups]):
+                if param <= max_yield:
+                    continue
+                self.logger.warning(f'Group {param_index+1} yield greater than bound. Setting to 0.9x bound max')
+                parameters[param_index] = 0.9 * max_yield
             starts.append(parameters)
 
         for _ in range(n_restarts):

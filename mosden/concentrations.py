@@ -98,14 +98,14 @@ class Concentrations(BaseClass):
         self.time_track(start, 'Concentrations')
         return
 
-    def CFY_concentrations(self) -> list[dict]:
+    def CFY_concentrations(self) -> list[dict[str, float]]:
         """
         Generate the concentrations of each nuclide using the CFY method.
 
         Returns
         -------
-        data : list[dict]
-            Concentration and uncertainty for each nuclide post-irradiation
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
@@ -142,9 +142,14 @@ class Concentrations(BaseClass):
                 })
         return data
 
-    def OMC_concentrations(self) -> list[dict]:
+    def OMC_concentrations(self) -> list[dict[str, float]]:
         """
         Generate the concentrations of each nuclide using OpenMC.
+
+        Returns
+        -------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
         """
         env = Environment(loader=PackageLoader('mosden'))
         file = self.openmc_settings['omc_file']
@@ -432,14 +437,14 @@ class Concentrations(BaseClass):
         return fission_term, times
 
 
-    def IFY_concentrations(self) -> list[dict]:
+    def IFY_concentrations(self) -> list[dict[str, float]]:
         """
         Generate the concentrations of each nuclide using the IFY method.
         
         Returns
         -------
-        data : list[dict]
-            Concentration and uncertainty for each nuclide post-irradiation
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
