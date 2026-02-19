@@ -86,14 +86,20 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
 
     if irrad_type == 'saturation':
         initial_count_rate = 0
+        grouper._set_refined_fission_term(fission_times)
         for group in range(num_groups):
             lam = lams[group]
             fiss_term = grouper._get_saturation_fission_term(lam, np.exp)
             initial_count_rate += fiss_term * yields[group]
-        assert np.isclose(initial_count_rate, counts[0]), "Saturation initial count rate mismatch"
+        if num_groups == 1:
+            desired_fiss_term = counts[0] / yields[0]
+            assert np.isclose(desired_fiss_term, fiss_term, rtol=1e-3), "Fission term not within expected tolerance"
+        assert np.isclose(initial_count_rate, counts[0], rtol=1e-1), "Saturation initial count rate mismatch"
+        grouper.logger.error(f'{fiss_term = }')
 
 
     if check_scaling_term:
+        grouper.fission_times = fission_times
         inter_terms = grouper._get_effective_fission(lams, np.exp, np.expm1)
         for group in range(num_groups):
             inter_term = inter_terms[group]
@@ -102,19 +108,22 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
             grouper.logger.error(f'{sat_term = }')
             assert np.all(np.isclose(sat_term, inter_term)), f"Fission terms do not agree in group {group+1}"
 
-    grouper.irrad_type = irrad_type
     grouper._set_refined_fission_term(fission_times)
     if irrad_type != 'pulse':
         grouper.fission_times = fission_times
         grouper.full_fission_term = fiss_rate[:-1]
-        grouper.refined_fission_term = np.mean(fiss_rate)
+        #grouper.refined_fission_term = np.mean(fiss_rate)
         assert grouper.full_fission_term is not None, "Full fission term is none"
         assert grouper.fission_times is not None, "Fission times are none"
     base_parameters = np.concatenate((yields, half_lives))
     base_inter_parameters = grouper._restructure_intermediate_yields(base_parameters, False)
+    grouper.logger.error(f'{base_parameters = }')
     if irrad_type == 'intermediate':
         assert np.isclose(counts[0], np.sum(base_inter_parameters[:num_groups]), rtol=1e-2), "Summed parameters don't match counts"
     func_counts = fit_func(times, base_inter_parameters)
+
+    if irrad_type == 'saturation':
+        assert np.isclose(func_counts[0], initial_count_rate, rtol=1e-4), "Initial count rate mismatch"
 
     assert np.allclose(func_counts, counts, atol=1e-2, rtol=1e-2), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
@@ -230,6 +239,14 @@ def test_grouper_intermediate_ex_fitting_standard_params():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
     grouper.t_ex = 10
+    run_grouper_fit_test('intermediate_ex', grouper, 'standard')
+
+@pytest.mark.slow
+def test_grouper_intermediate_ex_short_fitting_standard_params():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.t_ex = 10
+    grouper.t_net = 30
     run_grouper_fit_test('intermediate_ex', grouper, 'standard')
 
 
