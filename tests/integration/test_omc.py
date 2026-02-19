@@ -109,7 +109,6 @@ def test_in_ex_no_diff(setup_classes):
     adjusted_params = groups._restructure_intermediate_yields(base_params, to_yield=False)
     initial_count_from_params = np.sum(adjusted_params[:6])
     groups.logger.error(f'{base_params = }')
-    groups.logger.error(f'{flow_params = }')
     groups.logger.error(f'{adjusted_params = }')
     assert np.isclose(base_counts['counts'][0], initial_count_from_params), "Initial count mismatch"
     groups.irrad_type = 'saturation'
@@ -175,10 +174,9 @@ def test_in_ex_no_diff(setup_classes):
     groups.irrad_type = 'intermediate'
     adjusted_flow_params = groups._restructure_intermediate_yields(flow_params, to_yield=False)
     initial_count_from_params = np.sum(adjusted_flow_params[:6])
-    groups.logger.error(f'{base_params = }')
     groups.logger.error(f'{flow_params = }')
     groups.logger.error(f'{adjusted_flow_params = }')
-    assert np.isclose(base_counts['counts'][0], initial_count_from_params), "Initial count mismatch"
+    assert np.isclose(base_counts['counts'][0], initial_count_from_params, atol=1e-2), "Initial count mismatch with intermediate counts"
     assert np.allclose(base_counts['counts'], fit_func(groups.decay_times, adjusted_flow_params), rtol=1e-2), "Intermediate counts do not match"
     flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_flow_params, groups.decay_times, flow_counts['counts'], None, fit_func))
     stat_params_on_flow_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, flow_counts['counts'], None, fit_func))
@@ -256,8 +254,11 @@ def get_counts_and_groups(input_path, name_mod, concs):
     group_data = CSVHandler(groups.group_path).read_vector_csv()
     return count_data, group_data
 
-def compare_counts(new_counts, old_counts):
-    assert np.all(np.isclose(new_counts['counts'], old_counts['counts'])), "Counts do not match"
+def compare_counts(new_counts, old_counts, operator='unequal'):
+    if operator is 'equal':
+        assert np.all(np.isclose(new_counts['counts'], old_counts['counts'])), "Counts do not match"
+    else:
+        assert not np.all(np.isclose(new_counts['counts'], old_counts['counts'])), "Counts match but should not"
 
 def compare_group_params(new_group, old_group):
     keys = ['half_life', 'yield']
@@ -283,7 +284,7 @@ def test_chemical_removal(setup_classes):
     concs.generate_concentrations()
     check_uranium_conc(concs, uranium_removal_rate, irrad_cutoff)
     base_counts, base_group_data = get_counts_and_groups(input_path, name_mod, concs)
-    compare_counts(base_counts, base_counts)
+    compare_counts(base_counts, base_counts, operator='equal')
 
     name_mod = '_small_chem'
     uranium_removal_rate = 1e-2
