@@ -253,6 +253,15 @@ class Concentrations(BaseClass):
         return fissions, times
     
     def read_omc_nuyield_json(self) -> dict[str, dict[str, np.ndarray]]:
+        """
+        Collect the OpenMC delayed neutron yield data from the json file
+
+        Returns
+        -------
+        full_data : dict[str, dict[str, np.ndarray]
+            Data sorted by delayed and prompt, followed by fissile nuclide over time
+        
+        """
         with open(f'{self.output_dir}/omc_nuyield.json', 'r') as f:
             full_data = json.load(f)
         for type_yield in full_data.keys():
@@ -311,19 +320,41 @@ class Concentrations(BaseClass):
             json.dump(full_data, f, indent=4, default=self._json_default)
         return fissions, times
     
-    def _json_default(self, obj: object):
+    def _json_default(self, obj: object) -> object:
         """
         JSON helper function that replaces incompatible datatypes
 
         Parameters
         ----------
         obj : object
-            Some Python object
+            Some Python object. Currently accepts np.ndarray
+        
+        Returns
+        -------
+        obj : object
+            JSON compatible version of the Python object
+        
+        Raises
+        ------
+        NotImplementedError
+            If the object is not defined in the function
         """
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        else:
+            raise NotImplementedError
     
-    def _collect_omc_nuyield(self):
+    def _collect_omc_nuyield(self) -> dict[str, dict[str, np.ndarray]]:
+        """
+        Collects the delayed neutron yield from OpenMC results
+
+        Returns
+        -------
+        nuyield : dict[str, dict[str, np.ndarray]]
+            Data sorted by delayed and prompt, followed by fissile nuclide over time
+
+
+        """
         fiss, _ = self.read_omc_fission_json()
         avg_fission_rate = np.mean(fiss['net'])
         nuyield = dict()
