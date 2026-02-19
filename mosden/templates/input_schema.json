@@ -284,6 +284,28 @@
                     "description": "The function type to use for randomly sampling data",
                     "enum": ["normal", "uniform"]
                 },
+                "initial_params": {
+                    "type": "object",
+                    "description": "Initial guess for the group parameters (must be of length `num_groups`)",
+                    "properties": {
+                        "yields": {
+                            "type": "array",
+                            "description": "The group delayed neutron yields",
+                            "items": 
+                            {
+                                "type": "number"
+                            }
+                        },
+                        "half_lives": {
+                            "type": "array",
+                            "description": "The group half-lives",
+                            "items": 
+                            {
+                                "type": "number"
+                            }
+                        }
+                    }
+                },
                 "seed": {
                     "type": "integer",
                     "description": "The seed to use for random number generation (for sampling data)"
