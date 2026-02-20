@@ -59,7 +59,7 @@ class BaseClass:
 
         self.name: str = self.input_data['name']
         self.output_dir: str = self.input_data['file_options']['output_dir']
-        self.logger.info(f'{self.name = }')
+        self.logger.debug(f'{self.name = }')
 
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
         self.fissiles: dict[str, float] = data_options.get(
