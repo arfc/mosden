@@ -10,7 +10,7 @@ from mosden.utils.csv_handler import CSVHandler
 from mosden.base import BaseClass
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
-from scipy.integrate import cumulative_trapezoid, simpson, trapezoid
+from scipy.integrate import cumulative_trapezoid, trapezoid
 import re
 import pandas as pd
 from scipy.stats import linregress
