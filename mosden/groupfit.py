@@ -5,11 +5,11 @@ from uncertainties import unumpy
 from mosden.base import BaseClass
 from scipy.optimize import least_squares
 from typing import Callable
-from math import ceil
 from time import time
 import warnings
 from tqdm import tqdm
 from scipy.linalg import svd
+from typing import Callable
 
 
 class Grouper(BaseClass):
@@ -25,39 +25,7 @@ class Grouper(BaseClass):
         super().__init__(input_path)
         self.output_dir: str = self.input_data['file_options']['output_dir']
 
-        self.fission_term: float = self._calculate_fission_term()
         return None
-
-    def _calculate_fission_term(self) -> float:
-        """
-        Calculate the fission rate or number of fissions.
-        The fission rate is used for saturation irradiations, while the number
-        of fissions is used for pulse irradiations.
-
-        Returns
-        -------
-        fission_term : float
-            The number/rate of fissions in the sample.
-
-        Raises
-        ------
-        NotImplementedError
-            Pulse irradiation not yet available.
-
-        NameError
-            Type of irradiation provided does not match any of the available
-            irradiation types.
-        """
-        conc_handler = Concentrations(self.input_path)
-        fission_term = 1.0
-        if self.irrad_type == 'pulse':
-            self.logger.error('Pulse irradiation fission term not treated')
-        elif self.irrad_type == 'saturation':
-            if conc_handler.conc_method == 'CFY' and conc_handler.spatial_scaling == 'scaled':
-                fission_term = conc_handler.f_in
-        else:
-            raise NameError(f'{self.irrad_type = } not available')
-        return fission_term
 
     def generate_groups(self) -> None:
         """
@@ -143,7 +111,7 @@ class Grouper(BaseClass):
                     counts: np.ndarray[object] = np.zeros(
                         len(times), dtype=object)
                 counts += (a * lam * unumpy.exp(-lam * times))
-        return counts * self.fission_term
+        return counts * self.fission_term[0]
 
     def _saturation_fit_function(self,
                                  times: np.ndarray[float | object],
@@ -167,13 +135,6 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
-        t_sum: float = self.t_in + self.t_ex
-        try:
-            recircs: int = int(np.floor(self.t_net/t_sum))
-            irrad_circs: int = int(np.floor((self.t_net-self.t_in)/t_sum))
-        except ZeroDivisionError:
-            recircs = 0
-            irrad_circs = 0
         
         try:
             np.exp(-np.log(2)/half_lives[0])
@@ -186,22 +147,183 @@ class Grouper(BaseClass):
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             nu = yields[group]
-            group_counts = 0
+            fiss_term = self._get_saturation_fission_term(lam, exp)
+            group_counts = fiss_term * exp(-lam*times) * nu
 
-            if self.t_ex == 0:
-                group_counts += exp(-lam*times) * (1 - exp(-lam*self.t_net))
-                counts += nu * group_counts
-                continue
+            counts += group_counts
+        return counts
+    
+    def _get_saturation_fission_term(self, lam: float, exp: Callable) -> float:
+        t_sum: float = self.t_in + self.t_ex
+        try:
+            recircs: int = int(np.floor(self.t_net/t_sum))
+            irrad_circs: int = int(np.floor((self.t_net-self.t_in)/t_sum))
+        except ZeroDivisionError:
+            recircs = 0
+            irrad_circs = 0
 
+        if self.t_ex == 0:
+            fiss_term = (1 - exp(-lam*self.t_net))
+        else:
+            fiss_term = 0
             for j in range(0, irrad_circs+1):
-                group_counts += exp(-lam*(times+self.t_net-j*t_sum-self.t_in)) - exp(-lam*(times+self.t_net-j*t_sum))
+                fiss_term += exp(-lam*(self.t_net-j*t_sum-self.t_in)) - exp(-lam*(self.t_net-j*t_sum))
             for j in range(irrad_circs+1, recircs+1):
-                group_counts += exp(-lam*times) - exp(-lam*(times+self.t_net-j*t_sum))
-            counts += nu * group_counts
-        return self.fission_term * counts
+                fiss_term += 1 - exp(-lam*(self.t_net-j*t_sum))
+
+        return fiss_term * self.refined_fission_term
+
+            
+    def _intermediate_numerical_fit_function(self,
+                                 times: np.ndarray[float | object],
+                                 parameters: np.ndarray[float | object]
+                                 ) -> np.ndarray[float | object]:
+        """
+        Fit function for any irradiation using numerical integration
+
+        Parameters
+        ----------
+        times : np.ndarray[float|object]
+            Times at which to evaluate the fit function
+        parameters : np.ndarray[float|object]
+            Fit parameters for the model
+
+        Returns
+        -------
+        counts : np.ndarray[float|object]
+            Array of counts for each time point (can be float or ufloat)
+        """
+        yields = parameters[:self.num_groups]
+        half_lives = parameters[self.num_groups:]
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+            expm1 = np.expm1
+            lam = np.log(2) / np.asarray(half_lives)
+            nu = np.asarray(yields)
+        except TypeError:
+            exp = unumpy.exp
+            expm1 = unumpy.expm1
+            counts: np.ndarray[object] = np.zeros(
+                len(times), dtype=object)
+            lams = np.log(2) / half_lives
+            lam = unumpy.uarray([lam.n for lam in lams],
+                                [lam.s for lam in lams])
+            nu = unumpy.uarray([v.n for v in yields],
+                               [v.s for v in yields])
+        count_exponential = exp(-lam[:, None] * times[None, :])
+        group_counts = nu[:, None] * count_exponential
+        counts = np.sum(group_counts, axis=0)
+        return counts
+    
+    def _get_effective_fission(self, lam: np.ndarray[float], exp: Callable, 
+                               expm1: Callable) -> np.ndarray[float]:
+        """
+        Calculate the effective fission term scaled over time
+
+        Parameters
+        ----------
+        lam : np.ndarray[float]
+            Decay constants for each group
+        exp : callable
+            Exponential function
+        expm1 : callable
+            e^x - 1 function
+
+        Returns
+        -------
+        fission_component : np.ndarray[float]
+            The effective fission rate for each group
+        """
+        t1 = self.fission_times[:-1]
+        t2 = self.fission_times[1:]
+        dt = t2 - t1
+        a = -lam[:, None] * np.asarray(self.t_net - t2)[None, :]
+        b = -lam[:, None] * dt[None, :]
+        exponential_term = exp(a) * -expm1(b)
+        scaled_fission = np.asarray(self.full_fission_term)[None, :] * exponential_term
+        fission_component = np.sum(scaled_fission, axis=1)
+        return fission_component
+    
+    def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
+        """
+        Sets the `refined_fission_term` to a finer set of times.
+        Takes the average value rather than using a time dependent
+        version due to limitations in the derived equation.
+        This value is used for the saturation irradiation.
+        Because the derivation assumes a constant fission rate, this is a source
+        of error for the saturation method when using OpenMC
+
+        Parameters
+        ----------
+        fine_times : np.ndarray[float]
+            The finer set of times over which to apply the fission history
+
+        Returns
+        -------
+        refined_fission_term : float
+            The fission term calculated using the mean
+        """
+        concs = Concentrations(self.input_path)
+        self.fission_term, self.fission_times = concs._calculate_fission_term()
+        self.full_fission_term, _ = concs._calculate_fission_term(False)
+        if not self.omc:
+            self.refined_fission_term = np.mean(self.fission_term)
+            return self.refined_fission_term
+
+        refined_term = list()
+        for t in fine_times:
+            for i in range(len(self.fission_term)):
+                if self.fission_times[i] <= t < self.fission_times[i+1]:
+                    refined_term.append(self.fission_term[i])
+                    break
+        self.refined_fission_term = np.asarray(refined_term)
+        self.refined_fission_term = np.mean(self.fission_term)
+        return self.refined_fission_term
+    
+    def _restructure_intermediate_yields(self, parameters: np.ndarray[float|object],
+                                         to_yield: bool=True) -> np.ndarray[float|object]:
+        """
+        Because the intermediate solve includes the effective fission term, 
+        that value is divided out and then the parameters are returned in
+        yield, half-life form.
+
+        Parameters
+        ----------
+        parameters : np.ndarray[float|object]
+            Parameters for the group fit
+        to_yield : bool (optional)
+            If going from fission-weighted yield to yield. If going from yield to
+            fission-weighted yield, this should be false
+        """
+        if self.irrad_type != 'intermediate':
+            return parameters
+
+        scaled_yields = parameters[:self.num_groups]
+        half_lives = parameters[self.num_groups:]
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+            expm1 = np.expm1
+            lams = np.log(2) / np.asarray(half_lives)
+        except TypeError:
+            exp = unumpy.exp
+            expm1 = unumpy.expm1
+            lams = np.log(2) / half_lives
+            lams = unumpy.uarray([lam.n for lam in lams],
+                                [lam.s for lam in lams])
+        fission_per_group = self._get_effective_fission(lams, exp, expm1)
+        if to_yield:
+            actual_yields = np.asarray(scaled_yields) / fission_per_group
+        else:
+            actual_yields = fission_per_group * np.asarray(scaled_yields)
+        actual_parameters = np.concatenate((actual_yields, half_lives))
+        return actual_parameters
+
 
     def _nonlinear_least_squares(self,
-                                 count_data: dict[str: np.ndarray[float]] = None
+                                 count_data: dict[str: np.ndarray[float]] = None,
+                                 set_refined_fiss: bool = True
                                  ) -> dict[str: dict[str: float]]:
         """
         Run nonlinear least squares fit on the delayed neutron count rate curve
@@ -211,6 +333,8 @@ class Grouper(BaseClass):
         ----------
         count_data : dict[str: np.ndarray[float]], optional
             Dictionary containing the count data, by default None
+        set_refined_fiss : bool, optional
+            Set the refined fission rate (deafult True)
 
         Returns
         -------
@@ -219,16 +343,19 @@ class Grouper(BaseClass):
               (yield, sigma yield, half_life, sigma half_life)
         """
         from mosden.countrate import CountRate
-        initial_parameter_guess = np.ones(self.num_groups * 2)
         if count_data is None:
             count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
+        if set_refined_fiss:
+            self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
         if self.irrad_type == 'pulse':
             fit_function = self._pulse_fit_function
         elif self.irrad_type == 'saturation':
             fit_function = self._saturation_fit_function
+        elif self.irrad_type == 'intermediate':
+            fit_function = self._intermediate_numerical_fit_function
         else:
             raise NotImplementedError(
                 f'{self.irrad_type} not supported in nonlinear least squares')
@@ -236,6 +363,8 @@ class Grouper(BaseClass):
         min_half_life = 1e-3
         max_half_life = 1e3
         max_yield = 1.0
+        if self.irrad_type == 'intermediate':
+            max_yield = np.max(counts)
         lower_bounds = np.concatenate(
             (np.zeros(
                 self.num_groups), np.ones(
@@ -249,23 +378,61 @@ class Grouper(BaseClass):
                 max_half_life))
 
         bounds = (lower_bounds, upper_bounds)
-        result = least_squares(self._residual_function,
-                               initial_parameter_guess,
-                               bounds=bounds,
-                               method='trf',
-                               ftol=1e-12,
-                               gtol=1e-12,
-                               xtol=1e-12,
-                               verbose=0,
-                               max_nfev=1e5,
-                               args=(times, counts, count_err, fit_function))
+        n_restarts = self.num_starts
+        starts = []
+        if self.initial_params['yields'] and self.initial_params['half_lives']:
+            parameters = self.initial_params['yields']+self.initial_params['half_lives']
+            self.logger.debug(f'Pre restructured {parameters = }')
+            parameters = self._restructure_intermediate_yields(parameters, False)
+            self.logger.debug(f'Post restructured {parameters = }')
+
+            for param_index, param in enumerate(parameters[:self.num_groups]):
+                if param <= max_yield and param >= 0.0:
+                    continue
+                self.logger.warning(f'Group {param_index+1} yield greater than bound. Setting to 0.9x bound max')
+                parameters[param_index] = 0.9 * max_yield
+
+            starts.append(parameters)
+
+        for _ in range(n_restarts):
+            y_noise = 10 ** np.random.uniform(-4, -1, size=self.num_groups)
+            if self.irrad_type == 'intermediate':
+                setup_noise = np.random.uniform(1e-2, 1, self.num_groups)
+                y_noise = 0.9 * counts[0] * setup_noise / np.sum(setup_noise)
+            hl_noise = 10 ** np.random.uniform(-2, 1, size=self.num_groups)
+            x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
+            starts.append(x0)
+
+        best = None
+        for x0 in tqdm(starts):
+            result = least_squares(self._residual_function,
+                                x0,
+                                bounds=bounds,
+                                method='trf',
+                                x_scale='jac',
+                                ftol=1e-12,
+                                gtol=1e-12,
+                                xtol=1e-12,
+                                verbose=0,
+                                max_nfev=1e6,
+                                args=(times, counts, count_err, fit_function))
+            if best is None or result.cost < best.cost:
+                best = result
+        result = best
         J = result.jac
         s = svd(J, compute_uv=False)
+        self.logger.info(f'{s = }')
         condition_number = s[0] / s[-1]
         self.logger.info(f'{condition_number = }')
+        cov = np.linalg.pinv(J.T @ J)
+        self.logger.info(f'{np.diag(cov) = }')
+        sigma = np.sqrt(np.diag(cov))
+        self.logger.info(f'{sigma = }')
+        self.logger.info(result)
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
         sorted_params = self._sort_params_by_half_life(result.x)
+        sorted_params = self._restructure_intermediate_yields(sorted_params)
         sampled_params.append(sorted_params)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
@@ -295,8 +462,14 @@ class Grouper(BaseClass):
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)
+            sorted_params = self._restructure_intermediate_yields(sorted_params)
             sampled_params.append(sorted_params)
         sampled_params: np.ndarray[float] = np.asarray(sampled_params)
+
+        try:
+            self.post_data
+        except AttributeError:
+            self.load_post_data()
 
         if 'PnMC' not in self.post_data.keys():
             self.post_data['PnMC'] = list()

@@ -1,0 +1,208 @@
+import openmc
+from openmc.stats import Uniform, spherical_uniform, Isotropic
+from openmc.model import Model
+import numpy as np
+import openmc.deplete
+import re
+from time import time
+
+
+batches = {{batches}}
+nps = {{nps}}
+mode = '{{mode}}'
+seed = {{seed}}
+energy_MeV = {{energy}}
+mass_g = 3
+dens_g_cm3 = {{density}}
+temperature_K = {{temperature}}
+fissiles = {{fissiles}}
+xs_data = '{{cross_sections}}'
+t_in: float = {{t_in}}
+t_ex: float = {{t_ex}}
+t_net: float = {{total_irrad_s}}
+decay_times: np.ndarray[float] = [{{decay_times | join(', ')}}]
+reprocess_locations: list[str] = {{repr_locations}}
+flux = {{source}}
+chain_file = '{{chain_file}}'
+reprocessing = {{reprocessing}}
+repr_scale = {{repr_scale}}
+omc_dir = '{{omc_dir}}'
+flux_scaling: bool = {{flux_scaling}}
+chem_scaling: bool = {{chem_scaling}}
+f_in : float = {{f_in}}
+
+
+volume = mass_g / dens_g_cm3
+radius = (mass_g * volume / (4 * np.pi)) ** (1/3)
+
+xs_library = openmc.data.DataLibrary.from_xml(xs_data)
+xs_nuclide_list = [i['materials'][0] for i in xs_library.libraries]
+pattern = re.compile(r'^[A-Z][a-z]?\d+(?:_m\d+)?$')
+xs_nuclide_list = [s for s in xs_nuclide_list if pattern.match(s)]
+
+
+def settings():
+    settings = openmc.Settings()
+    settings.batches = batches
+    settings.output = {'summary': False,
+                       'tallies': False,
+                       'path': omc_dir}
+    settings.particles = nps
+    settings.run_mode = mode
+    settings.seed = seed
+    settings.temperature = {'default': temperature_K,
+                            'method': 'interpolation'}
+    settings.verbosity = 8
+
+    source = openmc.IndependentSource()
+    source.energy = Uniform(energy_MeV, energy_MeV)
+    source.space = spherical_uniform(r_outer=radius)
+    source.angle = Isotropic()
+    source.particle = 'neutron'
+    settings.source = source
+    return settings
+
+
+def materials():
+    sample = openmc.Material()
+    sample.name = 'sample'
+    sample.id = 1
+    for nuc, frac in fissiles.items():
+        sample.add_nuclide(nuc, frac, 'wo')
+    sample.set_density('g/cm3', dens_g_cm3)
+    sample.depletable = True
+    sample.volume = volume
+    materials = openmc.Materials([sample])
+    return materials
+
+def geometry(materials):
+    sphere = openmc.Sphere(r=radius,
+                           boundary_type='vacuum')
+    sphere_cell = openmc.Cell(region=-sphere,
+                              fill=materials[0])
+    universe = openmc.Universe(cells=[sphere_cell])
+    geometry = openmc.Geometry(universe)
+    return geometry
+
+def tallies():
+    tallies_file = openmc.Tallies()
+
+    mesh = openmc.RegularMesh()
+    mesh.dimension = [1, 1, 1]
+    mesh.lower_left = np.array([-radius, -radius, -radius])
+    mesh.upper_right = np.array([radius, radius, radius])
+    mesh_filter = openmc.MeshFilter(mesh)
+
+    # Fission Rate tally
+    fission_tally = openmc.Tally(name='fissionrate')
+    fission_tally.filters = [mesh_filter]
+    fission_tally.scores = ['fission']
+    fission_tally.multiply_density = True
+    fission_tally.nuclides = list(set(xs_nuclide_list))
+    tallies_file.append(fission_tally)
+
+    # Delayed Neutron Yield tally
+    delnu_tally = openmc.Tally(name='delnuyield')
+    delnu_tally.filters = [mesh_filter]
+    delnu_tally.scores = ['delayed-nu-fission']
+    delnu_tally.multiply_density = True
+    delnu_tally.nuclides = list(set(xs_nuclide_list))
+    tallies_file.append(delnu_tally)
+
+    # Prompt Neutron Yield tally
+    delnu_tally = openmc.Tally(name='pmtnuyield')
+    delnu_tally.filters = [mesh_filter]
+    delnu_tally.scores = ['prompt-nu-fission']
+    delnu_tally.multiply_density = True
+    delnu_tally.nuclides = list(set(xs_nuclide_list))
+    tallies_file.append(delnu_tally)
+
+    # Total Neutron Yield tally
+    delnu_tally = openmc.Tally(name='nuyield')
+    delnu_tally.filters = [mesh_filter]
+    delnu_tally.scores = ['nu-fission']
+    delnu_tally.nuclides = list(set(xs_nuclide_list))
+    tallies_file.append(delnu_tally)
+
+    return tallies_file
+
+def build_model(settings, materials, geometry, tallies):
+    model = Model(geometry, materials,
+                  settings, tallies)
+    model.export_to_xml(directory=omc_dir)
+    return model
+
+
+def get_times_and_rates():
+    removal_indeces = list()
+    timesteps = list()
+    source_rates = list()
+    current_time = 0
+    index_counter = 0
+    in_core = True
+    time_close = np.isclose(current_time, t_net)
+    while current_time < t_net and not time_close:
+        if in_core:
+            t = t_in
+            region = 'incore'
+            source = flux
+            in_core = False
+        else:
+            t = t_ex
+            region = 'excore'
+            source = 0
+            in_core = True
+
+        if t <= 0.0:
+            continue
+        
+        current_time += t
+        timesteps.append(t)
+        if (region in reprocess_locations) or chem_scaling:
+            removal_indeces.append(index_counter)
+        if flux_scaling:
+            source = flux * f_in
+        source_rates.append(source)
+        index_counter += 1
+        time_close = np.isclose(current_time, t_net)
+
+    diff = sum(timesteps) - t_net
+    timesteps[-1] = timesteps[-1] - diff
+
+    decay_time_steps = np.diff(decay_times, prepend=[0.0])
+    for t in decay_time_steps:
+        timesteps.append(t)
+        source_rates.append(0)
+    return timesteps, source_rates, removal_indeces
+
+
+def run():
+    tally = tallies()
+    mats = materials()
+    geom = geometry(mats)
+    sets = settings()
+    model = build_model(sets,  mats, geom, tally)
+
+    ts, sources, chem_times = get_times_and_rates()
+    operator = openmc.deplete.CoupledOperator(model, chain_file,
+                                              normalization_mode='source-rate')
+    operator.output_dir = omc_dir
+    repr_obj = None
+    if not np.all(np.asarray(list(reprocessing.values())) <= 0.0):
+        repr_obj = openmc.deplete.transfer_rates.TransferRates(operator, model, len(ts))
+        for element, rate in reprocessing.items():
+            repr_obj.set_transfer_rate(mats[0], [element], rate * repr_scale,
+                                       timesteps=chem_times)
+            
+    integrator = openmc.deplete.PredictorIntegrator(operator,
+                                                    timesteps=ts,
+                                                    source_rates=sources,
+                                                    timestep_units='s')
+    if repr_obj:
+        integrator.transfer_rates = repr_obj
+    integrator.integrate()
+    return
+
+start = time()
+run()
+print(f'Took {round(time()-start)}s')

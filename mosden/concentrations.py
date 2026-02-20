@@ -3,7 +3,12 @@ from mosden.utils.csv_handler import CSVHandler
 from uncertainties import ufloat
 from mosden.base import BaseClass
 from time import time
-
+import os
+from jinja2 import Environment, PackageLoader
+import subprocess
+import sys
+import openmc.deplete
+import json
 
 class Concentrations(BaseClass):
     def __init__(self, input_path: str) -> None:
@@ -17,28 +22,32 @@ class Concentrations(BaseClass):
         """
         super().__init__(input_path)
 
-
-        if self.spatial_scaling == 'unscaled':
-            self.repr_scale = 1.0
+        try:
+            self.f_in: float = self.t_in / (self.t_in + self.t_ex)
+            self.f_ex: float = self.t_ex / (self.t_in + self.t_ex)
+        except ZeroDivisionError:
+            self.logger.error('No in-core or ex-core time')
             self.f_in = 1.0
             self.f_ex = 1.0
-        elif self.spatial_scaling == 'scaled':
-            try:
-                self.f_in: float = self.t_in / (self.t_in + self.t_ex)
-                self.f_ex: float = self.t_ex / (self.t_in + self.t_ex)
-            except ZeroDivisionError:
-                self.logger.error('No in-core or ex-core time')
-            self.repr_scale = 0.0
-            if 'incore' in self.reprocess_locations:
-                self.repr_scale += self.f_in
-            if 'excore' in self.reprocess_locations:
-                self.repr_scale += self.f_ex
-            self.repr_scale /= self.base_repr_scale
-        else:
-            raise NotImplementedError(
-                f'{self.spatial_scaling} not implemented')
         self.fission_term = 1.0 * self.f_in
+
+        self.repr_scale = 0.0
+        if 'incore' in self.reprocess_locations:
+            self.repr_scale += self.f_in
+        if 'excore' in self.reprocess_locations:
+            self.repr_scale += self.f_ex
+        self.repr_scale /= self.base_repr_scale
+
+        if not self.flux_scaling:
+            self.fission_term = 1.0
+            self.f_in = 1.0
+            self.f_ex = 1.0
+        
+        if self.chem_scaling:
+            self.repr_scale = 1.0
+        
         if self.repr_scale <= 0.0:
+            self.logger.info(f'{self.repr_scale = }')
             self.logger.error('No valid chemical removal region provided')
             self.logger.warning('Setting reprocessing scale to 1.0')
             self.repr_scale = 1.0
@@ -77,19 +86,26 @@ class Concentrations(BaseClass):
             self.logger.error(
                 'IFY method has not been verified. Use with caution')
             data = self.IFY_concentrations()
+        elif self.conc_method == 'OMC':
+            data = self.OMC_concentrations()
         else:
             raise NotImplementedError(
                 f"Concentration handling method '{
                     self.conc_method}' is not implemented")
 
-        CSVHandler(self.concentration_path, self.conc_overwrite).write_csv(data)
+        CSVHandler(self.concentration_path, self.conc_overwrite).write_csv_with_time(data)
         self.save_postproc()
         self.time_track(start, 'Concentrations')
         return
 
-    def CFY_concentrations(self) -> None:
+    def CFY_concentrations(self) -> list[dict[str, float]]:
         """
         Generate the concentrations of each nuclide using the CFY method.
+
+        Returns
+        -------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
@@ -115,17 +131,351 @@ class Concentrations(BaseClass):
             concentrations[nuclide] = self.f_in * concs / loss_term
             all_nucs.add(nuclide)
 
-        data: dict[str: dict[str: float]] = dict()
-        for nuc in all_nucs:
-            data[nuc] = {}
-            data[nuc]['Concentration'] = concentrations[nuc].n
-            data[nuc]['sigma Concentration'] = concentrations[nuc].s
-
+        data = list()
+        for t in range(1):
+            for nuc in all_nucs:
+                data.append({
+                    'Time': t,
+                    'Nuclide': nuc,
+                    'Concentration': concentrations[nuc].n,
+                    'sigma Concentration': concentrations[nuc].s
+                })
         return data
 
-    def IFY_concentrations(self) -> None:
+    def OMC_concentrations(self) -> list[dict[str, float]]:
+        """
+        Generate the concentrations of each nuclide using OpenMC.
+
+        Returns
+        -------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
+        """
+        env = Environment(loader=PackageLoader('mosden'))
+        file = self.openmc_settings['omc_file']
+        template = env.get_template(file)
+        chain_file = os.path.join(self.unprocessed_data_dir, self.openmc_settings['chain'])
+        cross_sections = os.path.join(self.unprocessed_data_dir, self.openmc_settings['x_sections'])
+        omc_dir = self.openmc_settings['omc_dir']
+        render_data = {
+            'nps': self.openmc_settings['nps'],
+            'mode': self.openmc_settings['mode'],
+            'batches': self.openmc_settings['batches'],
+            'source': self.openmc_settings['source'],
+            'seed': self.seed,
+            'energy': self.energy_MeV,
+            'density': self.density_g_cc,
+            'temperature': self.temperature_K,
+            'fissiles': self.fissiles,
+            't_in': self.t_in,
+            't_ex': self.t_ex,
+            'total_irrad_s': self.t_net,
+            'decay_times': self.decay_times,
+            'repr_locations': self.reprocess_locations,
+            'reprocessing': self.reprocessing,
+            'repr_scale': self.repr_scale,
+            'chain_file': chain_file,
+            'cross_sections': cross_sections,
+            'omc_dir': omc_dir,
+            'flux_scaling': self.flux_scaling,
+            'chem_scaling': self.chem_scaling,
+            'f_in': self.f_in
+        }
+        rendered_template = template.render(render_data)
+        fname = 'omc.py'
+        full_name = f'{omc_dir}/{fname}'
+
+        if self.openmc_settings['run_omc']:
+            if not os.path.exists(omc_dir):
+                os.makedirs(omc_dir)
+            with open(full_name, mode='w') as output:
+                output.write(rendered_template)
+
+            try:
+                completed_process = subprocess.run([sys.executable, full_name],
+                                                capture_output=True, text=True,
+                                                check=True)
+                with open(f'{omc_dir}/omc_output.txt', 'w') as f:
+                    f.write(completed_process.stdout)
+            except subprocess.CalledProcessError as e:
+                self.logger.error(f'OpenMC failed with return code {e.returncode}')
+                self.logger.error(f'Error output: {e.stderr}')
+                raise RuntimeError('OpenMC did not complete run')
+            except FileNotFoundError:
+                self.logger.error(f'{full_name} not found')
+                raise FileNotFoundError
+        
+        data = list()
+        results = openmc.deplete.Results(f'{omc_dir}/depletion_results.h5')
+        times = results.get_times(time_units='s')
+        nucs = list(results[0].index_nuc.keys())
+        for nuc in nucs:
+            _, concs = results.get_atoms('1', nuc)
+            for ti, t in enumerate(times):
+                data.append(
+                    {
+                        'Time': t,
+                        'Nuclide': nuc,
+                        'Concentration': concs[ti],
+                        'sigma Concentration': 1e-12
+                    }
+                )
+        if self.openmc_settings['write_fission_json']:
+            self._collect_omc_fissions()
+        if self.openmc_settings['write_nuyield_json']:
+            self._collect_omc_nuyield()
+        return data
+    
+    def read_omc_fission_json(self, only_incore:bool = False) -> tuple[dict[str, np.ndarray], np.ndarray]:
+        """
+        Collect the fission rate history from a json file
+
+        only_incore : bool
+            Return the fission rate history ONLY for the in-core residence times
+            (this assumes starting in core and then alternates)
+
+        Returns
+        -------
+        fissions : dict[str, np.ndarray]
+            Fission rate history as a function of time for each fissile nuclide
+            and the 'net'
+        times : np.ndarray
+            The times the fission rate history is recorded
+        """
+        with open(f'{self.output_dir}/omc_fissions.json', 'r') as f:
+            full_data = json.load(f)
+        fissions = full_data['fissions']
+        times = np.array(full_data['times'])
+        for nuc in fissions.keys():
+            if only_incore:
+                fissions[nuc] = fissions[nuc][::2]
+            fissions[nuc] = np.array(fissions[nuc])
+        return fissions, times
+    
+    def read_omc_nuyield_json(self) -> dict[str, dict[str, np.ndarray]]:
+        """
+        Collect the OpenMC delayed neutron yield data from the json file
+
+        Returns
+        -------
+        full_data : dict[str, dict[str, np.ndarray]
+            Data sorted by delayed and prompt, followed by fissile nuclide over time
+        
+        """
+        with open(f'{self.output_dir}/omc_nuyield.json', 'r') as f:
+            full_data = json.load(f)
+        for type_yield in full_data.keys():
+            for nuc in full_data[type_yield].keys():
+                full_data[type_yield][nuc] = np.array(full_data[type_yield][nuc])
+        return full_data
+ 
+    def _collect_omc_fissions(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
+        """
+        Collect the fission rate history from OpenMC output and writes to a
+        json file
+
+        Returns
+        -------
+        fissions : dict[str, np.ndarray]
+            Fission rate history as a function of time for each fissile nuclide
+            and the 'net'
+        times : np.ndarray
+            The times the fission rate history is recorded
+        """
+        if self.openmc_settings['mode'] != 'fixed source':
+            raise NotImplementedError('Only fixed source fission tracking enabled')
+        fissions = dict()
+        num_files = self.get_irrad_index(False)
+        for i in range(num_files):
+            sp = openmc.StatePoint(f'{self.openmc_settings["omc_dir"]}/openmc_simulation_n{i}.h5')
+            for tally in sp.tallies.keys():
+                tally_data = sp.get_tally(id=tally)
+                if 'fissionrate' in tally_data.name:
+                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    try:
+                        df['mean'] = df['mean'] * self.openmc_settings['source']
+                    except KeyError:
+                        continue
+                    df_sorted = df.sort_values(by='mean', ascending=False)
+                    df_sorted = df_sorted.reset_index(drop=True)
+                    if i == 0:
+                        for nuc in df_sorted['nuclide']:
+                            fissions[nuc] = np.zeros(num_files)
+                        fissions['net'] = np.zeros(num_files)
+                    for nuc_i, nuc in enumerate(df_sorted['nuclide']):
+                        fissions[nuc][i] = df_sorted['mean'][nuc_i]
+                        fissions['net'][i] += fissions[nuc][i]
+
+        fiss_keys = list(fissions.keys())
+        for nuc in fiss_keys:
+            if np.all(fissions[nuc] <= 1e-12 * np.ones(num_files)):
+                del fissions[nuc]
+        results = openmc.deplete.Results(f'{self.openmc_settings["omc_dir"]}/depletion_results.h5')
+        times = results.get_times(time_units='s')[:num_files+1]
+        full_data = {}
+        full_data['fissions'] = fissions
+        full_data['times'] = times
+
+        with open(f'{self.output_dir}/omc_fissions.json', 'w') as f:
+            json.dump(full_data, f, indent=4, default=self._json_default)
+        return fissions, times
+    
+    def _json_default(self, obj: object) -> object:
+        """
+        JSON helper function that replaces incompatible datatypes
+
+        Parameters
+        ----------
+        obj : object
+            Some Python object. Currently accepts np.ndarray
+        
+        Returns
+        -------
+        obj : object
+            JSON compatible version of the Python object
+        
+        Raises
+        ------
+        NotImplementedError
+            If the object is not defined in the function
+        """
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            raise NotImplementedError
+    
+    def _collect_omc_nuyield(self) -> dict[str, dict[str, np.ndarray]]:
+        """
+        Collects the delayed neutron yield from OpenMC results
+
+        Returns
+        -------
+        nuyield : dict[str, dict[str, np.ndarray]]
+            Data sorted by delayed and prompt, followed by fissile nuclide over time
+
+
+        """
+        fiss, _ = self.read_omc_fission_json()
+        avg_fission_rate = np.mean(fiss['net'])
+        nuyield = dict()
+        nuyield['d'] = dict()
+        nuyield['p'] = dict()
+        results = openmc.deplete.Results(f'{self.openmc_settings["omc_dir"]}/depletion_results.h5')
+        time_cap = self.get_irrad_index(False)
+        times = results.get_times('s')[:time_cap-1]
+        for i in range(len(times)):
+            sp = openmc.StatePoint(f'{self.openmc_settings["omc_dir"]}/openmc_simulation_n{i}.h5')
+            for tally in sp.tallies.keys():
+                tally_data = sp.get_tally(id=tally)
+                if 'delnuyield' in tally_data.name:
+                    use_dict = nuyield['d']
+                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    try:
+                        df['mean'] = (df['mean'] * self.openmc_settings['source'] / avg_fission_rate)
+                    except KeyError:
+                        continue
+                    df_sorted = df.sort_values(by='mean', ascending=False)
+                    df_sorted = df_sorted.reset_index(drop=True)
+
+                    if i == 0:
+                        for nuc in df_sorted['nuclide']:
+                            use_dict[nuc] = np.zeros(len(times))
+                        use_dict['net'] = np.zeros(len(times))
+                    
+                    for nuc_i, nuc in enumerate(df_sorted['nuclide']):
+                        use_dict[nuc][i] = df_sorted['mean'][nuc_i]
+                        use_dict['net'][i] += use_dict[nuc][i]
+
+                if 'pmtnuyield' in tally_data.name:
+                    use_dict = nuyield['p']
+                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    try:
+                        df['mean'] = (df['mean'] * self.openmc_settings['source'] / avg_fission_rate)
+                    except KeyError:
+                        continue
+                    df_sorted = df.sort_values(by='mean', ascending=False)
+                    df_sorted = df_sorted.reset_index(drop=True)
+
+                    if i == 0:
+                        for nuc in df_sorted['nuclide']:
+                            use_dict[nuc] = np.zeros(len(times))
+                        use_dict['net'] = np.zeros(len(times))
+                    for nuc_i, nuc in enumerate(df_sorted['nuclide']):
+                        use_dict[nuc][i] = df_sorted['mean'][nuc_i]
+                        use_dict['net'][i] += use_dict[nuc][i]
+
+        fiss_keys = list(nuyield['d'].keys())
+        for nuc in fiss_keys:
+            if np.all(nuyield['d'][nuc] <= 1e-12 * np.ones(len(times))):
+                del nuyield['d'][nuc]
+        fiss_keys = list(nuyield['p'].keys())
+        for nuc in fiss_keys:
+            if np.all(nuyield['p'][nuc] <= 1e-12 * np.ones(len(times))):
+                del nuyield['p'][nuc]
+
+        with open(f'{self.output_dir}/omc_nuyield.json', 'w') as f:
+            json.dump(nuyield, f, indent=4, default=self._json_default)
+        return nuyield
+    
+    def _calculate_fission_term(self, only_incore: bool=True) -> list[float]:
+        """
+        Calculate the fission rate or number of fissions.
+        The fission rate is used for saturation irradiations, while the number
+        of fissions is used for pulse irradiations.
+
+        Parameters
+        ----------
+        only_incore : bool
+            Whether or not to only return the non-zero fission term values 
+
+        Returns
+        -------
+        fission_term : list[float]
+            The number/rate of fissions in the sample. The list is length > 1
+            when using OMC for concentration calculation due to variation in the
+            fission rate history.
+        
+        times : list[float]
+            The times at which the fission history is evaluated (None unless OMC
+            is used)
+
+        Raises
+        ------
+        NotImplementedError
+            Pulse irradiation not yet available.
+
+        NameError
+            Type of irradiation provided does not match any of the available
+            irradiation types.
+        """
+        fission_term = [1.0]
+        times = None
+
+        if self.omc:
+            fission_term, times = self.read_omc_fission_json(only_incore=only_incore)
+            fission_term = fission_term['net']
+
+        if self.irrad_type == 'pulse':
+            fission_term = [sum(fission_term)]
+            if not self.omc:
+                self.logger.error('Pulse irradiation fission term not treated')
+        elif self.irrad_type == 'saturation' or self.irrad_type == 'intermediate':
+            if self.spatial_scaling == 'scaled':
+                fission_term = [self.f_in * f for f in fission_term]
+        else:
+            raise NameError(f'{self.irrad_type = } not available')
+
+        return fission_term, times
+
+
+    def IFY_concentrations(self) -> list[dict[str, float]]:
         """
         Generate the concentrations of each nuclide using the IFY method.
+        
+        Returns
+        -------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
@@ -135,12 +485,15 @@ class Concentrations(BaseClass):
             concentrations[nuclide] = concs
             all_nucs.add(nuclide)
 
-        data: dict[str: dict[str: float]] = dict()
-        for nuc in all_nucs:
-            data[nuc] = {}
-            data[nuc]['Concentration'] = concentrations[nuc]
-            data[nuc]['sigma Concentration'] = 1e-12
-
+        data = list()
+        for t in range(1):
+            for nuc in all_nucs:
+                data.append({
+                    'Time': t,
+                    'Nuclide': nuc,
+                    'Concentration': concentrations[nuc],
+                    'sigma Concentration': 1e-12
+                })
         return data
 
 

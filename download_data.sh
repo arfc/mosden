@@ -39,15 +39,19 @@ LOWERCASE_VERSION="${INTEGER_VALUE}${DIGIT_PART}"
 
 ENDF_DIR="${DATA_DIR}/endfb${LOWERCASE_VERSION}"
 NFY_DIR="${ENDF_DIR}"
+XS_DIR="${ENDF_DIR}/xs"
 decay_DIR="${ENDF_DIR}"
 mkdir -p "$NFY_DIR"
+mkdir -p "$XS_DIR"
 
 if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
   SEPARATOR="-"
   decay_SEPARATOR="-"
+  XS_URL="https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz"
 elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
   SEPARATOR="_"
   decay_SEPARATOR="_"
+  XS_URL="https://anl.box.com/shared/static/uhbxlrx7hvxqw27psymfbhi7bx7s6u6a.xz"
 fi
 
 NFY_ZIP_NAME="ENDF-B-${ENDF_VERSION}${SEPARATOR}nfy.zip"
@@ -73,6 +77,16 @@ echo "Extracting decay data..."
 unzip "$TEMP_ZIP" -d "$decay_DIR"
 rm "$TEMP_ZIP"
 echo "Decay data handled"
+
+
+echo "Downloading cross secction data for ENDF/B-${ENDF_VERSION}..."
+TEMP_ZIP="${XS_DIR}/XS.tar.xz"
+wget -4 --show-progress -O "$TEMP_ZIP" "$XS_URL"
+echo "Extracting XS data"
+tar -xvf "$TEMP_ZIP" -C "$XS_DIR" --strip-components=1
+rm "$TEMP_ZIP"
+echo "Cross section data handled"
+
 
 # /ENDF --------------------------------------------------------------------
 

@@ -5,11 +5,12 @@ import os
 from mosden.utils.literature_handler import Literature
 from mosden.countrate import CountRate
 from mosden.concentrations import Concentrations
+from mosden.groupfit import Grouper
 from mosden.utils.csv_handler import CSVHandler
 from mosden.base import BaseClass
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
-from scipy.integrate import cumulative_trapezoid
+from scipy.integrate import cumulative_trapezoid, trapezoid
 import re
 import pandas as pd
 from scipy.stats import linregress
@@ -30,7 +31,6 @@ class PostProcess(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
-        self.self_relative_data: bool = False
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
         self.linestyles: list[str] = ['-', '--', ':', '-.']
         self.load_post_data()
@@ -43,7 +43,8 @@ class PostProcess(BaseClass):
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
             self.logger.warning('Postdata does not exist')
-        self.fission_term = Concentrations(self.input_path).fission_term
+        grouper = Grouper(input_path)
+        self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
 
         return None
 
@@ -177,7 +178,7 @@ class PostProcess(BaseClass):
         Analyze Monte Carlo Non-linear Least Squares results
         """
         self._plot_counts()
-        if self.MC_samples > 1:
+        if self.MC_samples > 2:
             self._plot_MC_group_params()
             self._get_sens_coeffs(write=True)
             self._plot_sensitivities(
@@ -705,6 +706,13 @@ class PostProcess(BaseClass):
         self.logger.info(f'{summed_avg_halflife = } s')
         self.logger.info(f'{group_yield = }')
         self.logger.info(f'{group_avg_halflife = } s')
+        if self.omc:
+            yields = Concentrations(self.input_path).read_omc_nuyield_json()
+            try:
+                omc_yield = np.mean(yields['d']['net'])
+                self.logger.info(f'{omc_yield = }')
+            except KeyError:
+                pass
         return None
 
     def _plot_nuclide_count_rates(self, num_stack: int = 1):
@@ -720,6 +728,11 @@ class PostProcess(BaseClass):
         data_dict = self._get_data()
         net_nucs = data_dict['net_nucs']
         count_rates = dict()
+        if self.omc:
+            concentration_data = CSVHandler(
+                self.concentration_path,
+                create=False).read_csv_with_time(trim=False)
+            irrad_index = self.get_irrad_index(False)
 
         for nuc in net_nucs:
             Pn = data_dict['nucs'][nuc]['emission_probability']
@@ -727,7 +740,19 @@ class PostProcess(BaseClass):
             hl = data_dict['nucs'][nuc]['half_life']
             lam = np.log(2) / hl
             count_rates[nuc] = list()
-            counts = Pn * lam * N * unumpy.exp(-lam * self.decay_times)
+            if not self.omc:
+                counts = Pn * lam * N * unumpy.exp(-lam * self.decay_times)
+            else:
+                times = list(concentration_data[nuc].keys())
+                nom_vals = list()
+                std_devs = list()
+                for t in times[irrad_index+1:]:
+                    nom_val = concentration_data[nuc][t][0]
+                    std_dev = concentration_data[nuc][t][1]
+                    nom_vals.append(nom_val)
+                    std_devs.append(std_dev)
+                concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
+                counts = Pn * lam * concs_with_uncerts
             count_rates[nuc] = counts
 
         biggest_nucs_list = list()
@@ -763,7 +788,7 @@ class PostProcess(BaseClass):
                      markersize=3)
 
         plt.xlabel('Time [s]')
-        plt.ylabel(r'Delayed Neutron Rate per Fission $[s^{-1}]$')
+        plt.ylabel(r'Delayed Neutron Count Rate $[s^{-1}]$')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -792,7 +817,7 @@ class PostProcess(BaseClass):
                      linestyle='--', marker=self.markers[nuci % len(self.markers)], markevery=0.1,
                      markersize=3)
         plt.xlabel('Time [s]')
-        plt.ylabel('Delayed Neutron Counts per Fission')
+        plt.ylabel('Delayed Neutron Counts')
         plt.xscale('log')
         plt.yscale('log')
         plt.legend()
@@ -803,7 +828,7 @@ class PostProcess(BaseClass):
         plt.stackplot(self.decay_times, stacked_data, labels=nuc_names,
                       colors=colors)
         plt.xlabel('Time [s]')
-        plt.ylabel('Delayed Neutron Counts per Fission')
+        plt.ylabel('Delayed Neutron Counts')
         plt.xscale('log')
         plt.legend()
         plt.tight_layout()
@@ -966,10 +991,11 @@ class PostProcess(BaseClass):
             label='Mean, This Work',
             markersize=5,
             markevery=5)
-        countrate.method = 'groupfit'
+        countrate.count_method = 'groupfit'
         if self.self_relative_data:
             base_name = mc_label
             base_counts = np.asarray(count_data['counts'])
+            base_sigma = np.asarray(count_data['sigma counts'])
         group_counts = countrate.calculate_count_rate(write_data=False)
         plt.plot(
             times,
@@ -1016,7 +1042,16 @@ class PostProcess(BaseClass):
             if first and not self.self_relative_data:
                 base_name = name
                 base_counts = data['counts']
+                base_sigma = data['sigma counts']
                 first = False
+
+        if first and not self.self_relative_data:
+            msg = f'No literature data is available for given energy and fissile nuclide'
+            self.logger.warning(msg)
+            self.logger.info('Using generated counts for normalization')
+            base_name = mc_label
+            base_counts = np.asarray(count_data['counts'])
+            base_sigma = np.asarray(count_data['sigma counts'])
 
         plt.xlabel('Time [s]')
         plt.ylabel(r'Count Rate $[n \cdot s^{-1}]$')
@@ -1038,11 +1073,15 @@ class PostProcess(BaseClass):
                 alpha=alpha_MC,
                 color=sample_color,
                 label=label)
+        counts_this_work = unumpy.uarray(count_data['counts'],
+                                         count_data['sigma counts'])
+        counts_base = unumpy.uarray(base_counts,
+                                    base_sigma)
+        this_over_base = counts_this_work / counts_base
         plt.errorbar(
             times,
-            count_data['counts'] /
-            base_counts,
-            count_data['sigma counts'],
+            unumpy.nominal_values(this_over_base),
+            unumpy.std_devs(this_over_base),
             color=mean_color,
             linestyle='',
             marker='x',
@@ -1050,21 +1089,21 @@ class PostProcess(BaseClass):
             markersize=5,
             markevery=5)
 
+        counts_group = unumpy.uarray(group_counts['counts'],
+                                     group_counts['sigma counts'])
+        group_over_base = counts_group / counts_base
         plt.plot(
             times,
-            group_counts['counts'] /
-            base_counts,
+            unumpy.nominal_values(group_over_base),
             color=group_color,
-            alpha=0.75,
+            alpha=0.5,
             label='Group Fit, This Work',
             linestyle='--',
             zorder=3)
         plt.fill_between(
             times,
-            (group_counts['counts'] - group_counts['sigma counts']) /
-            base_counts,
-            (group_counts['counts'] + group_counts['sigma counts']) /
-            base_counts,
+            (unumpy.nominal_values(group_over_base) - unumpy.std_devs(group_over_base)),
+            (unumpy.nominal_values(group_over_base) + unumpy.std_devs(group_over_base)),
             color=group_color,
             alpha=0.3,
             zorder=2,
@@ -1078,17 +1117,18 @@ class PostProcess(BaseClass):
                 name = name.capitalize()
             countrate.group_params = lit_data
             data = countrate._count_rate_from_groups()
+            counts_lit = unumpy.uarray(data['counts'], data['sigma counts'])
+            lit_over_base = counts_lit / counts_base
             plt.plot(
                 times,
-                data['counts'] /
-                base_counts,
+                unumpy.nominal_values(lit_over_base),
                 label=f'{name} 6-Group Fit',
                 color=colors[index],
                 linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
                 times,
-                (data['counts'] - data['sigma counts']) / base_counts,
-                (data['counts'] + data['sigma counts']) / base_counts,
+                (unumpy.nominal_values(lit_over_base) - unumpy.std_devs(lit_over_base)),
+                (unumpy.nominal_values(lit_over_base) + unumpy.std_devs(lit_over_base)),
                 alpha=0.3,
                 zorder=2,
                 edgecolor='black',
@@ -1159,14 +1199,15 @@ class PostProcess(BaseClass):
         data_dict['half_life'] = halflife_data
         concentration_data = CSVHandler(
             self.concentration_path,
-            create=False).read_csv()
+            create=False).read_csv_with_time(trim=True)
         data_dict['concentration'] = concentration_data
 
         emission_nucs = list(emission_prob_data.keys())
         conc_nucs = list(concentration_data.keys())
-        net_nucs = list(set(emission_nucs) & set(conc_nucs))
-        data_dict['net_nucs'] = net_nucs
+        hl_nucs = list(halflife_data.keys())
+        net_nucs = list(set(emission_nucs) & set(conc_nucs) & set(hl_nucs))
         data_dict['nucs'] = {}
+        use_nucs = list()
 
         for nuc in net_nucs:
             data_dict['nucs'][nuc] = {}
@@ -1174,14 +1215,28 @@ class PostProcess(BaseClass):
             Pn = ufloat(emission_data['emission probability'],
                         emission_data['sigma emission probability'])
             conc_data = concentration_data[nuc]
-            N = ufloat(conc_data['Concentration'],
-                       conc_data['sigma Concentration'])
+            if type(conc_data) is dict:
+                use_time_index = self.get_irrad_index(False)
+                time = list(conc_data.keys())
+                time.sort()
+                t = time[use_time_index]
+                conc_data = conc_data[t]
+            N = ufloat(conc_data[0],
+                       conc_data[1])
             hl_data = halflife_data[nuc]
             uncert = hl_data.get('sigma half_life', 1e-12)
             hl = ufloat(hl_data['half_life'], uncert)
+            if Pn.n < 1e-24:
+                continue
+            if hl.n < 1e-24:
+                continue
+            if N.n < 1e-24:
+                continue
             data_dict['nucs'][nuc]['emission_probability'] = Pn
             data_dict['nucs'][nuc]['concentration'] = N
             data_dict['nucs'][nuc]['half_life'] = hl
+            use_nucs.append(nuc)
+        data_dict['net_nucs'] = use_nucs
         return data_dict
 
     def _get_sorted_dnp_data(self) -> tuple[dict, dict, dict]:
@@ -1197,19 +1252,51 @@ class PostProcess(BaseClass):
         data_dict = self._get_data()
         halflife_times_yield: dict = dict()
         net_nucs = data_dict['net_nucs']
+        df_data = dict()
 
         self.total_delayed_neutrons: float = 0.0
         nuc_concs: dict[str, float] = dict()
 
+        if self.omc:
+            concs = Concentrations(self.input_path)
+            fission_term, fission_times = concs._calculate_fission_term(only_incore=False)
+            concentration_data = CSVHandler(
+                self.concentration_path,
+                create=False).read_csv_with_time(trim=False)
+            dx = np.diff(fission_times)
+            total_fissions = np.sum(dx * fission_term)
+            self.logger.info(f'{total_fissions = }')
+
         for nuc in net_nucs:
+            df_data[nuc] = dict()
             Pn = data_dict['nucs'][nuc]['emission_probability']
             N = data_dict['nucs'][nuc]['concentration']
             hl = data_dict['nucs'][nuc]['half_life']
             lam_val = np.log(2) / hl
-            nuc_yield[nuc] = Pn * N * lam_val / self.fission_term
+            if not self.omc:
+                yield_val = Pn * N * lam_val / self.refined_fission_term
+            else:
+                times = list(concentration_data[nuc].keys())
+                nom_vals = list()
+                std_devs = list()
+                for t in times:
+                    nom_val = concentration_data[nuc][t][0]
+                    std_dev = concentration_data[nuc][t][1]
+                    nom_vals.append(nom_val)
+                    std_devs.append(std_dev)
+                concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
+                delnus_over_time = concs_with_uncerts * Pn * lam_val
+                total_delnus = trapezoid(delnus_over_time, times)
+                yield_val = total_delnus / total_fissions
+
+            nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n
             halflife_times_yield[nuc] = nuc_yield[nuc] * np.log(2) / lam_val
             nuc_concs[nuc] = N
+            df_data[nuc]['Yield'] = yield_val.n
+            df_data[nuc]['Yield Std. Dev.'] = yield_val.s
+            df_data[nuc]['Concentration'] = N.n
+            df_data[nuc]['Concentration Std. Dev.'] = N.s
 
         sorted_yields = dict(
             sorted(
@@ -1221,6 +1308,14 @@ class PostProcess(BaseClass):
                 nuc_concs.items(),
                 key=lambda item: item[1].n,
                 reverse=True))
+        df_data = dict(
+            sorted(
+                df_data.items(),
+                key=lambda item: item[1]['Yield'],
+                reverse=True
+                )
+            )
+        pd.DataFrame.from_dict(df_data, orient='index').to_csv(f'{self.output_dir}yields.csv', index_label='Nuclide')
         return sorted_yields, sorted_concs, halflife_times_yield
 
     def _get_summed_params(self) -> tuple[float, float]:
@@ -1232,7 +1327,6 @@ class PostProcess(BaseClass):
         net_yield, avg_half_life : tuple[float, float]
             net yield and average half-life of the group.
         """
-        data_dict = self._get_data()
         sorted_yields, sorted_concs, halflife_times_yield = self._get_sorted_dnp_data()
         net_yield = np.sum([i for i in sorted_yields.values()])
         net_N = np.sum([i for i in sorted_concs.values()])
@@ -1260,16 +1354,16 @@ class PostProcess(BaseClass):
             nuc_name = self._convert_nuc_to_latex(nuc)
             fraction = 100 * yield_val.n / net_yield.n
             labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
-            running_sum += yield_val
+            running_sum += yield_val.n
             counter += 1
             extracted_vals[nuc] = yield_val
             if counter > self.num_top_yield:
                 break
         self.logger.info(
             f'Finished nuclide emission times concentration (net yield)')
-        remainder = net_yield.n - running_sum.n
+        remainder = net_yield.n - running_sum
         sizes.append(remainder)
-        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
+        labels.append('Other' + ', ' + str(round(100*remainder/net_yield.n)) + '\%')
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
@@ -1283,24 +1377,34 @@ class PostProcess(BaseClass):
         counter = 0
         running_sum = 0
         for index_val, (nuc, conc_val) in enumerate(sorted_concs.items()):
-            N = data_dict['nucs'][nuc]['concentration']
             if nuc in self.nuc_colors.keys():
                 colors[index_val] = self.nuc_colors[nuc]
             sizes.append(conc_val.n)
-            labels.append(self._convert_nuc_to_latex(nuc))
-            running_sum += conc_val
+            fraction = 100 * conc_val.n / net_N.n
+            nuc_name = self._convert_nuc_to_latex(nuc)
+            labels.append(nuc_name + ', ' + str(round(fraction)) + '\%')
+            running_sum += conc_val.n
             counter += 1
             if counter > self.num_top_conc:
                 break
-        remainder = net_N.n - running_sum.n
+        remainder = net_N.n - running_sum
         sizes.append(remainder)
-        labels.append('Other' + ', ' + str(round(remainder)) + '\%')
+        labels.append('Other' + ', ' + str(round(100*remainder/net_N.n)) + '\%')
         fig, ax = plt.subplots()
         ax.pie(sizes, labels=labels, labeldistance=1.1, colors=colors)
         ax.axis('equal')
         plt.tight_layout()
         fig.savefig(f'{self.img_dir}dnp_conc.png')
         plt.close()
+
+        concs = Concentrations(self.input_path)
+        if self.omc:
+            fission_term, _ = concs.read_omc_fission_json()
+            fission_data = dict()
+            for nuc, rate in fission_term.items():
+                fission_data[nuc] = np.mean(rate)
+            for nuc in self.fissiles.keys():
+                self.fissiles[nuc] = fission_data[nuc]/fission_data['net']
 
         labels = [
             self._convert_nuc_to_latex(
@@ -1325,8 +1429,23 @@ class PostProcess(BaseClass):
         )
 
         ax.axis('equal')
-
         plt.tight_layout()
         fig.savefig(f'{self.img_dir}fission_fraction.png')
         plt.close()
+
+        if self.omc:
+            concentration_data = CSVHandler(self.concentration_path, create=False).read_csv_with_time()
+            for nuc in list(sorted_yields.keys())[:self.num_over_time]:
+                ts = list()
+                concs = list()
+                for t, (conc, _) in concentration_data[nuc].items():
+                    ts.append(t)
+                    concs.append(conc)
+                plt.plot(ts, concs, label=f'{self._convert_nuc_to_latex(nuc)}')
+            plt.xlabel(r'Time $[s]$')
+            plt.ylabel(r'Atoms $[\#]$')
+            plt.legend()
+            plt.savefig(f'{self.img_dir}/full_concs.png')
+            plt.close()
+
         return net_yield, avg_halflife
