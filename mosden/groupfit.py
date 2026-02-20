@@ -398,7 +398,7 @@ class Grouper(BaseClass):
             y_noise = 10 ** np.random.uniform(-4, -1, size=self.num_groups)
             if self.irrad_type == 'intermediate':
                 setup_noise = np.random.uniform(1e-2, 1, self.num_groups)
-                y_noise = counts[0] * setup_noise / np.sum(setup_noise)
+                y_noise = 0.9 * counts[0] * setup_noise / np.sum(setup_noise)
             hl_noise = 10 ** np.random.uniform(-2, 1, size=self.num_groups)
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
