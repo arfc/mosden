@@ -320,6 +320,11 @@ def test_effective_fiss():
     assert np.isclose(eff_fiss, 0), "Limit for long-lived incorrect"
     assert np.isclose(stat_fiss, 0), "Limit for long-lived incorrect"
 
+    hl = [1e-10, 1e10]
+    lams = np.asarray(np.log(2)/hl)
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams
+    assert np.allclose(eff_fiss, [0.0, grouper.t_net]), "Limit for multiple incorrect"
+
 
     
 def test_effective_fiss_many_ts():

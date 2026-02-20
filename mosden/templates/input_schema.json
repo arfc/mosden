@@ -181,7 +181,7 @@
                 },
                 "irrad_type": {
                     "type": "string",
-                    "description": "Type of irradiation to simulate. Saturation irradiation can be used to refer to any intermediate length irradiation as well. Pulse assumes a very short irradiation. Intermediate enables numerical integration of the fission rate for generic fission rates.",
+                    "description": "Type of irradiation to simulate. Saturation irradiation can be used to refer to any intermediate length irradiation as well. Pulse assumes a very short irradiation. Intermediate enables numerical integration of the fission rate for generic fission rates. The intermediate irradiation generally is optimal when using OpenMC since the fission rate has slight variations over time which are not accounted for by the saturation irradiation method.",
                     "enum": ["pulse", "saturation", "intermediate"]
                 },
                 "incore_s": {

@@ -108,6 +108,8 @@ class CountRate(BaseClass):
             parameters[i] = yield_val
             parameters[grouper.num_groups + i] = half_life
         grouper._set_refined_fission_term(self.decay_times)
+        parameters = grouper._restructure_intermediate_yields(parameters,
+                                                              to_yield=False)
         counts = fit_function(self.decay_times, parameters)
         count_rate = np.asarray(unumpy.nominal_values(counts), dtype=float)
         sigma_count_rate = np.asarray(unumpy.std_devs(counts), dtype=float)
