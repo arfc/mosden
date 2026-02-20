@@ -46,6 +46,7 @@
         "num_groups": 6,
         "method": "nlls",
         "samples": 1,
-        "sample_func": "normal"
+        "sample_func": "normal",
+        "seed": 1
     }
 }
