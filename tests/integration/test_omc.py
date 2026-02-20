@@ -6,7 +6,9 @@ from mosden.concentrations import Concentrations
 from mosden.countrate import CountRate
 from mosden.groupfit import Grouper
 import os
-from scipy.integrate import simpson, trapezoid
+from scipy.integrate import trapezoid
+
+pytestmark = pytest.mark.openmc
 
 @pytest.fixture
 def setup_classes():

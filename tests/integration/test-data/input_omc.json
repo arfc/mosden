@@ -34,7 +34,7 @@
         "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "saturation",
+        "irrad_type": "intermediate",
         "spatial_scaling": {
             "flux": false,
             "reprocessing": false
