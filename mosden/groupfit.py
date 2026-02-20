@@ -1,16 +1,14 @@
 import numpy as np
 from mosden.utils.csv_handler import CSVHandler
 from mosden.concentrations import Concentrations
-from uncertainties import unumpy, wrap
+from uncertainties import unumpy
 from mosden.base import BaseClass
 from scipy.optimize import least_squares
 from typing import Callable
-from math import ceil
 from time import time
 import warnings
 from tqdm import tqdm
 from scipy.linalg import svd
-from scipy.integrate import simpson
 from typing import Callable
 
 
@@ -250,8 +248,11 @@ class Grouper(BaseClass):
     def _set_refined_fission_term(self, fine_times: np.ndarray[float]) -> float: 
         """
         Sets the `refined_fission_term` to a finer set of times.
-        Currently takes the average value rather than using a time dependent
+        Takes the average value rather than using a time dependent
         version due to limitations in the derived equation.
+        This value is used for the saturation irradiation.
+        Because the derivation assumes a constant fission rate, this is a source
+        of error for the saturation method when using OpenMC
 
         Parameters
         ----------
@@ -261,8 +262,7 @@ class Grouper(BaseClass):
         Returns
         -------
         refined_fission_term : float
-            The fission term calculated using the mean (future work may use the
-            explicit fission rate history tracking, returning a np.ndarray)
+            The fission term calculated using the mean
         """
         concs = Concentrations(self.input_path)
         self.fission_term, self.fission_times = concs._calculate_fission_term()
@@ -278,7 +278,6 @@ class Grouper(BaseClass):
                     refined_term.append(self.fission_term[i])
                     break
         self.refined_fission_term = np.asarray(refined_term)
-        self.logger.debug('Time dependent fission rate history not enabled')
         self.refined_fission_term = np.mean(self.fission_term)
         return self.refined_fission_term
     
@@ -294,8 +293,8 @@ class Grouper(BaseClass):
         parameters : np.ndarray[float|object]
             Parameters for the group fit
         to_yield : bool (optional)
-            If going from weighted yield to yield. If going from yield to
-            weighted yield, this should be false
+            If going from fission-weighted yield to yield. If going from yield to
+            fission-weighted yield, this should be false
         """
         if self.irrad_type != 'intermediate':
             return parameters
@@ -396,7 +395,8 @@ class Grouper(BaseClass):
         for _ in range(n_restarts):
             y_noise = 10 ** np.random.uniform(-4, -1, size=self.num_groups)
             if self.irrad_type == 'intermediate':
-                y_noise = np.asarray(counts[0] / self.num_groups)
+                setup_noise = np.random.uniform(1e-2, 1, self.num_groups)
+                y_noise = counts[0] * setup_noise / np.sum(setup_noise)
             hl_noise = 10 ** np.random.uniform(-2, 1, size=self.num_groups)
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
