@@ -157,6 +157,7 @@ class Concentrations(BaseClass):
         chain_file = os.path.join(self.unprocessed_data_dir, self.openmc_settings['chain'])
         cross_sections = os.path.join(self.unprocessed_data_dir, self.openmc_settings['x_sections'])
         omc_dir = self.openmc_settings['omc_dir']
+        timesteps, source_rates, removal_indeces = self._get_times_and_rates(self.f_in)
         render_data = {
             'nps': self.openmc_settings['nps'],
             'mode': self.openmc_settings['mode'],
@@ -167,19 +168,14 @@ class Concentrations(BaseClass):
             'density': self.density_g_cc,
             'temperature': self.temperature_K,
             'fissiles': self.fissiles,
-            't_in': self.t_in,
-            't_ex': self.t_ex,
-            'total_irrad_s': self.t_net,
-            'decay_times': self.decay_times,
-            'repr_locations': self.reprocess_locations,
             'reprocessing': self.reprocessing,
             'repr_scale': self.repr_scale,
             'chain_file': chain_file,
             'cross_sections': cross_sections,
             'omc_dir': omc_dir,
-            'flux_scaling': self.flux_scaling,
-            'chem_scaling': self.chem_scaling,
-            'f_in': self.f_in
+            'timesteps': timesteps,
+            'source_rates': source_rates,
+            'removal_indeces': removal_indeces
         }
         rendered_template = template.render(render_data)
         fname = 'omc.py'

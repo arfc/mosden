@@ -165,6 +165,67 @@ class BaseClass:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
     
+    def _get_times_and_rates(self, f_in: float = 1.0) -> tuple[list[float], list[float], list[int]]:
+        """
+        Calculates the time steps to evaluate in OpenMC, the source rates
+        to use at each time step, and the chemical removal indeces where
+        removal occurs.
+
+        Parameters
+        ----------
+        f_in : float (optional)
+            Only required if the flux is scaled. The in-core salt fraction.
+
+        Returns
+        -------
+        timesteps : list[float]
+            The time steps for evaluation in OpenMC
+        source_rates : list[float]
+            The flux value applied to the sample at each point in time
+        removal_indeces : list[int]
+            The time indeces where removal occurs
+        """
+        removal_indeces = list()
+        timesteps = list()
+        source_rates = list()
+        current_time = 0
+        index_counter = 0
+        in_core = True
+        time_close = np.isclose(current_time, self.t_net)
+        while current_time < self.t_net and not time_close:
+            if in_core:
+                t = self.t_in
+                region = 'incore'
+                source = self.openmc_settings['source']
+                in_core = False
+            else:
+                t = self.t_ex
+                region = 'excore'
+                source = 0
+                in_core = True
+
+            if t <= 0.0:
+                continue
+            
+            current_time += t
+            timesteps.append(t)
+            if (region in self.reprocess_locations) or self.chem_scaling:
+                removal_indeces.append(index_counter)
+            if self.flux_scaling:
+                source = self.openmc_settings['source'] * f_in
+            source_rates.append(source)
+            index_counter += 1
+            time_close = np.isclose(current_time, self.t_net)
+
+        diff = sum(timesteps) - self.t_net
+        timesteps[-1] = timesteps[-1] - diff
+
+        decay_time_steps = np.diff(self.decay_times, prepend=[0.0])
+        for t in decay_time_steps:
+            timesteps.append(t)
+            source_rates.append(0)
+        return timesteps, source_rates, removal_indeces
+    
     def _set_decay_times(self) -> np.ndarray[float]:
         """
         Set the decay times based on the time spacing, final time, and
