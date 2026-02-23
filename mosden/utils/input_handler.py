@@ -131,6 +131,8 @@ class InputHandler:
                 raise ValueError('Initial half life guess does not match number of groups')
         if len(data['modeling_options']['residual_handling']) == 0:
             raise ValueError('Residual must be evaluated')
+        if data['modeling_options']['residual_handling'] != ['post-irrad'] and data['modeling_options']['concentration_handling'] != 'OMC':
+            raise ValueError('Alternative residuals only applicable for OpenMC evaluation approach')
         return
 
 
