@@ -90,3 +90,50 @@ def test_irrad_and_update():
     index = base.get_irrad_index(False)
     assert index == 55
 
+def test_times_rates_mask():
+    input_path = './tests/unit/input/input.json'
+    base = BaseClass(input_path)
+    base.t_in = 1
+    base.t_ex = 1
+    base.t_net = 10
+    base.flux_scaling = False
+    assert not base.flux_scaling
+    data = base._get_times_and_rates()
+
+    assert data['timesteps'][:10] == [1]*10
+    assert data['source_rates'][:10] == [1.0, 0]*5
+    assert data['removal_indeces'][:10] == list(np.arange(0, 10))
+    assert data['insitu_mask'] == [0]*10
+
+    base.residual_masks = ['post-irrad']
+    data = base._get_times_and_rates()
+
+    assert data['timesteps'][:10] == [1]*10
+    assert data['source_rates'][:10] == [1.0, 0]*5
+    assert data['removal_indeces'][:10] == list(np.arange(0, 10))
+    assert data['insitu_mask'] == [0]*10
+
+    base.residual_masks = ['incore']
+    data = base._get_times_and_rates()
+
+    assert data['timesteps'][:10] == [1]*10
+    assert data['source_rates'][:10] == [1.0, 0]*5
+    assert data['removal_indeces'][:10] == list(np.arange(0, 10))
+    assert data['insitu_mask'] == [1,0]*5
+
+    base.residual_masks = ['excore']
+    data = base._get_times_and_rates()
+
+    assert data['timesteps'][:10] == [1]*10
+    assert data['source_rates'][:10] == [1.0, 0]*5
+    assert data['removal_indeces'][:10] == list(np.arange(0, 10))
+    assert data['insitu_mask'] == [0,1]*5
+
+
+    base.residual_masks = ['all']
+    data = base._get_times_and_rates()
+
+    assert data['timesteps'][:10] == [1]*10
+    assert data['source_rates'][:10] == [1.0, 0]*5
+    assert data['removal_indeces'][:10] == list(np.arange(0, 10))
+    assert data['insitu_mask'] == [1]*10

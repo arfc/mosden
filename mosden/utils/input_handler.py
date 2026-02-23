@@ -129,6 +129,8 @@ class InputHandler:
                 raise ValueError('Initial yield guess does not match number of groups')
             if len(data['group_options']['initial_params']['half_lives']) != data['group_options']['num_groups']:
                 raise ValueError('Initial half life guess does not match number of groups')
+        if len(data['modeling_options']['residual_handling']) == 0:
+            raise ValueError('Residual must be evaluated')
         return
 
 

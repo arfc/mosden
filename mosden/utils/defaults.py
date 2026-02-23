@@ -42,6 +42,7 @@ DEFAULTS = {
     "modeling_options": {
         "concentration_handling": "CFY",
         "count_rate_handling": "data",
+        "residual_handling": ["post-irrad"],
         "reprocessing_locations": [""],
         "spatial_scaling": {
             "flux": True,

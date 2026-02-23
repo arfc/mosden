@@ -103,6 +103,7 @@ class BaseClass:
         self.temperature_K: float = data_options.get('temperature_K', 920)
         self.density_g_cc: float = data_options.get('density_g_cm3', 2.3275)
         self.openmc_settings: dict = modeling_options.get('openmc_settings', {})
+        self.residual_masks: list[str] = modeling_options.get('residual_handling', ["post-irrad"])
 
         
         self.count_overwrite: bool = overwrite_options.get('count_rate', False)
@@ -165,7 +166,7 @@ class BaseClass:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
     
-    def _get_times_and_rates(self, f_in: float = 1.0) -> tuple[list[float], list[float], list[int]]:
+    def _get_times_and_rates(self, f_in: float = 1.0) -> dict[str, list[float|int]]:
         """
         Calculates the time steps to evaluate in OpenMC, the source rates
         to use at each time step, and the chemical removal indeces where
@@ -178,31 +179,36 @@ class BaseClass:
 
         Returns
         -------
-        timesteps : list[float]
-            The time steps for evaluation in OpenMC
-        source_rates : list[float]
-            The flux value applied to the sample at each point in time
-        removal_indeces : list[int]
-            The time indeces where removal occurs
+        time_rate_data : dict[str, list[float|int]]
+            Keys are names for different datasets, values are the time-dependent
+            data. Keys include `timesteps`, `source_rates`, `removal_indeces`,
+            and `insitu_mask`
         """
+        time_rate_data = dict()
         removal_indeces = list()
         timesteps = list()
         source_rates = list()
+        insitu_residual_mask = list()
         current_time = 0
         index_counter = 0
         in_core = True
         time_close = np.isclose(current_time, self.t_net)
         while current_time < self.t_net and not time_close:
+            mask_val = 0
             if in_core:
                 t = self.t_in
                 region = 'incore'
                 source = self.openmc_settings['source']
                 in_core = False
+                if 'incore' in self.residual_masks:
+                    mask_val = 1
             else:
                 t = self.t_ex
                 region = 'excore'
                 source = 0
                 in_core = True
+                if 'excore' in self.residual_masks:
+                    mask_val = 1
 
             if t <= 0.0:
                 continue
@@ -216,6 +222,9 @@ class BaseClass:
             source_rates.append(source)
             index_counter += 1
             time_close = np.isclose(current_time, self.t_net)
+            if 'all' in self.residual_masks:
+                mask_val = 1
+            insitu_residual_mask.append(mask_val)
 
         diff = sum(timesteps) - self.t_net
         timesteps[-1] = timesteps[-1] - diff
@@ -224,7 +233,13 @@ class BaseClass:
         for t in decay_time_steps:
             timesteps.append(t)
             source_rates.append(0)
-        return timesteps, source_rates, removal_indeces
+
+        time_rate_data['timesteps'] = timesteps
+        time_rate_data['source_rates'] = source_rates
+        time_rate_data['removal_indeces'] = removal_indeces
+        time_rate_data['insitu_mask'] = insitu_residual_mask
+        return time_rate_data
+
     
     def _set_decay_times(self) -> np.ndarray[float]:
         """
