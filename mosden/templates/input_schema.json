@@ -146,6 +146,14 @@
                     "description": "Method to use for calculating the delayed neutron count rate. This can either be from data or using existing group parameters from a MoSDeN output",
                     "enum": ["data", "groupfit"]
                 },
+                "residual_handling": {
+                    "type": "array",
+                    "description": "Which data to include in residual calculation. Default is post-irradiation `post-irrad` only. `in-core` means to include the residual solve only while the sample is in the core. `all` means to include the residual at all times during and post irradiation.",
+                    "items": {
+                        "type": "string",
+                        "enum": ["post-irrad", "incore", "excore", "all"]
+                    }
+                },
                 "reprocessing_locations": {
                     "type": "array",
                     "description": "The locations where the reprocessing scheme provided occurs (NOTE: MoSDeN currently assumes all provided reprocessing parameters occur in the same spatial region",
