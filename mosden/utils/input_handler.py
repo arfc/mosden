@@ -133,6 +133,8 @@ class InputHandler:
             raise ValueError('Residual must be evaluated')
         if data['modeling_options']['residual_handling'] != ['post-irrad'] and data['modeling_options']['concentration_handling'] != 'OMC':
             raise ValueError('Alternative residuals only applicable for OpenMC evaluation approach')
+        if data['modeling_options']['residual_handling'] != ['post-irrad'] and data['modeling_options']['irrad_type'] != 'intermediate':
+            raise ValueError('Intermediate irradiation is the only type that enables non-post-irrad residual handling')
         return
 
 
