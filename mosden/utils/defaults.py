@@ -69,7 +69,8 @@ DEFAULTS = {
             "omc_dir": f'{current_dir}/omc',
             "run_omc": True,
             "write_fission_json": True,
-            "write_nuyield_json": True
+            "write_nuyield_json": True,
+            "min_timestep": 10
         }
     },
     "group_options": {

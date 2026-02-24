@@ -29,6 +29,28 @@ def test_get_irrad_index():
     index = base.get_irrad_index(False)
     assert index == 3
 
+def test_get_irrad_index_with_min_time():
+    input_path = './tests/unit/input/input.json'
+    base = BaseClass(input_path)
+    base.t_net = 5
+    base.t_in = 2
+    base.t_ex = 1
+    index = base.get_irrad_index(False)
+    assert index == 3
+
+    base.openmc_settings['min_timestep'] = 1
+    index = base.get_irrad_index(False)
+    assert index == 5
+
+    base.t_net = 30
+    base.t_in = 1
+    base.t_ex = 0
+    base.openmc_settings['min_timestep'] = 0.25
+    index = base.get_irrad_index(False)
+    assert index == 120
+
+
+
 def test_update_t_net():
     input_path = './tests/unit/input/input.json'
     base = BaseClass(input_path)
@@ -137,3 +159,26 @@ def test_times_rates_mask():
     assert data['source_rates'][:10] == [1.0, 0]*5
     assert data['removal_indeces'][:10] == list(np.arange(0, 10))
     assert data['insitu_mask'] == [1]*10
+
+
+def test_openmc_time_setting():
+    input_path = './tests/unit/input/input.json'
+    base = BaseClass(input_path)
+    base.openmc_settings['min_timestep'] = 1
+    base.t_in = 1
+    base.t_ex = 1
+    base.t_net = 5
+    in_vals = base._set_cycle_times(base.t_in)
+    assert np.allclose(in_vals, [1])
+
+    base.openmc_settings['min_timestep'] = 0.5
+    in_vals = base._set_cycle_times(base.t_in)
+    assert np.allclose(in_vals, [0.5, 0.5])
+
+    base.openmc_settings['min_timestep'] = 0.3
+    in_vals = base._set_cycle_times(base.t_in)
+    assert np.allclose(in_vals, [0.3, 0.3, 0.3, 0.1])
+
+    base.openmc_settings['min_timestep'] = 1/3
+    in_vals = base._set_cycle_times(base.t_in)
+    assert np.allclose(in_vals, [1/3, 1/3, 1/3])

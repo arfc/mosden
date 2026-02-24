@@ -168,6 +168,31 @@ class BaseClass:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
     
+    def _set_cycle_times(self, residence_time: float) -> list[float]:
+        """
+        Returns the list of times applied in OpenMC for each residence time
+
+        Parameters
+        ----------
+        residence_time : float
+            In-core or ex-core residence time
+
+        Returns
+        -------
+        values : list[float]
+            List of times to pass to OpenMC per residence
+        """
+        min_value = np.min((self.openmc_settings['min_timestep'], residence_time))
+        if min_value == 0.0:
+            return []
+        min_cycles = int(np.floor(residence_time/min_value))
+        remainder = residence_time - min_cycles * min_value
+        values = [min_value] * min_cycles + [remainder]
+        if np.isclose(values[-1], 0.0):
+            values = values[:-1]
+        return values
+
+    
     def _get_times_and_rates(self, f_in: float = 1.0) -> dict[str, list[float|int]]:
         """
         Calculates the time steps to evaluate in OpenMC, the source rates
@@ -194,39 +219,41 @@ class BaseClass:
         current_time = 0
         index_counter = 0
         in_core = True
+
+        incore_values = self._set_cycle_times(self.t_in)
+        excore_values = self._set_cycle_times(self.t_ex)
+
         time_close = np.isclose(current_time, self.t_net)
         while current_time < self.t_net and not time_close:
             mask_val = 0
             if in_core:
-                t = self.t_in
+                ts = incore_values
                 region = 'incore'
                 source = self.openmc_settings['source']
                 in_core = False
                 if 'incore' in self.residual_masks:
                     mask_val = 1
             else:
-                t = self.t_ex
+                ts = excore_values
                 region = 'excore'
                 source = 0
                 in_core = True
                 if 'excore' in self.residual_masks:
                     mask_val = 1
 
-            if t <= 0.0:
-                continue
-            
-            current_time += t
-            timesteps.append(t)
-            if (region in self.reprocess_locations) or self.chem_scaling:
-                removal_indeces.append(index_counter)
-            if self.flux_scaling:
-                source = self.openmc_settings['source'] * f_in
-            source_rates.append(source)
-            index_counter += 1
-            time_close = np.isclose(current_time, self.t_net)
-            if 'all' in self.residual_masks:
-                mask_val = 1
-            insitu_residual_mask.append(mask_val)
+            for t in ts:
+                current_time += t
+                timesteps.append(t)
+                if (region in self.reprocess_locations) or self.chem_scaling:
+                    removal_indeces.append(index_counter)
+                if self.flux_scaling:
+                    source = self.openmc_settings['source'] * f_in
+                source_rates.append(source)
+                index_counter += 1
+                time_close = np.isclose(current_time, self.t_net)
+                if 'all' in self.residual_masks:
+                    mask_val = 1
+                insitu_residual_mask.append(mask_val)
 
         diff = sum(timesteps) - self.t_net
         timesteps[-1] = timesteps[-1] - diff
@@ -302,13 +329,16 @@ class BaseClass:
         """
         if single_time_val:
             return 0
+        
+        in_use_time = np.min((self.openmc_settings['min_timestep'], self.t_in))
+        ex_use_time = np.min((self.openmc_settings['min_timestep'], self.t_ex))
 
         if self.t_in == 0:
-            return int(np.ceil(self.t_net / self.t_ex))
+            return int(np.ceil(self.t_net / ex_use_time))
         if self.t_ex == 0:
-            return int(np.ceil(self.t_net / self.t_in))
+            return int(np.ceil(self.t_net / in_use_time))
 
-        cycle_time = self.t_in + self.t_ex
+        cycle_time = in_use_time + ex_use_time
         n_full = np.floor(self.t_net / cycle_time)
         post_irrad_index = int(2 * n_full)
 

@@ -261,6 +261,10 @@
                         "write_nuyield_json": {
                             "type": "boolean",
                             "description": "Whether or not to write the delayed neutron yield output to a JSON file"
+                        },
+                        "min_timestep": {
+                            "type": "number",
+                            "description": "The minimum time step size to use in OpenMC"
                         }
                     }
                 }
