@@ -182,7 +182,7 @@ class CountRate(BaseClass):
             mask_data = self._get_times_and_rates()
             use_times = np.concatenate(([0], np.cumsum(mask_data['timesteps'])))
 
-        num_data = len(list(self.concentration_data[net_similar_nucs[-1]].values())[0])
+        num_data = len(list(self.concentration_data[net_similar_nucs[-1]].keys()))
         single_time_val = False
         if num_data == 1:
             single_time_val = True
