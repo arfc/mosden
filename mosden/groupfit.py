@@ -445,18 +445,20 @@ class Grouper(BaseClass):
         """
         post_irrad_index = self.get_irrad_index(False)
         full_data = self._get_times_and_rates()
+        if self.post_irrad_only:
+            return times, counts, np.array([]), np.array([])
+
         insitu_mask = np.asarray(full_data['insitu_mask'])
         insitu_times = np.cumsum(full_data['timesteps'][:post_irrad_index]) * insitu_mask
         insitu_counts = np.asarray(counts[1:post_irrad_index+1]) * insitu_mask
+
         if self.no_post_irrad:
             counts = np.asarray([])
             times = np.asarray([])
-        elif self.post_irrad_only:
-            assert np.all(insitu_times == 0.0)
-            assert np.all(insitu_counts == 0)
         else:
             counts = counts[post_irrad_index+1:]
             times = np.asarray(times[post_irrad_index+1:]) - times[post_irrad_index]
+
         return times, counts, insitu_times, insitu_counts
 
 
