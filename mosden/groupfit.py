@@ -542,7 +542,7 @@ class Grouper(BaseClass):
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
 
-        times, counts, insitu_times, insitu_counts = self._get_modified_counts_and_times()
+        times, counts, insitu_times, insitu_counts = self._get_modified_counts_and_times(times, counts)
 
         best = None
         for x0 in tqdm(starts):
@@ -586,7 +586,7 @@ class Grouper(BaseClass):
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
-                times, counts, insitu_times, insitu_counts = self._get_modified_counts_and_times()
+                times, counts, insitu_times, insitu_counts = self._get_modified_counts_and_times(times, count_sample)
 
                 result = least_squares(
                     self._residual_function,
