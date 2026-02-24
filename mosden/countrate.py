@@ -176,9 +176,7 @@ class CountRate(BaseClass):
                 'Error: no data exists for given data combination')
 
         data: dict[str: list[float]] = dict()
-        post_irrad_only = len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks
-        no_post_irrad = 'post-irrad' not in self.residual_masks
-        if post_irrad_only:
+        if self.post_irrad_only:
             use_times = self.decay_times
         else:
             mask_data = self._get_times_and_rates()
@@ -190,8 +188,8 @@ class CountRate(BaseClass):
             single_time_val = True
         post_irrad_index = self.get_irrad_index(single_time_val)
 
-        if no_post_irrad:
-            use_times = use_times[:post_irrad_index]
+        if self.no_post_irrad:
+            use_times = use_times[:post_irrad_index+1]
 
         count_rate: np.ndarray = np.zeros(len(use_times))
         sigma_count_rate: np.ndarray = np.zeros(len(use_times))
@@ -257,12 +255,12 @@ class CountRate(BaseClass):
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * use_times)
                 else:
-                    if post_irrad_only:
+                    if self.post_irrad_only:
                         index_offset = post_irrad_index + 1
                     else:
                         index_offset = 0
-                    if no_post_irrad:
-                        counts = Pn * decay_const * concentration_array[:post_irrad_index]
+                    if self.no_post_irrad:
+                        counts = Pn * decay_const * concentration_array[:post_irrad_index+1]
                     else:
                         counts = Pn * decay_const * concentration_array[index_offset:]
 
