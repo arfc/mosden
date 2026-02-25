@@ -67,6 +67,11 @@ def test_irrad_and_update():
     base.t_net = 10
     base.t_in = 5
     base.t_ex = 5
+    base.openmc_settings['min_timestep'] = 1e10
+    assert base.t_in == 5
+    assert base.t_ex == 5
+    assert base.t_net == 10
+    assert base.openmc_settings['min_timestep'] > 5
     index = base.get_irrad_index(False)
     assert index == 2
 
@@ -118,9 +123,15 @@ def test_times_rates_mask():
     base.t_in = 1
     base.t_ex = 1
     base.t_net = 10
+    base.openmc_settings['min_timestep'] = 1e10
     base.flux_scaling = False
     assert not base.flux_scaling
     data = base._get_times_and_rates()
+    assert base.t_in == 1
+    assert base.t_ex == 1
+    assert base.t_net == 10
+    assert base.openmc_settings['min_timestep'] > 1
+    assert base._set_cycle_times(1) == [1]
 
     assert data['timesteps'][:10] == [1]*10
     assert data['source_rates'][:10] == [1.0, 0]*5
