@@ -82,8 +82,10 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        insitu_residual = ((insitu_counts - self._get_insitu_counts(insitu_times, parameters)) / (insitu_counts))
-        insitu_residual = np.nan_to_num(insitu_residual)
+        insitu_residual = []
+        if len(insitu_times) != 0:
+            insitu_residual = ((insitu_counts - self._get_insitu_counts(insitu_times, parameters)) / (insitu_counts))
+            insitu_residual = np.nan_to_num(insitu_residual)
         post_residual = (counts - fit_func(times, parameters)) / (counts)
         residual = np.concatenate((insitu_residual, post_residual))
         return residual

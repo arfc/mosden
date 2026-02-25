@@ -70,7 +70,7 @@ DEFAULTS = {
             "run_omc": True,
             "write_fission_json": True,
             "write_nuyield_json": True,
-            "min_timestep": 10
+            "min_timestep": 1e10
         }
     },
     "group_options": {
