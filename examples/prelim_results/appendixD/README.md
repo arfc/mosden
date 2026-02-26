@@ -15,7 +15,7 @@ Run this only as `mosden -g input_omc.json`.
 Make sure there is a file named `omc_fission.json` containing the fission history
 of interest.
 Configure the different irradiation types before starting (as described previously).
-No change to the input file is necessary.
+No change to the input file is necessary aside from the number of groups.
 
 ### Pulse irradiation
 For a pulse irradiation, the concentrations should be equal to the yield over 
