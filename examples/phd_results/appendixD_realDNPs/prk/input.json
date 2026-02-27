@@ -1,0 +1,28 @@
+{
+    "selections": ["keepin"],
+    "problem": "step",
+    "euler_mode": "backward",
+    "time_steps": [1e-3],
+    "tf": 2,
+    "keepin": {
+      "yields": [0.00052, 0.00346, 0.00310, 0.00624, 0.00182, 0.00066],
+      "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028],
+      "gen_time": 2e-5,
+      "neutrons_per_fission": 2.4,
+      "rho_max_dollars": 0.5,
+      "rho_amplitude": 750e-5,
+      "rho_frequency": 100,
+      "p0": 1
+    },
+    "pulse": {
+      "yields": [0.00052, 0.00346, 0.00310, 0.00624, 0.00182, 0.00066],
+      "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028],
+      "gen_time": 2e-5,
+      "neutrons_per_fission": 2.4,
+      "rho_max_dollars": 0.5,
+      "rho_amplitude": 750e-5,
+      "rho_frequency": 100,
+      "p0": 1
+    }
+  }
+  
