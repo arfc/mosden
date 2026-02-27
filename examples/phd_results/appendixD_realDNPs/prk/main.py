@@ -34,6 +34,7 @@ class PRKE:
         power_vals = list()
         prec_vals = list()
         num_groups = len(cur_data['yields'])
+        self.num_groups = num_groups
 
 
         for ti, t in enumerate(times):
@@ -107,12 +108,15 @@ class PRKE:
         return
     
     def _get_reactivity(self, problem, reactivity_form: str):
+        total_yield = self.data[problem]['neutrons_per_fission']
+        betaeff = np.sum(self.data[problem]['yields']) /  total_yield
         if reactivity_form == 'step':
             rho = lambda t: 50e-5
             return rho
+        elif reactivity_form == 'step_relative':
+            rho = lambda t: 0.05 * betaeff
+            return rho
         elif reactivity_form == 'ramp':
-            total_yield = self.data['neutrons_per_fission']
-            betaeff = np.sum(self.data[problem]['yields']) /  total_yield
             rho_max = self.data[problem]['rho_max_dollars'] * betaeff
             rho = lambda t: min(rho_max*t, rho_max)
             return rho
@@ -180,13 +184,29 @@ class PRKE:
         for pi, (problem, data) in enumerate(full_data.items()):
             label: str = problem.capitalize()
             times = data['times']
-            concs = data['concs']
             power = data['power']
             plt.plot(times, power, label=label, linestyle=linestyles[pi%len(linestyles)])
             print(f'{label} {power[-1] = }')
         plt.legend()
-        plt.savefig(f'compare_powers.png')
+        plt.xlabel('Time [s]')
+        plt.ylabel('Relative Power')
+        plt.savefig(f'compare_power.png')
         plt.close()
+        
+        for group in range(self.num_groups):
+            for pi, (problem, data) in enumerate(full_data.items()):
+                label: str = problem.capitalize()
+                times = data['times']
+                concs = data['concs']
+                conc = np.asarray(concs)[:, group]
+
+                plt.plot(times, conc, label=label, linestyle=linestyles[pi%len(linestyles)])
+                print(f'{label} {conc[-1] = }')
+            plt.legend()
+            plt.xlabel('Time [s]')
+            plt.ylabel('Atoms [\#]')
+            plt.savefig(f'compare_conc_{group+1}.png')
+            plt.close()
 
         return
     
