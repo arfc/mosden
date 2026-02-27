@@ -175,8 +175,19 @@ class PRKE:
             self._conc_plot(times, precs)        
         return
     
-    def compare_results(full_data):
-        print('here')
+    def compare_results(self, full_data):
+        linestyles = [':', '-.', '--']
+        for pi, (problem, data) in enumerate(full_data.items()):
+            label: str = problem.capitalize()
+            times = data['times']
+            concs = data['concs']
+            power = data['power']
+            plt.plot(times, power, label=label, linestyle=linestyles[pi%len(linestyles)])
+            print(f'{label} {power[-1] = }')
+        plt.legend()
+        plt.savefig(f'compare_powers.png')
+        plt.close()
+
         return
     
     def solve(self):
@@ -199,9 +210,9 @@ class PRKE:
                 time_collections.append(times)
                 power_collections.append(powers)
                 precursor_collections.append(precs)
-            compare_data['times'] = times
-            compare_data['power'] = powers
-            compare_data['concs'] = precs
+            compare_data[problem]['times'] = times
+            compare_data[problem]['power'] = powers
+            compare_data[problem]['concs'] = precs
             
             self._dt_plot(time_collections, power_collections, dt_list)
         if len(problems) > 1:
