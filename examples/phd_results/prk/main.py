@@ -126,7 +126,12 @@ class PRKE:
             return rho
         elif reactivity_form == 'sine':
             rho_0 = self.data['rho_amplitude']
-            omega = self.data[problem]['rho_frequency']
+            omega = self.data['rho_frequency']
+            rho = lambda t: rho_0 * np.sin(omega * t)
+            return rho
+        elif reactivity_form == 'sine_relative':
+            rho_0 = self.data['rho_relative_amplitude'] * betaeff
+            omega = self.data['rho_frequency']
             rho = lambda t: rho_0 * np.sin(omega * t)
             return rho
         else:
