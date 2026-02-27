@@ -23,12 +23,12 @@ class PRKE:
     
     def _solve_handler(self, dt, rho, problem):
         cur_data = self.data[problem]
-        total_yield = cur_data['neutrons_per_fission']
+        total_yield = self.data['neutrons_per_fission']
         betas = np.asarray(cur_data['yields']) / total_yield
         beta_eff = np.sum(betas)
         lams = np.log(2) / cur_data['hls']
-        p0 = cur_data['p0']
-        gen = cur_data['gen_time']
+        p0 = self.data['p0']
+        gen = self.data['gen_time']
 
         times = np.arange(0, self.data['tf']+dt, dt)
         power_vals = list()
@@ -36,11 +36,15 @@ class PRKE:
         num_groups = len(cur_data['yields'])
         self.num_groups = num_groups
 
+        if self.data['equilibrium_dnps']:
+            prec_initial_val = [betas[i]*p0/(lams[i]*gen) for i in range(num_groups)]
+        else:
+            prec_initial_val = [0] * num_groups
 
         for ti, t in enumerate(times):
             if ti == 0:
                 power_vals.append(p0)
-                prec_vals.append([betas[i]*p0/(lams[i]*gen) for i in range(num_groups)])
+                prec_vals.append(prec_initial_val)
                 continue
             prev_power = power_vals[ti-1]
             prev_conc = prec_vals[ti-1]
@@ -108,20 +112,20 @@ class PRKE:
         return
     
     def _get_reactivity(self, problem, reactivity_form: str):
-        total_yield = self.data[problem]['neutrons_per_fission']
+        total_yield = self.data['neutrons_per_fission']
         betaeff = np.sum(self.data[problem]['yields']) /  total_yield
         if reactivity_form == 'step':
             rho = lambda t: 50e-5
             return rho
         elif reactivity_form == 'step_relative':
-            rho = lambda t: 0.05 * betaeff
+            rho = lambda t: self.data['step_relative_insertion'] * betaeff
             return rho
         elif reactivity_form == 'ramp':
-            rho_max = self.data[problem]['rho_max_dollars'] * betaeff
+            rho_max = self.data['rho_max_dollars'] * betaeff
             rho = lambda t: min(rho_max*t, rho_max)
             return rho
         elif reactivity_form == 'sine':
-            rho_0 = self.data[problem]['rho_amplitude']
+            rho_0 = self.data['rho_amplitude']
             omega = self.data[problem]['rho_frequency']
             rho = lambda t: rho_0 * np.sin(omega * t)
             return rho
@@ -188,9 +192,26 @@ class PRKE:
             plt.plot(times, power, label=label, linestyle=linestyles[pi%len(linestyles)])
             print(f'{label} {power[-1] = }')
         plt.legend()
+        #plt.xscale('log')
         plt.xlabel('Time [s]')
         plt.ylabel('Relative Power')
         plt.savefig(f'compare_power.png')
+        plt.close()
+
+
+        for pi, (problem, data) in enumerate(full_data.items()):
+            label: str = problem.capitalize()
+            times = data['times']
+            power = np.asarray(data['power'])
+            if pi == 0:
+                base_label = label
+                base_power = power
+            power_diff = (base_power - power) / ((base_power + power) / 2) * 100
+            plt.plot(times, power_diff, label=f'{label}', linestyle=linestyles[pi%len(linestyles)])
+        plt.legend()
+        plt.xlabel('Time [s]')
+        plt.ylabel(f'Power Difference from {base_label} [\%]')
+        plt.savefig(f'compare_power_percent.png')
         plt.close()
         
         for group in range(self.num_groups):

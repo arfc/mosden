@@ -3,49 +3,33 @@
     "problem": "step_relative",
     "euler_mode": "backward",
     "time_steps": [1e-3],
-    "tf": 2,
+    "tf": 15,
+    "step_relative_insertion": 0.5,
+    "rho_max_dollars": 0.5,
+    "neutrons_per_fission": 2.4,
+    "gen_time": 2e-5,
+    "p0": 1,
+    "rho_amplitude": 750e-5,
+    "rho_frequency": 100,
+    "equilibrium_dnps": true,
     "keepin": {
       "yields": [0.00052, 0.00346, 0.00310, 0.00624, 0.00182, 0.00066],
-      "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028],
-      "gen_time": 2e-5,
-      "neutrons_per_fission": 2.4,
-      "rho_max_dollars": 0.5,
-      "rho_amplitude": 750e-5,
-      "rho_frequency": 100,
-      "p0": 1
+      "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028]
     },
     "pulse": {
       "description": "Calculated using ENDFB71 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
       "yields": [0.000601, 0.00325528, 0.00323466, 0.00678078, 0.0036572234, 0.001167046],
-      "hls": [55.047, 22.133, 5.6015, 1.9612, 0.4696, 0.095268],
-      "gen_time": 2e-5,
-      "neutrons_per_fission": 2.4,
-      "rho_max_dollars": 0.5,
-      "rho_amplitude": 750e-5,
-      "rho_frequency": 100,
-      "p0": 1
+      "hls": [55.047, 22.133, 5.6015, 1.9612, 0.4696, 0.095268]
     },
     "intermediate": {
       "description": "Calculated using ENDFB71 data, post-irrad, (1,0) 30 second irradiation, 100 decay times, 600 decay seconds",
       "yields": [0.0005810767, 0.002995618, 0.00165845, 0.0065752589, 0.004701, 0.00214555],
-      "hls": [55.395699, 22.939397, 8.79516, 2.8361, 0.82819, 0.15777],
-      "gen_time": 2e-5,
-      "neutrons_per_fission": 2.4,
-      "rho_max_dollars": 0.5,
-      "rho_amplitude": 750e-5,
-      "rho_frequency": 100,
-      "p0": 1
+      "hls": [55.395699, 22.939397, 8.79516, 2.8361, 0.82819, 0.15777]
     },
     "saturation": {
       "description": "Calculated using ENDFB71 data, post-irrad, (60,0) 1200 second irradiation, 100 decay times, 600 decay seconds",
       "yields": [0.000576267, 0.002988244, 0.0018862306, 0.0069244077, 0.0044298534, 0.001862336],
-      "hls": [55.4938, 23.030678, 8.43461, 2.63272, 0.7163197, 0.139332515],
-      "gen_time": 2e-5,
-      "neutrons_per_fission": 2.4,
-      "rho_max_dollars": 0.5,
-      "rho_amplitude": 750e-5,
-      "rho_frequency": 100,
-      "p0": 1
+      "hls": [55.4938, 23.030678, 8.43461, 2.63272, 0.7163197, 0.139332515]
     }
   }
   
