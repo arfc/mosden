@@ -333,10 +333,14 @@ class BaseClass:
         in_use_time = np.min((self.openmc_settings['min_timestep'], self.t_in))
         ex_use_time = np.min((self.openmc_settings['min_timestep'], self.t_ex))
 
-        if self.t_in == 0:
-            return int(np.ceil(self.t_net / ex_use_time))
-        if self.t_ex == 0:
-            return int(np.ceil(self.t_net / in_use_time))
+        if self.t_in == 0 and self.t_ex != 0:
+            ratio = self.t_net / ex_use_time
+            return int(np.floor(ratio + (1 - 1e-12)))
+        elif self.t_ex == 0 and self.t_in != 0:
+            ratio = self.t_net / in_use_time
+            return int(np.floor(ratio + (1 - 1e-12)))
+        elif self.t_in == 0 and self.t_ex == 0:
+            raise ValueError('Residence times cannot all be zero')
 
         cycle_time = in_use_time + ex_use_time
         n_full = np.floor(self.t_net / cycle_time)

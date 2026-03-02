@@ -90,12 +90,14 @@ def test_irrad_and_update():
     index = base.get_irrad_index(False)
     assert index == 3
 
+    base.t_net = 30
     base.t_in = 27
     base.t_ex = 3
     index = base.get_irrad_index(False)
     assert index == 2
 
     base.t_net = base._update_t_net()
+    assert base.t_net == 57
     index = base.get_irrad_index(False)
     assert index == 3
 
@@ -108,7 +110,6 @@ def test_irrad_and_update():
     index = base.get_irrad_index(False)
     assert index == 51
 
-
     base.t_net = 30
     base.t_in = 1
     base.t_ex = 0.1
@@ -116,6 +117,14 @@ def test_irrad_and_update():
     assert np.isclose(base.t_net, 30.7)
     index = base.get_irrad_index(False)
     assert index == 55
+
+    base.t_net = 0.00001
+    base.t_in = 0.000001
+    base.t_ex = 0
+    base.t_net = base._update_t_net()
+    assert np.isclose(base.t_net, 0.00001)
+    index = base.get_irrad_index(False)
+    assert index == 10
 
 def test_times_rates_mask():
     input_path = './tests/unit/input/input.json'
