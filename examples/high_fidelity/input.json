@@ -28,11 +28,12 @@
     "modeling_options": {
         "concentration_handling": "OMC",
         "count_rate_handling": "data",
+        "residual_handling": ["post-irrad"],
         "reprocessing_locations": ["excore"],
         "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "saturation",
+        "irrad_type": "intermediate",
         "spatial_scaling": {
             "flux": false,
             "reprocessing": false
@@ -40,7 +41,7 @@
         "base_removal_scaling": 0.5,
         "incore_s": 5,
         "excore_s": 2,
-        "net_irrad_s": 300,
+        "net_irrad_s": 30,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
@@ -49,12 +50,18 @@
             "source": 1e3,
             "run_omc": true,
             "write_fission_json": true,
-            "write_nuyield_json": true
+            "write_nuyield_json": true,
+            "min_timestep": 1e10
         }
     },
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
+        "parameter_guesses": 10,
+        "initial_params": {
+            "yields": [0.0005811, 0.00299617, 0.00166, 0.0065785, 0.00469921, 0.0021417],
+            "half_lives": [55.39525, 22.937965, 8.78718, 2.83386, 0.82695, 0.1575506]
+        },
         "samples": 1,
         "sample_func": "normal"
     }
