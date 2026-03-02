@@ -9,11 +9,7 @@
             "postprocessing": true,
             "logger": true
         },
-        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
-        "processed_data_dir": "/home/luke/github/mosden/examples/pure_endfb71/",
-        "output_dir": "/home/luke/github/mosden/examples/pure_endfb71/",
-        "log_level": 20,
-        "log_file": "/home/luke/github/mosden/examples/pure_endfb71/log.log"
+        "log_level": 20
     },
     "data_options": {
         "half_life": "endfb71/decay/",

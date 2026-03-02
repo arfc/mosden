@@ -9,7 +9,6 @@
             "postprocessing": true,
             "logger": true
         },
-        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
         "log_level": 20
     },
     "data_options": {
