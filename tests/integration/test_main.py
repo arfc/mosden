@@ -38,12 +38,18 @@ def test_mosden_cli(input_path, reference_output_path, output_path):
         else:
             output_data = CSVHandler(output_file).read_csv()
             reference_data = CSVHandler(reference_file).read_csv()
-        for key in output_data.keys():
-            if not isinstance(output_data[key], dict):
-                assert np.allclose(output_data[key], reference_data[key], rtol=rtol, atol=atol), f"Data mismatch for {key} in {filename}"
+        output_data_keys = list(output_data.keys())
+        reference_data_keys = list(reference_data.keys())
+        for key_i, out_key in enumerate(output_data_keys):
+            ref_key = reference_data_keys[key_i]
+            if not isinstance(output_data[out_key], dict):
+                assert np.allclose(output_data[out_key], reference_data[ref_key], rtol=rtol, atol=atol), f"Data mismatch for {ref_key}/{out_key} in {filename}"
             else:
-                for subkey in output_data[key].keys():
-                    assert np.all(np.isclose(output_data[key][subkey], reference_data[key][subkey], rtol=rtol, atol=atol)), f"Data mismatch for {subkey} in {key} of {filename}"
+                output_data_subkeys = list(output_data[out_key].keys())
+                reference_data_subkeys = list(reference_data[ref_key].keys())
+                for subkeyi, out_subkey in enumerate(output_data_subkeys):
+                    ref_subkey = reference_data_subkeys[subkeyi]
+                    assert np.all(np.isclose(output_data[out_key][out_subkey], reference_data[ref_key][ref_subkey], rtol=rtol, atol=atol)), f"Data mismatch for {ref_subkey}/{out_subkey} in {ref_key}/{out_key} of {filename}"
 
 
     result = subprocess.run(["mosden", "-pre", input_path])
