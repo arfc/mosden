@@ -298,8 +298,8 @@ def test_effective_fiss():
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
     assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
-    assert np.isclose(insitu_fiss[0][-1], eff_fiss), "Insitu fiss mismatch"
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "irrad fiss mismatch"
 
     grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = 250e3
@@ -309,8 +309,8 @@ def test_effective_fiss():
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
     assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
-    assert np.isclose(insitu_fiss[0][-1], eff_fiss), "Insitu fiss mismatch"
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "irrad fiss mismatch"
 
     grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = 1e10
@@ -320,9 +320,9 @@ def test_effective_fiss():
     assert np.isclose(eff_fiss, grouper.t_net), "Limit for long-lived incorrect"
     assert np.isclose(stat_fiss, grouper.t_net), "Limit for long-lived incorrect"
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[0]
-    grouper.logger.error(f'{insitu_fiss = }')
-    assert np.isclose(insitu_fiss[0][-1], eff_fiss), "Limit for long-lived incorrect"
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[0]
+    grouper.logger.error(f'{irrad_fiss = }')
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "Limit for long-lived incorrect"
 
     grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = 1e-10
@@ -332,8 +332,8 @@ def test_effective_fiss():
     assert np.isclose(eff_fiss, 0), "Limit for long-lived incorrect"
     assert np.isclose(stat_fiss, 0), "Limit for long-lived incorrect"
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[0]
-    assert np.isclose(insitu_fiss[0][-1], eff_fiss), "Limit for long-lived incorrect"
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[0]
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "Limit for long-lived incorrect"
 
     grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = [1e-10, 1e10]
@@ -341,8 +341,8 @@ def test_effective_fiss():
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams
     assert np.allclose(eff_fiss, [0.0, grouper.t_net]), "Limit for multiple incorrect"
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[:, None]
-    assert np.allclose(insitu_fiss[:, -1], eff_fiss), "Limit for multiple incorrect"
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[:, None]
+    assert np.allclose(irrad_fiss[:, -1], eff_fiss), "Limit for multiple incorrect"
 
 
     
@@ -374,11 +374,11 @@ def test_effective_fiss_many_ts():
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lam, np.exp)
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
     
     assert np.isclose(eff_fiss, 0.9424, rtol=1e-2), "Effective fission mismatch"
     assert np.isclose(stat_fiss, 0.666, rtol=1e-2), "Static effective fission mismatch"
-    assert np.isclose(insitu_fiss[0][-1], eff_fiss, rtol=1e-2), "Final insitu doesn't match effective"
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss, rtol=1e-2), "Final irrad doesn't match effective"
 
 
     full_fission[(t_mid >= 1) & (t_mid < 2)] = 1.0
@@ -388,7 +388,7 @@ def test_effective_fiss_many_ts():
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lam, np.exp)
     grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
-    insitu_fiss = grouper._get_insitu_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
 
     assert np.isclose(eff_fiss, stat_fiss, atol=1e-2)
-    assert np.isclose(eff_fiss, insitu_fiss[0][-1], atol=1e-2)
+    assert np.isclose(eff_fiss, irrad_fiss[0][-1], atol=1e-2)

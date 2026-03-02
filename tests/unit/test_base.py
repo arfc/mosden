@@ -136,7 +136,7 @@ def test_times_rates_mask():
     assert data['timesteps'][:10] == [1]*10
     assert data['source_rates'][:10] == [1.0, 0]*5
     assert data['removal_indeces'][:10] == list(np.arange(0, 10))
-    assert data['insitu_mask'] == [0]*10
+    assert data['irrad_mask'] == [0]*10
 
     base.residual_masks = ['post-irrad']
     data = base._get_times_and_rates()
@@ -144,7 +144,7 @@ def test_times_rates_mask():
     assert data['timesteps'][:10] == [1]*10
     assert data['source_rates'][:10] == [1.0, 0]*5
     assert data['removal_indeces'][:10] == list(np.arange(0, 10))
-    assert data['insitu_mask'] == [0]*10
+    assert data['irrad_mask'] == [0]*10
 
     base.residual_masks = ['incore']
     data = base._get_times_and_rates()
@@ -152,7 +152,7 @@ def test_times_rates_mask():
     assert data['timesteps'][:10] == [1]*10
     assert data['source_rates'][:10] == [1.0, 0]*5
     assert data['removal_indeces'][:10] == list(np.arange(0, 10))
-    assert data['insitu_mask'] == [1,0]*5
+    assert data['irrad_mask'] == [1,0]*5
 
     base.residual_masks = ['excore']
     data = base._get_times_and_rates()
@@ -160,7 +160,7 @@ def test_times_rates_mask():
     assert data['timesteps'][:10] == [1]*10
     assert data['source_rates'][:10] == [1.0, 0]*5
     assert data['removal_indeces'][:10] == list(np.arange(0, 10))
-    assert data['insitu_mask'] == [0,1]*5
+    assert data['irrad_mask'] == [0,1]*5
 
 
     base.residual_masks = ['all']
@@ -169,7 +169,7 @@ def test_times_rates_mask():
     assert data['timesteps'][:10] == [1]*10
     assert data['source_rates'][:10] == [1.0, 0]*5
     assert data['removal_indeces'][:10] == list(np.arange(0, 10))
-    assert data['insitu_mask'] == [1]*10
+    assert data['irrad_mask'] == [1]*10
 
 
 def test_openmc_time_setting():

@@ -54,8 +54,8 @@ class Grouper(BaseClass):
             times: np.ndarray[float],
             counts: np.ndarray[float],
             count_err: np.ndarray[float],
-            insitu_counts: np.ndarray[float],
-            insitu_times: np.ndarray[float],
+            irrad_counts: np.ndarray[float],
+            irrad_times: np.ndarray[float],
             fit_func: Callable) -> float:
         """
         Calculate the residual of the current set of parameters
@@ -70,9 +70,9 @@ class Grouper(BaseClass):
             List of delayed neutron counts
         count_err : np.ndarray[float]
             List of count errors
-        insitu_counts : np.ndarray[float]
+        irrad_counts : np.ndarray[float]
             List of delayed neutron counts during irradiation
-        times : np.ndarray[float]
+        irrad_times : np.ndarray[float]
             List of times during irradiation
         fit_func : Callable
             Function that takes times and parameters to return list of counts
@@ -82,15 +82,15 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        insitu_residual = []
-        if len(insitu_times) != 0:
-            insitu_residual = ((insitu_counts - self._get_insitu_counts(insitu_times, parameters)) / (insitu_counts))
-            insitu_residual = np.nan_to_num(insitu_residual)
+        irrad_residual = []
+        if len(irrad_times) != 0:
+            irrad_residual = ((irrad_counts - self._get_irrad_counts(irrad_times, parameters)) / (irrad_counts))
+            irrad_residual = np.nan_to_num(irrad_residual)
         post_residual = (counts - fit_func(times, parameters)) / (counts)
-        residual = np.concatenate((insitu_residual, post_residual))
+        residual = np.concatenate((irrad_residual, post_residual))
         return residual
 
-    def _get_insitu_fission_component(self, times: np.ndarray[float],
+    def _get_irrad_fission_component(self, times: np.ndarray[float],
                                       lam: np.ndarray[float], exp: Callable,
                                       expm1: Callable) -> np.ndarray[float]:
         """
@@ -136,7 +136,7 @@ class Grouper(BaseClass):
         return fission_component
 
     
-    def _get_insitu_counts(self,
+    def _get_irrad_counts(self,
                            times: np.ndarray[float | object],
                            parameters: np.ndarray[float | object]
                            ) -> np.ndarray[float | object]:
@@ -176,7 +176,7 @@ class Grouper(BaseClass):
             nu = unumpy.uarray([v.n for v in yields],
                                [v.s for v in yields])
 
-        fission_component = self._get_insitu_fission_component(times, lam, exp, expm1)
+        fission_component = self._get_irrad_fission_component(times, lam, exp, expm1)
         group_counts = nu[:, None] * fission_component
         counts = np.sum(group_counts, axis=0)
         return counts
@@ -440,9 +440,9 @@ class Grouper(BaseClass):
             Post-irradiation times
         counts : np.ndarray[float]
             Post-irradiation counts
-        insitu_times : np.ndarray[float]
+        irrad_times : np.ndarray[float]
             Mid-irradiation times
-        insitu_counts : np.ndarray[float]
+        irrad_counts : np.ndarray[float]
             Mid-irradiation counts
         """
         post_irrad_index = self.get_irrad_index(False)
@@ -450,9 +450,9 @@ class Grouper(BaseClass):
         if self.post_irrad_only:
             return times, counts, np.array([]), np.array([])
 
-        insitu_mask = np.asarray(full_data['insitu_mask'])
-        insitu_times = np.cumsum(full_data['timesteps'][:post_irrad_index]) * insitu_mask
-        insitu_counts = np.asarray(counts[1:post_irrad_index+1]) * insitu_mask
+        irrad_mask = np.asarray(full_data['irrad_mask'])
+        irrad_times = np.cumsum(full_data['timesteps'][:post_irrad_index]) * irrad_mask
+        irrad_counts = np.asarray(counts[1:post_irrad_index+1]) * irrad_mask
 
         if self.no_post_irrad:
             counts = np.asarray([])
@@ -461,7 +461,7 @@ class Grouper(BaseClass):
             counts = counts[post_irrad_index+1:]
             times = np.asarray(times[post_irrad_index+1:]) - times[post_irrad_index]
 
-        return times, counts, insitu_times, insitu_counts
+        return times, counts, irrad_times, irrad_counts
 
 
     def _nonlinear_least_squares(self,
@@ -546,7 +546,7 @@ class Grouper(BaseClass):
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
 
-        times, counts, insitu_times, insitu_counts = self._get_modified_counts_and_times(times, counts)
+        times, counts, irrad_times, irrad_counts = self._get_modified_counts_and_times(times, counts)
 
         best = None
         for x0 in tqdm(starts):
@@ -560,7 +560,7 @@ class Grouper(BaseClass):
                                 xtol=1e-12,
                                 verbose=0,
                                 max_nfev=1e6,
-                                args=(times, counts, count_err, insitu_counts, insitu_times, fit_function))
+                                args=(times, counts, count_err, irrad_counts, irrad_times, fit_function))
             if best is None or result.cost < best.cost:
                 best = result
         result = best
@@ -590,7 +590,7 @@ class Grouper(BaseClass):
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
-                times, counts, insitu_times, insitu_counts = self._get_modified_counts_and_times(times, count_sample)
+                times, counts, irrad_times, irrad_counts = self._get_modified_counts_and_times(times, count_sample)
 
                 result = least_squares(
                     self._residual_function,
@@ -606,8 +606,8 @@ class Grouper(BaseClass):
                         times,
                         count_sample,
                         count_sample_err,
-                        insitu_counts,
-                        insitu_times,
+                        irrad_counts,
+                        irrad_times,
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)

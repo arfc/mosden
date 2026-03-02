@@ -209,13 +209,13 @@ class BaseClass:
         time_rate_data : dict[str, list[float|int]]
             Keys are names for different datasets, values are the time-dependent
             data. Keys include `timesteps`, `source_rates`, `removal_indeces`,
-            and `insitu_mask`
+            and `irrad_mask`
         """
         time_rate_data = dict()
         removal_indeces = list()
         timesteps = list()
         source_rates = list()
-        insitu_residual_mask = list()
+        irrad_residual_mask = list()
         current_time = 0
         index_counter = 0
         in_core = True
@@ -253,7 +253,7 @@ class BaseClass:
                 time_close = np.isclose(current_time, self.t_net)
                 if 'all' in self.residual_masks:
                     mask_val = 1
-                insitu_residual_mask.append(mask_val)
+                irrad_residual_mask.append(mask_val)
 
         diff = sum(timesteps) - self.t_net
         timesteps[-1] = timesteps[-1] - diff
@@ -266,7 +266,7 @@ class BaseClass:
         time_rate_data['timesteps'] = timesteps
         time_rate_data['source_rates'] = source_rates
         time_rate_data['removal_indeces'] = removal_indeces
-        time_rate_data['insitu_mask'] = insitu_residual_mask
+        time_rate_data['irrad_mask'] = irrad_residual_mask
         return time_rate_data
 
     
