@@ -33,7 +33,7 @@ f_in : float = {{f_in}}
 
 
 volume = mass_g / dens_g_cm3
-radius = (mass_g * volume / (4 * np.pi)) ** (1/3)
+radius = (3 * volume / (4 * np.pi)) ** (1/3)
 
 xs_library = openmc.data.DataLibrary.from_xml(xs_data)
 xs_nuclide_list = [i['materials'][0] for i in xs_library.libraries]
