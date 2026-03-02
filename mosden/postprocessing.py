@@ -137,7 +137,8 @@ class PostProcess(BaseClass):
         plt.close()
         return None
     
-    def _chart_form(self, name: str, data: dict, cbar_label: str) -> None:
+    def _chart_form(self, name: str, data: dict, cbar_label: str, vmin: float=1e-1,
+                    vmax: float=1e1) -> None:
         """
         Create a chart of the nuclides with file name and with data
 
@@ -148,6 +149,12 @@ class PostProcess(BaseClass):
         data : dict[str, float]
             Data to plot, using the nuclide name as a key and the value to plot
             (of the form "XE135")
+        cbar_label : str
+            Label for the colorbar
+        vmin : float, optional
+            The minimum value of the colorbar
+        vmax : float, optional
+            The maximum value of the colorbar
         """
         configure(permissive=True)
         plt.figure(figsize=(12, 8))
@@ -162,7 +169,9 @@ class PostProcess(BaseClass):
                 C.append(value)
             except KeyError:
                 continue
-        norm = LogNorm(vmin=0.1, vmax=10)
+        vmin_use = 10 ** np.floor(np.log10(vmin))
+        vmax_use = 10 ** np.ceil(np.log10(vmax))
+        norm = LogNorm(vmin=vmin_use, vmax=vmax_use)
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
@@ -278,8 +287,10 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
-            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes')
-            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes')
+            chart_min_data = np.min((np.min(list(summed_pcc_data.values())), np.min(list(scaled_uncert_pcc.values()))))
+            chart_max_data = np.max((np.max(list(summed_pcc_data.values())), np.max(list(scaled_uncert_pcc.values()))))
+            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
+            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
             sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
             top = 10
             self.logger.info(f'Writing {top = } summed |PCC| nuclides')
