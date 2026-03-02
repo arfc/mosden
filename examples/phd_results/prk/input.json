@@ -1,6 +1,7 @@
 {
-    "selections": ["pulse", "intermediate", "saturation"],
-    "problem": "sine_relative",
+    "selections": ["intermediate", "intermediate [all]"],
+    "o_selections": ["pulse", "intermediate", "saturation"],
+    "problem": "step_relative",
     "euler_mode": "backward",
     "time_steps": [1e-3],
     "tf": 60,
@@ -27,10 +28,20 @@
       "yields": [0.0005810767, 0.002995618, 0.00165845, 0.0065752589, 0.004701, 0.00214555],
       "hls": [55.395699, 22.939397, 8.79516, 2.8361, 0.82819, 0.15777]
     },
+    "intermediate [all]": {
+      "description": "Calculated using ENDFB71 data, all, (1,0) 30 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.000591267, 0.00316419, 0.002834526, 0.007079536, 0.00482916, 0.00073507],
+      "hls": [55.222525, 22.459077, 6.3348598, 2.0843, 0.349625, 0.006170445]
+    },
     "saturation": {
       "description": "Calculated using ENDFB71 data, post-irrad, (60,0) 1200 second irradiation, 100 decay times, 600 decay seconds",
       "yields": [0.000576267, 0.002988244, 0.0018862306, 0.0069244077, 0.0044298534, 0.001862336],
       "hls": [55.4938, 23.030678, 8.43461, 2.63272, 0.7163197, 0.139332515]
+    },
+    "saturation [all]": {
+      "description": "Calculated using ENDFB71 data, all, (60,0) 1200 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005771185, 0.0030126616, 0.0020301955, 0.007109, 0.0043759, 0.0016164],
+      "hls": [55.4809, 22.969864, 8.044375, 8.0443754, 2.5102436, 0.637035, 0.1137935]
     }
   }
   
