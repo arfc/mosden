@@ -41,7 +41,10 @@ def test_mosden_cli(input_path, reference_output_path, output_path):
         output_data_keys = list(output_data.keys())
         reference_data_keys = list(reference_data.keys())
         for key_i, out_key in enumerate(output_data_keys):
-            ref_key = reference_data_keys[key_i]
+            if type(out_key) is str:
+                ref_key = out_key
+            else:
+                ref_key = reference_data_keys[key_i]
             if not isinstance(output_data[out_key], dict):
                 assert np.allclose(output_data[out_key], reference_data[ref_key], rtol=rtol, atol=atol), f"Data mismatch for {ref_key}/{out_key} in {filename}"
             else:
