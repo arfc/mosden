@@ -1,6 +1,6 @@
 {
-    "selections": ["intermediate", "intermediate [all]"],
-    "o_selections": ["pulse", "intermediate", "saturation"],
+    "o_selections": ["intermediate", "intermediate [all]"],
+    "selections": ["pulse", "intermediate", "intermediate [all]", "saturation", "saturation [all]"],
     "problem": "step_relative",
     "euler_mode": "backward",
     "time_steps": [1e-3],
@@ -41,7 +41,7 @@
     "saturation [all]": {
       "description": "Calculated using ENDFB71 data, all, (60,0) 1200 second irradiation, 100 decay times, 600 decay seconds",
       "yields": [0.0005771185, 0.0030126616, 0.0020301955, 0.007109, 0.0043759, 0.0016164],
-      "hls": [55.4809, 22.969864, 8.044375, 8.0443754, 2.5102436, 0.637035, 0.1137935]
+      "hls": [55.4809, 22.969864, 8.044375, 2.5102436, 0.637035, 0.1137935]
     }
   }
   

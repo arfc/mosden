@@ -124,16 +124,26 @@ class PostProcess(BaseClass):
             create=False).read_vector_csv()
         countrate = CountRate(self.input_path)
         countrate.group_params = group_data
-        group_counts = countrate._count_rate_from_groups()['counts']
-        summed_counts = CSVHandler(
-            self.countrate_path).read_vector_csv()['counts']
+        group_data = countrate._count_rate_from_groups()
+        group_counts = np.asarray(group_data['counts'])
+        group_times = group_data['times']
+        summed_data = CSVHandler(
+            self.countrate_path).read_vector_csv()
+        summed_counts = summed_data['counts']
+        summed_times = summed_data['times']
+        index_shift = len(summed_times) - len(group_times)
+        subtractor = 0
+        if index_shift != 0:
+            subtractor = self.t_net
+        summed_counts = np.asarray(summed_counts[index_shift:])
+        summed_times = np.asarray(summed_times[index_shift:])
         pcnt_diff = (summed_counts - group_counts) / summed_counts * 100
-        plt.plot(self.decay_times, pcnt_diff)
+        plt.plot(np.asarray(summed_times)-subtractor, pcnt_diff)
         plt.xlabel('Time [s]')
         plt.xscale('log')
         plt.ylabel('Relative Difference [\\%]')
         plt.tight_layout()
-        plt.savefig(f'{self.img_dir}pcnt_diff_counts.png')
+        plt.savefig(f'{self.img_dir}pcnt_diff_post_irrad_counts.png')
         plt.close()
         return None
     
@@ -981,7 +991,8 @@ class PostProcess(BaseClass):
 
         counts = self.post_data[self.names['countsMC']]
         countrate = CountRate(self.input_path)
-        times = countrate.decay_times
+        irrad_index = self.get_irrad_index(False) + 1
+        times = countrate.use_times
         alpha_MC: float = 1 / np.sqrt(self.MC_samples)
         for MC_iterm, count_val in enumerate(counts):
             label = mc_label if MC_iterm == 0 else None
@@ -1009,7 +1020,7 @@ class PostProcess(BaseClass):
             base_sigma = np.asarray(count_data['sigma counts'])
         group_counts = countrate.calculate_count_rate(write_data=False)
         plt.plot(
-            times,
+            group_counts['times'],
             group_counts['counts'],
             color=group_color,
             alpha=0.75,
@@ -1017,7 +1028,7 @@ class PostProcess(BaseClass):
             linestyle='--',
             zorder=3)
         plt.fill_between(
-            times,
+            group_counts['times'],
             group_counts['counts'] -
             group_counts['sigma counts'],
             group_counts['counts'] +
@@ -1039,11 +1050,11 @@ class PostProcess(BaseClass):
                 name = name.capitalize()
             countrate.group_params = lit_data
             data = countrate._count_rate_from_groups()
-            plt.plot(times, data['counts'], label=f'{name} 6-Group Fit',
+            plt.plot(data['times'], data['counts'], label=f'{name} 6-Group Fit',
                      color=colors[index],
                      linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
-                times,
+                data['times'],
                 data['counts'] - data['sigma counts'],
                 data['counts'] + data['sigma counts'],
                 alpha=0.3,
@@ -1075,6 +1086,9 @@ class PostProcess(BaseClass):
         plt.savefig(f'{self.img_dir}MC_counts.png')
         plt.close()
 
+        times = self.decay_times
+        if len(counts) > len(times):
+            counts = counts[irrad_index:]
         for MC_iterm, count_val in enumerate(counts):
             label = mc_label if MC_iterm == 0 else None
             plt.plot(
@@ -1088,6 +1102,8 @@ class PostProcess(BaseClass):
                                          count_data['sigma counts'])
         counts_base = unumpy.uarray(base_counts,
                                     base_sigma)
+        if len(counts_this_work) > len(times):
+            counts_this_work = counts_this_work[irrad_index:]
         this_over_base = counts_this_work / counts_base
         plt.errorbar(
             times,

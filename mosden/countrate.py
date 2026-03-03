@@ -113,9 +113,10 @@ class CountRate(BaseClass):
         counts = fit_function(self.decay_times, parameters)
         count_rate = np.asarray(unumpy.nominal_values(counts), dtype=float)
         sigma_count_rate = np.asarray(unumpy.std_devs(counts), dtype=float)
+        irrad_index = self.get_irrad_index(False)
 
         data = {
-            'times': self.decay_times,
+            'times': self.use_times[irrad_index+1:],
             'counts': count_rate,
             'sigma counts': sigma_count_rate
         }
@@ -176,20 +177,12 @@ class CountRate(BaseClass):
                 'Error: no data exists for given data combination')
 
         data: dict[str: list[float]] = dict()
-        if self.post_irrad_only:
-            use_times = self.decay_times
-        else:
-            mask_data = self._get_times_and_rates()
-            use_times = np.concatenate(([0], np.cumsum(mask_data['timesteps'])))
-
         num_data = len(list(self.concentration_data[net_similar_nucs[-1]].keys()))
         single_time_val = False
         if num_data == 1:
             single_time_val = True
-        post_irrad_index = self.get_irrad_index(single_time_val)
-
-        if self.no_post_irrad:
-            use_times = use_times[:post_irrad_index+1]
+        use_times = self._get_use_times(single_time_val=single_time_val)
+        post_irrad_index = self.get_irrad_index(single_time_val=single_time_val)
 
         count_rate: np.ndarray = np.zeros(len(use_times))
         sigma_count_rate: np.ndarray = np.zeros(len(use_times))

@@ -149,6 +149,8 @@ class BaseClass:
         self.post_irrad_only: bool = (len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks)
         self.no_post_irrad: bool = ('post-irrad' not in self.residual_masks and 'all' not in self.residual_masks)
         self.decay_times = self._set_decay_times()
+        self.use_times = self._get_use_times()
+
 
         np.random.seed(self.seed)
 
@@ -167,6 +169,32 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+    
+    def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
+        """
+        Get all the times steps over which count rate data exists
+
+        Parameters
+        ----------
+        single_time_val : bool
+            Whether the problem is evaluated at a single point in time
+
+        Returns
+        -------
+        use_times : np.ndarray[float]
+            The time values where data exists
+        """
+        if self.post_irrad_only:
+            use_times = self.decay_times
+        else:
+            mask_data = self._get_times_and_rates()
+            use_times = np.concatenate(([0], np.cumsum(mask_data['timesteps'])))
+
+        if self.no_post_irrad:
+            post_irrad_index = self.get_irrad_index(single_time_val)
+            use_times = use_times[:post_irrad_index+1]
+        return use_times
+
     
     def _set_cycle_times(self, residence_time: float) -> list[float]:
         """
