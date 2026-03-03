@@ -34,6 +34,7 @@ def plot_data(data_vals, namemod=''):
             ylab = 'Group Yield'
         elif name == 'hls':
             ylab = 'Group Half-life [s]'
+            plt.yscale('log')
         plt.ylabel(ylab)
         plt.savefig(f'{name}{namemod}.png')
         plt.close()
