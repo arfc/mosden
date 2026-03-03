@@ -1,33 +1,76 @@
 import matplotlib.pyplot as plt
+from collections import defaultdict
+from mosden.utils.csv_handler import CSVHandler
+import glob
+import os
 plt.style.use('mosden.plotting')
 
+def plot_data(data_vals):
+    formatted_data = defaultdict(list)
+    formatted_data['yields'] = defaultdict(list)
+    formatted_data['hls'] = defaultdict(list)
+    formatted_data["xs"] = []
+    xlab = 'Irradiation Time [s]'
 
-endfb71_data_post_irrad = {
-    "0.00001": {
-      "yields": [0.000601, 0.00325528, 0.00323466, 0.00678078, 0.0036572234, 0.001167046],
-      "hls": [55.047, 22.133, 5.6015, 1.9612, 0.4696, 0.095268]
-    },
-    "30": {
-      "yields": [0.0005810767, 0.002995618, 0.00165845, 0.0065752589, 0.004701, 0.00214555],
-      "hls": [55.395699, 22.939397, 8.79516, 2.8361, 0.82819, 0.15777]
-    },
-    "1200": {
-      "yields": [0.000576267, 0.002988244, 0.0018862306, 0.0069244077, 0.0044298534, 0.001862336],
-      "hls": [55.4938, 23.030678, 8.43461, 2.63272, 0.7163197, 0.139332515]
-    }
-}
+    for t_net, params in data_vals.items():
+        formatted_data['xs'].append(t_net)
+        for name, data in params.items():
+            for group, val in enumerate(data):
+                formatted_data[name][group].append(val)
 
-endfb71_data_all = {
-    "0.00001": {
-      "yields": [0.000601, 0.00325528, 0.00323466, 0.00678078, 0.0036572234, 0.001167046],
-      "hls": [55.047, 22.133, 5.6015, 1.9612, 0.4696, 0.095268]
-    },
-    "30": {
-      "yields": [0.000591267, 0.00316419, 0.002834526, 0.007079536, 0.00482916, 0.00073507],
-      "hls": [55.222525, 22.459077, 6.3348598, 2.0843, 0.349625, 0.006170445]
-    },
-    "1200": {
-      "yields": [0.0005771185, 0.0030126616, 0.0020301955, 0.007109, 0.0043759, 0.0016164],
-      "hls": [55.4809, 22.969864, 8.044375, 2.5102436, 0.637035, 0.1137935]
-    }
-}
+    markers = ['.', '*', '>', '<', 'v', '^']
+    for name, data in formatted_data.items():
+        if type(data) is list:
+            continue
+        for group, params in data.items():
+            plt.plot(formatted_data['xs'], params, label=f'Group {group+1}',
+                    marker=markers[group], linestyle='--', markersize=5,
+                    linewidth=1)
+        plt.legend()
+        plt.xlabel(xlab)
+        if name == 'yields':
+            ylab = 'Group Yield'
+        elif name == 'hls':
+            ylab = 'Group Half-life [s]'
+        plt.ylabel(ylab)
+        plt.savefig(f'{name}.png')
+        plt.close()
+    
+    xs = formatted_data['xs']
+    yields = formatted_data['yields']
+
+    y_arrays = [yields[group] for group in sorted(yields.keys())]
+    labels = [f'Group {group + 1}' for group in sorted(yields.keys())]
+
+    plt.stackplot(xs, y_arrays, labels=labels)
+
+    plt.xlabel(xlab)
+    plt.ylabel('Yield')
+    plt.legend(loc='upper left')
+
+    plt.tight_layout()
+    plt.savefig('stack_yields.png')
+    plt.close()
+
+def build_data_dict(data_path=r'./'):
+    def helper(pathmod):
+        files = glob.glob(os.path.join(data_path, f"*{pathmod}.csv"))
+        data = {}
+        for file in files:
+            file: str = file
+            time = file.split('_')[1]
+            data[time] = dict()
+            file_data = CSVHandler(file).read_vector_csv()
+            data[time]['yields'] = file_data['yield']
+            data[time]['hls'] = file_data['half_life']
+        data = dict(sorted(data.items()))
+        return data
+    
+    post_data = helper('_post')
+    all_data = helper('_all')
+
+    return post_data, all_data
+
+if __name__ == '__main__':
+    post_data, all_data = build_data_dict()
+    plot_data(post_data)
