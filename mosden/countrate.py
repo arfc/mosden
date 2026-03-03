@@ -97,6 +97,12 @@ class CountRate(BaseClass):
         else:
             raise NotImplementedError(msg)
 
+        irrad_index = self.get_irrad_index(False)
+        if self.post_irrad_only:
+            use_times = self.decay_times
+        else:
+            use_times = self.use_times[irrad_index+1:]
+
         parameters = np.zeros(grouper.num_groups * 2, dtype=object)
         for i in range(grouper.num_groups):
             yield_val = ufloat(
@@ -113,10 +119,9 @@ class CountRate(BaseClass):
         counts = fit_function(self.decay_times, parameters)
         count_rate = np.asarray(unumpy.nominal_values(counts), dtype=float)
         sigma_count_rate = np.asarray(unumpy.std_devs(counts), dtype=float)
-        irrad_index = self.get_irrad_index(False)
 
         data = {
-            'times': self.use_times[irrad_index+1:],
+            'times': use_times,
             'counts': count_rate,
             'sigma counts': sigma_count_rate
         }
