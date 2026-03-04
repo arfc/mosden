@@ -392,3 +392,24 @@ def test_effective_fiss_many_ts():
 
     assert np.isclose(eff_fiss, stat_fiss, atol=1e-2)
     assert np.isclose(eff_fiss, irrad_fiss[0][-1], atol=1e-2)
+
+def test_irrad_fit():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    tf = 1000
+    times = np.arange(0, tf, tf/100)
+    grouper.fission_times = times
+    grouper.t_net = tf
+    grouper.full_fission_term = np.ones(len(times))
+    yield_val = 1
+    half_life = 10
+    parameters = [yield_val, half_life]
+    grouper.num_groups = 1
+    lam_val = np.log(2)/half_life
+    expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * times)))
+    steady_state_val = yield_val
+
+    count_rate = grouper._get_irrad_counts(times, parameters)
+    assert np.allclose(count_rate, expected_counts)
+    assert count_rate[0] == 0.0
+    assert count_rate[-1] == steady_state_val
