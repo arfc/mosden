@@ -125,16 +125,16 @@ class PostProcess(BaseClass):
         group_data = CSVHandler(
             self.group_path,
             create=False).read_vector_csv()
-        parameters = group_data['yield'] + group_data['half_life']
         count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
-        grouper._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
+        grouper._set_refined_fission_term(times)
+        parameters = group_data['yield'] + group_data['half_life']
+        parameters = grouper._restructure_intermediate_yields(parameters, False)
         fit_func = grouper._get_fit_func()
-        times, counts, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(times, counts)
-
-        
+        times, counts, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(times, counts)        
         irrad_fit_counts = grouper._get_irrad_counts(irrad_times, parameters)
+
         post_irrad_fit_counts = fit_func(times, parameters)
 
         total_time = np.append(irrad_times, times)

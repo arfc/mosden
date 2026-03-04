@@ -155,7 +155,6 @@ class Grouper(BaseClass):
         counts : np.ndarray[float|object]
             Array of counts for each time point (can be float or ufloat)
         """
-
         parameters = self._restructure_intermediate_yields(parameters)
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
