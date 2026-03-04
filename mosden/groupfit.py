@@ -422,6 +422,31 @@ class Grouper(BaseClass):
         actual_parameters = np.concatenate((actual_yields, half_lives))
         return actual_parameters
     
+    def _get_fit_func(self) -> Callable:
+        """
+        Get the associated function for the irradiation type
+
+        Returns
+        -------
+        fit_function : Callable
+            The function that fits the group parameter data to count rates
+
+        Raises
+        ------
+        NotImplementedError
+            If an irradiation type is not implemented
+        """
+        if self.irrad_type == 'pulse':
+            fit_function = self._pulse_fit_function
+        elif self.irrad_type == 'saturation':
+            fit_function = self._saturation_fit_function
+        elif self.irrad_type == 'intermediate':
+            fit_function = self._intermediate_numerical_fit_function
+        else:
+            raise NotImplementedError(f'{self.irrad_type} not supported')
+        return fit_function
+
+    
     def _get_modified_counts_and_times(self, times: np.ndarray[float],
                                        counts: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
         """
@@ -493,15 +518,7 @@ class Grouper(BaseClass):
             self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
-        if self.irrad_type == 'pulse':
-            fit_function = self._pulse_fit_function
-        elif self.irrad_type == 'saturation':
-            fit_function = self._saturation_fit_function
-        elif self.irrad_type == 'intermediate':
-            fit_function = self._intermediate_numerical_fit_function
-        else:
-            raise NotImplementedError(
-                f'{self.irrad_type} not supported in nonlinear least squares')
+        fit_function = self._get_fit_func()
 
         min_half_life = 1e-3
         max_half_life = 1e3

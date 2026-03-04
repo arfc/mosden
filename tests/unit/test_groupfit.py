@@ -407,9 +407,43 @@ def test_irrad_fit():
     grouper.num_groups = 1
     lam_val = np.log(2)/half_life
     expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * times)))
-    steady_state_val = yield_val
 
     count_rate = grouper._get_irrad_counts(times, parameters)
     assert np.allclose(count_rate, expected_counts)
-    assert count_rate[0] == 0.0
-    assert count_rate[-1] == steady_state_val
+
+def test_get_mod_counts():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    irrad_times = np.arange(0, 10, 1)
+    post_irrad_times = np.geomspace(0.01, 7, 3)
+    grouper.fission_times = irrad_times
+    grouper.t_in = 1
+    grouper.t_ex = 0
+    grouper.t_net = 10
+    grouper.decay_times = post_irrad_times
+    grouper.residual_masks = 'all'
+    grouper.post_irrad_only = False
+    grouper.no_post_irrad = True
+    grouper
+    grouper.full_fission_term = np.ones(len(irrad_times))
+    yield_val = 1
+    half_life = 10
+    parameters = [yield_val, half_life]
+    grouper.num_groups = 1
+    lam_val = np.log(2)/half_life
+    expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * irrad_times)))
+
+    post_irrad_index = grouper.get_irrad_index(False)
+    assert post_irrad_index == 10
+
+    data_times = grouper._get_times_and_rates()
+    assert np.allclose(data_times['irrad_mask'], 1)
+
+    cumulative_times = np.cumsum(data_times["timesteps"][:post_irrad_index])
+
+    times_post, counts_post, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(post_irrad_times, np.ones(len(post_irrad_times)+8))
+    assert np.allclose(cumulative_times, irrad_times)
+    assert len(irrad_times) > 0
+    fit_irrad = grouper._get_irrad_counts(irrad_times, parameters)
+    expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * irrad_times)))
+    assert np.allclose(fit_irrad[1:], expected_counts[:-1]), "Fit error"

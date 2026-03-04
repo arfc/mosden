@@ -104,7 +104,9 @@ class PostProcess(BaseClass):
 
         """
         self.compare_yields()
-        self.compare_group_to_data()
+        if not self.no_post_irrad:
+            self.compare_group_to_data()
+        self.compare_counts()
         self.MC_NLLS_analysis()
         return None
 
@@ -114,6 +116,43 @@ class PostProcess(BaseClass):
         """
         self._plot_group_vs_counts()
         return None
+    
+    def compare_counts(self) -> None:
+        """
+        Compare the counts from the actual data to the fit from params
+        """
+        grouper = Grouper(self.input_path)
+        group_data = CSVHandler(
+            self.group_path,
+            create=False).read_vector_csv()
+        parameters = group_data['yield'] + group_data['half_life']
+        count_data = CSVHandler(self.countrate_path).read_vector_csv()
+        times = np.asarray(count_data['times'])
+        grouper._set_refined_fission_term(times)
+        counts = np.asarray(count_data['counts'])
+        fit_func = grouper._get_fit_func()
+        times, counts, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(times, counts)
+
+        
+        irrad_fit_counts = grouper._get_irrad_counts(irrad_times, parameters)
+        post_irrad_fit_counts = fit_func(times, parameters)
+
+        total_time = np.append(irrad_times, times)
+        total_fit_counts = np.append(irrad_fit_counts, post_irrad_fit_counts)
+
+        plt.plot(irrad_times, irrad_counts, label='Mean, This Work', color='black',
+                 marker='x', markersize=5, linestyle='')
+        plt.plot(times, counts, color='black',
+                 marker='x', markersize=5, linestyle='', markevery=5)
+        plt.plot(total_time, total_fit_counts, label='Group Fit, This Work', color='blue',
+                 linestyle='--')
+        plt.legend()
+        plt.xlabel('Time [s]')
+        plt.ylabel(r'Delayed Neutron Count Rate [$\# \cdot s^{-1}$]')
+        plt.tight_layout()
+        plt.savefig(f'{self.img_dir}full_countrate.png')
+        plt.close()
+
 
     def _plot_group_vs_counts(self) -> None:
         """
@@ -196,7 +235,8 @@ class PostProcess(BaseClass):
         """
         Analyze Monte Carlo Non-linear Least Squares results
         """
-        self._plot_counts()
+        if not self.no_post_irrad:
+            self._plot_counts()
         if self.MC_samples > 2:
             self._plot_MC_group_params()
             self._get_sens_coeffs(write=True)
