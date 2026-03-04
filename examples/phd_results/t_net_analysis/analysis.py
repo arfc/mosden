@@ -13,6 +13,14 @@ def plot_data(data_vals, namemod=''):
     xlab = 'Irradiation Time [s]'
     xscale = 'log'
 
+    total_yields = []
+    for t, params in data_vals.items():
+        for key, vals in params.items():
+            if key == 'yields':
+                total_yield = sum(vals)
+                total_yields.append(total_yield)
+    max_index = total_yields.index(max(total_yields))
+
     for t_net, params in data_vals.items():
         formatted_data['xs'].append(t_net)
         for name, data in params.items():
@@ -20,6 +28,16 @@ def plot_data(data_vals, namemod=''):
                 formatted_data[name][group].append(val)
 
     markers = ['.', '*', '>', '<', 'v', '^']
+    print(f'Maximum yield of {total_yields[max_index]} at {formatted_data["xs"][max_index]}s')
+    plt.plot(formatted_data['xs'], total_yields)
+    plt.xscale(xscale)
+    plt.xlabel(xlab)
+    plt.ylabel('Total Yield')
+    plt.savefig(f'total_yield{namemod}.png')
+    plt.close()
+
+
+
     for name, data in formatted_data.items():
         if type(data) is list:
             continue
