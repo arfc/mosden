@@ -5,12 +5,11 @@ import glob
 import os
 plt.style.use('mosden.plotting')
 
-def plot_data(data_vals, namemod=''):
+def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$'):
     formatted_data = defaultdict(list)
     formatted_data['yields'] = defaultdict(list)
     formatted_data['hls'] = defaultdict(list)
     formatted_data["xs"] = []
-    xlab = 'Irradiation Time [s]'
     xscale = 'log'
 
     total_yields = []
@@ -74,7 +73,7 @@ def plot_data(data_vals, namemod=''):
     plt.savefig(f'stack_yields{namemod}.png')
     plt.close()
 
-def build_data_dict(data_path=r'./data/'):
+def build_data_dict(data_path=r'./dataNet/'):
     def helper(pathmod):
         files = glob.glob(os.path.join(data_path, f"*{pathmod}.csv"))
         data = {}
@@ -97,3 +96,8 @@ if __name__ == '__main__':
     post_data, all_data = build_data_dict()
     plot_data(post_data, '_post')
     plot_data(all_data, '_all')
+
+    post_data, all_data = build_data_dict('./dataDt5s/')
+    xlab = r'Irradiation Time Step $[s]$'
+    plot_data(post_data, '_post_dt', xlab)
+    plot_data(all_data, '_all_dt', xlab)
