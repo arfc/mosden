@@ -104,9 +104,9 @@ class PostProcess(BaseClass):
 
         """
         self.compare_yields()
+        self.compare_counts()
         if not self.no_post_irrad:
             self.compare_group_to_data()
-        self.compare_counts()
         self.MC_NLLS_analysis()
         return None
 
@@ -128,6 +128,7 @@ class PostProcess(BaseClass):
         count_data = CSVHandler(self.countrate_path).read_vector_csv()
         times = np.asarray(count_data['times'])
         counts = np.asarray(count_data['counts'])
+        count_errs = np.asarray(count_data['sigma counts'])
         grouper._set_refined_fission_term(times)
         parameters = group_data['yield'] + group_data['half_life']
         parameters = grouper._restructure_intermediate_yields(parameters, False)
@@ -136,16 +137,32 @@ class PostProcess(BaseClass):
         irrad_fit_counts = grouper._get_irrad_counts(irrad_times, parameters)
 
         post_irrad_fit_counts = fit_func(times, parameters)
+        if len(irrad_times) > 0 and not self.post_irrad_only:
+            irrad_times = np.append([0], irrad_times)
+            irrad_counts = np.append([0], irrad_counts)
+            irrad_fit_counts = np.append([0], irrad_fit_counts)
+
+        if not self.no_post_irrad and not self.post_irrad_only:
+            times = np.asarray(times) + irrad_times[-1]
 
         total_time = np.append(irrad_times, times)
         total_fit_counts = np.append(irrad_fit_counts, post_irrad_fit_counts)
 
-        plt.plot(irrad_times, irrad_counts, label='Mean, This Work', color='black',
-                 marker='x', markersize=5, linestyle='')
-        plt.plot(times, counts, color='black',
-                 marker='x', markersize=5, linestyle='', markevery=5)
+        markevery_irrad = 1
+        if not self.no_post_irrad:
+            markevery_irrad = 5
+        
+        plt.errorbar(irrad_times, irrad_counts, count_errs[:len(irrad_times)], label='Mean, This Work', color='black', marker='x', markersize=5, markevery=markevery_irrad, linestyle='')
+        plt.errorbar(times, counts, count_errs[len(irrad_times):], color='black', marker='x', markersize=5, linestyle='', markevery=5)
+
         plt.plot(total_time, total_fit_counts, label='Group Fit, This Work', color='blue',
                  linestyle='--')
+
+        if self.no_post_irrad:
+            plt.xscale('linear')
+        else:
+            plt.xscale('log')
+
         plt.legend()
         plt.xlabel('Time [s]')
         plt.ylabel(r'Delayed Neutron Count Rate [$\# \cdot s^{-1}$]')

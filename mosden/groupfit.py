@@ -589,6 +589,8 @@ class Grouper(BaseClass):
         self.logger.info(f'{np.diag(cov) = }')
         sigma = np.sqrt(np.diag(cov))
         self.logger.info(f'{sigma = }')
+        residual = self._residual_function(result.x, times, counts, count_err, irrad_counts, irrad_times, fit_function)
+        self.logger.info(f'{residual = }')
         self.logger.info(result)
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
