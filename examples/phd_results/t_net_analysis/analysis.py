@@ -5,7 +5,7 @@ import glob
 import os
 plt.style.use('mosden.plotting')
 
-def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$'):
+def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yield=None):
     formatted_data = defaultdict(list)
     formatted_data['yields'] = defaultdict(list)
     formatted_data['hls'] = defaultdict(list)
@@ -28,7 +28,11 @@ def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$'):
 
     markers = ['.', '*', '>', '<', 'v', '^']
     print(f'Maximum yield of {total_yields[max_index]} at {formatted_data["xs"][max_index]}s')
-    plt.plot(formatted_data['xs'], total_yields)
+    plt.plot(formatted_data['xs'], total_yields, label="Yields")
+    if actual_yield:
+        plt.hlines(actual_yield, min(formatted_data['xs']), max(formatted_data['xs']), label='Actual Yield',
+                   linestyle='--', color='orange')
+        plt.legend()
     plt.xscale(xscale)
     plt.xlabel(xlab)
     plt.ylabel('Total Yield')
@@ -93,11 +97,13 @@ def build_data_dict(data_path=r'./dataNet/'):
     return post_data, all_data
 
 if __name__ == '__main__':
+    #actual_yield = 0.018655
+    actual_yield = None
     post_data, all_data = build_data_dict()
-    plot_data(post_data, '_post')
-    plot_data(all_data, '_all')
+    plot_data(post_data, '_post', actual_yield=actual_yield)
+    plot_data(all_data, '_all', actual_yield=actual_yield)
 
     post_data, all_data = build_data_dict('./dataNumSteps5s/')
     xlab = r'Number of Irradiation Time Steps'
-    plot_data(post_data, '_post_dt', xlab)
-    plot_data(all_data, '_all_dt', xlab)
+    plot_data(post_data, '_post_dt', xlab, actual_yield=actual_yield)
+    plot_data(all_data, '_all_dt', xlab, actual_yield=actual_yield)
