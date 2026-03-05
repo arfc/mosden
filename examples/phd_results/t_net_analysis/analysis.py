@@ -97,7 +97,7 @@ if __name__ == '__main__':
     plot_data(post_data, '_post')
     plot_data(all_data, '_all')
 
-    post_data, all_data = build_data_dict('./dataDt5s/')
-    xlab = r'Irradiation Time Step $[s]$'
+    post_data, all_data = build_data_dict('./dataNumSteps5s/')
+    xlab = r'Number of Irradiation Time Steps'
     plot_data(post_data, '_post_dt', xlab)
     plot_data(all_data, '_all_dt', xlab)
