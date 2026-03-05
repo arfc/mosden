@@ -57,7 +57,7 @@ value from 0 to 1, the ex-core fraction (assuming chemical removal in the that
 region). Whatever chemical removal rates are used, this term should represent 
 the scaling that has been applied to that data (for example, if the removal 
 occurs everywhere in the primary loop, then the scaling would be 1.0 since this 
-term captures the spatial component.)
+term captures the spatial component).
 - The group parameter data from the literature should be given as absolute 
 yields (calculable from the relative yield and total yield values).
 
@@ -72,10 +72,31 @@ The generation of concentrations varies based on the model used.
 The simplest model is the 0D scaled model, and uses cumulative fission yields.
 The concentration of each DNP is calculated as the cumulative fission yield over 
 the decay constant of that DNP.
-The 0D flow model (not implemented as of 2025-09-02) uses OpenMC to incorporate 
+The 0D flow model uses OpenMC to incorporate 
 decay chains and parasitic absorption effects, offering a better model of 
 the DNP concentrations at each point during the irradiation and subsequent 
 decay.
+When using the OpenMC (or OMC) model, the `summed` yields and average half-life
+data may be less accurate. This is because fewer time steps worth of data are
+collected, based on the residence times used.
+For example, using an in-core residence time of 30 seconds with a net
+irradiation time of 30 seconds (1 OpenMC simulation) will give less accurate 
+measures of the summed data than an in-core residence time of 30 seconds (30 
+OpenMC simulations).
+
+Chemical removal of DNPs changes the group parameters (as expected). However,
+chemical removal of fission products also has an effect due to the way MoSDeN 
+handles accounting for the fission rates. This can be understood by running and 
+comparing MoSDeN simulations with and without this removal. Within the first 
+time step, there will be a decrease in the yield of DNPs, but the fission rate 
+will remain unchanged. This is because the chemical removal rate is applied 
+continuously over time timestep, while the fission rate is calculated without 
+accounting for this effect. To accurately model the effects of removing fissile 
+nuclides from the system (which should result in no change, which can be itself 
+tested by altering the starting sample mass in the OpenMC template), a very 
+small time step must be used such that the fission rate is updated sufficiently 
+frequently to capture the effects of fission product removal from the system. 
+Generally, there is no scenario in which this needs to be modeled in MoSDeN.
 
 The generation of the delayed neutron count rate and non-linear least squares
 fitting methods do not change between different models.
@@ -95,6 +116,8 @@ Check that tests pass by running `pytest` or `pytest -m "not slow"` for the
 faster version.
 Use `mosden -a <input.json>` to do a full run, `mosden -pre <input.json>` for 
 preprocessing, or `mosden -post <input.json>` for post-processing.
+For profiling, `python -m cProfile -m mosden -a <input.json> > profile.txt` 
+can be used.
 
 ### Input file
 The input file contains the majority of parameters of interest.

@@ -32,6 +32,9 @@ def test_mosden_cli(input_path, reference_output_path, output_path):
         elif filename == 'postproc.json':
             output_data = BaseClass(output_file).load_post_data()
             reference_data = BaseClass(reference_file).load_post_data()
+        elif filename == 'concentrations.csv':
+            output_data = CSVHandler(output_file).read_csv_with_time()
+            reference_data = CSVHandler(reference_file).read_csv_with_time()
         else:
             output_data = CSVHandler(output_file).read_csv()
             reference_data = CSVHandler(reference_file).read_csv()
@@ -40,7 +43,8 @@ def test_mosden_cli(input_path, reference_output_path, output_path):
                 assert np.allclose(output_data[key], reference_data[key], rtol=rtol, atol=atol), f"Data mismatch for {key} in {filename}"
             else:
                 for subkey in output_data[key].keys():
-                    assert np.isclose(output_data[key][subkey], reference_data[key][subkey], rtol=rtol, atol=atol), f"Data mismatch for {subkey} in {key} of {filename}"
+                    assert np.all(np.isclose(output_data[key][subkey], reference_data[key][subkey], rtol=rtol, atol=atol)), f"Data mismatch for {subkey} in {key} of {filename}"
+
 
     result = subprocess.run(["mosden", "-pre", input_path])
     assert result.returncode == 0, f"mosden failed: {result.stderr}"
