@@ -104,7 +104,8 @@ class PostProcess(BaseClass):
 
         """
         self.compare_yields()
-        self.compare_counts()
+        if not self.post_irrad_only:
+            self.compare_counts()
         if not self.no_post_irrad:
             self.compare_group_to_data()
         self.MC_NLLS_analysis()
