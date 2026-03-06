@@ -1,5 +1,5 @@
 {
-    "name": "ENDFB71 Data",
+    "name": "OMC test",
     "file_options": {
         "overwrite": {
             "preprocessing": true,
@@ -9,7 +9,10 @@
             "postprocessing": true,
             "logger": true
         },
-        "log_level": 20
+        "processed_data_dir": "./tests/integration/output_omc",
+        "output_dir": "./tests/integration/output_omc/",
+        "log_level": 15,
+        "log_file": "./tests/integration/output_omc/log.log"
     },
     "data_options": {
         "half_life": "endfb71/decay/",
@@ -25,27 +28,36 @@
         }
     },
     "modeling_options": {
-        "parent_feeding": false,
-        "concentration_handling": "CFY",
+        "concentration_handling": "OMC",
         "count_rate_handling": "data",
-        "reprocessing_locations": ["excore"],
+        "reprocessing_locations": ["incore", "excore"],
         "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "saturation",
-        "incore_s": 10,
-        "excore_s": 0,
-        "net_irrad_s": 420,
-        "decay_time": 1200,
-        "num_decay_times": 800
+        "irrad_type": "intermediate",
+        "spatial_scaling": {
+            "flux": false,
+            "reprocessing": false
+        },
+        "base_removal_scaling": 1.0,
+        "incore_s": 5,
+        "excore_s": 2,
+        "net_irrad_s": 33,
+        "decay_time": 600,
+        "num_decay_times": 100,
+        "openmc_settings": {
+            "nps": 5000,
+            "batches": 10,
+            "source": 1e3,
+            "run_omc": true,
+            "write_fission_json": true,
+            "write_nuyield_json": true
+        }
     },
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
-        "samples": 5000,
+        "samples": 1,
         "sample_func": "normal"
-    },
-    "post_options": {
-        "sensitivity_subplots": true
     }
 }

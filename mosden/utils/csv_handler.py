@@ -3,6 +3,7 @@ import os
 from uncertainties import ufloat
 import numpy as np
 import logging
+from collections import defaultdict
 
 class CSVHandler:
     def __init__(self, file_path: str, overwrite: bool=False, create=True) -> None:
@@ -63,6 +64,31 @@ class CSVHandler:
             return self._read_iaea_csv()
         df = pd.read_csv(self.file_path, index_col=0)
         data = df.to_dict(orient='index')
+        return data
+
+    def read_csv_with_time(self, trim:bool = False) -> dict[str, dict[float, tuple[float, float]]]:
+        """
+        Read the CSV file and return the data as a dictionary.
+
+        Parameters
+        ----------
+        trim : bool 
+            Indicates if the time column should be removed (only if a single 
+            time value is used)
+
+        Returns
+        -------
+        dict[str, dict[float, (float, float)]]
+            The data read from the CSV file
+        """
+        df = pd.read_csv(self.file_path)
+        data = defaultdict(dict)
+        is_single_time = df['Time'].nunique() == 1
+        for _,row in df.iterrows():
+            if is_single_time and trim:
+                data[row.Nuclide] = (row.Concentration, row['sigma Concentration'])
+            else:
+                data[row.Nuclide][row.Time] = (row.Concentration, row['sigma Concentration'])
         return data
     
     def _read_iaea_csv(self) -> dict[str, dict[str, float]]:
@@ -137,6 +163,21 @@ class CSVHandler:
         df = pd.DataFrame.from_dict(data, orient='index')
         df.index.name = 'Nuclide'
         df.to_csv(self.file_path, index=True)
+        return None
+    
+    def write_csv_with_time(self, data: dict[str, dict[str, float]]) -> None:
+        """
+        Write the time-dependent data to a CSV file.
+
+        Parameters
+        ----------
+        data : dict[str, dict[str, float]]
+            The data to write to the CSV file, listed over time
+        """
+        if not self.overwrite and self._file_exists():
+            self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
+        df = pd.DataFrame(data)
+        df.to_csv(self.file_path, index=False)
         return None
     
     def write_groups_csv(self, data: dict[str: list[float]], sortby: str = 'half_life') -> None:

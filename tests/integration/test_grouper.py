@@ -29,7 +29,7 @@ def test_fit_groups(input_path, reference_output_path):
     reference_path = Path(reference_output_path) / "group_parameters.csv"
     reference_data = CSVHandler(reference_path).read_vector_csv()
 
-    assert data.keys() == reference_data.keys(), "Reference times do not match output times"
+    assert data.keys() == reference_data.keys(), "Reference keys do not match output keys"
 
     for key in data.keys():
         assert np.all(np.isclose(data[key], reference_data[key], atol=1e-3)), f"Data mismatch for {key}"

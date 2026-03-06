@@ -166,14 +166,21 @@ cython_debug/
 /tests/integration/data_output
 /mosden/results*
 
-/examples/keepin_1957/*.csv
-/examples/keepin_1957/postproc.json
-/examples/keepin_1957/images/*
 
-/examples/huynh_2014/*.csv
-/examples/huynh_2014/postproc.json
-/examples/huynh_2014/images/*
+/examples/**
+!/examples/**/
+!/examples/**/input.json
+!/examples/**/*.py
 
+/examples/phd_results/tintex/*
+
+/examples/prelim_results/detailed_decay/*
+/examples/prelim_results/spacing_times/*
+/examples/prelim_results/total_decay_time/*
+/examples/prelim_results/decay_time_nodes_linear/*
+/examples/prelim_results/decay_time_nodes_linear_more/*
+/examples/prelim_results/chem_long/*
+/examples/prelim_results/chem_bool/*
 /examples/msre/*.csv
 /examples/msre/postproc.json
 /examples/msre/images/*
