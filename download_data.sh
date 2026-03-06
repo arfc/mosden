@@ -79,7 +79,7 @@ rm "$TEMP_ZIP"
 echo "Decay data handled"
 
 
-echo "Downloading cross secction data for ENDF/B-${ENDF_VERSION}..."
+echo "Downloading cross section data for ENDF/B-${ENDF_VERSION}..."
 TEMP_ZIP="${XS_DIR}/XS.tar.xz"
 wget -4 --show-progress -O "$TEMP_ZIP" "$XS_URL"
 echo "Extracting XS data"
