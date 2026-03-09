@@ -424,6 +424,7 @@ def test_get_mod_counts():
     grouper.residual_masks = 'all'
     grouper.post_irrad_only = False
     grouper.no_post_irrad = True
+    grouper.openmc_settings['min_timestep'] = 1e10
     grouper.full_fission_term = np.ones(len(irrad_times))
     yield_val = 1
     half_life = 10
