@@ -1345,10 +1345,10 @@ class PostProcess(BaseClass):
         if self.omc:
             concs = Concentrations(self.input_path)
             fission_term, fission_times = concs._calculate_fission_term(only_incore=False)
+            dx = np.diff(fission_times)
             concentration_data = CSVHandler(
                 self.concentration_path,
                 create=False).read_csv_with_time(trim=False)
-            dx = np.diff(fission_times)
             total_fissions = np.sum(dx * fission_term)
             self.logger.info(f'{total_fissions = }')
 
@@ -1432,7 +1432,7 @@ class PostProcess(BaseClass):
             f'Writing nuclide emission times concentration (net yield)')
         for index_val, (nuc, yield_val) in enumerate(sorted_yields.items()):
             self.logger.info(
-                f'{nuc} - {round(yield_val.n, 5)} +/- {round(yield_val.s, 5)}')
+                f'{nuc} - {round(yield_val.n, 7)} +/- {round(yield_val.s, 7)}')
             sizes.append(yield_val.n)
             if nuc in self.nuc_colors.keys():
                 colors[index_val] = self.nuc_colors[nuc]
