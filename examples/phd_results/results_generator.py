@@ -35,7 +35,7 @@ nps_analysis = {
         'run_post': True,
         'overwrite': True,
     },
-    'nps': [10, 100, 500, 1000, 5000],#, 10000, 50000],
+    'nps': [10, 100, 500, 1000, 5000],
     'multi_id': [name]
 }
 analysis_list.append(nps_analysis)
