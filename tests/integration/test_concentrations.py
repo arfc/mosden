@@ -27,15 +27,11 @@ def test_generate_concentrations(input_path, reference_output_path):
     output_path = Path(concentrations.output_dir) / "concentrations.csv"
     assert output_path.exists(), f"Output file {output_path} does not exist."
 
-    data = CSVHandler(output_path).read_csv()
+    data = CSVHandler(output_path).read_csv_with_time()
     assert data, "Output file is empty."
     
-    for nuclide, values in data.items():
-        assert isinstance(values['Concentration'], float), f"Concentration for {nuclide} is not a float."
-        assert isinstance(values['sigma Concentration'], float), f"Sigma Concentration for {nuclide} is not a float."
-
     reference_path = Path(reference_output_path) / "concentrations.csv"
-    reference_data = CSVHandler(reference_path).read_csv()
+    reference_data = CSVHandler(reference_path).read_csv_with_time()
 
     assert data == reference_data, "Output concentrations do not match the expected reference concentrations."
 
@@ -53,7 +49,7 @@ def test_chem_removal():
     concentrations.generate_concentrations()
     output_path = Path(concentrations.output_dir) / "concentrations.csv"
     assert output_path.exists(), f"Output file {output_path} does not exist."
-    data_nochem = CSVHandler(output_path).read_csv()
+    data_nochem = CSVHandler(output_path).read_csv_with_time()
     assert data_nochem, "Output file is empty."
 
     input_path = "tests/integration/test-data/input8.json"
@@ -63,7 +59,7 @@ def test_chem_removal():
     concentrations.generate_concentrations()
     output_path = Path(concentrations.output_dir) / "concentrations.csv"
     assert output_path.exists(), f"Output file {output_path} does not exist."
-    data_chem = CSVHandler(output_path).read_csv()
+    data_chem = CSVHandler(output_path).read_csv_with_time()
     assert data_chem, "Output file is empty."
 
     chems_removed = concentrations.reprocessing.keys()
@@ -73,4 +69,4 @@ def test_chem_removal():
     for nuclide in data_nochem.keys():
         for chem in chems_removed:
             if chem in nuclide:
-                assert (data_nochem[nuclide]['Concentration'] > data_chem[nuclide]['Concentration']), f'{nuclide} increased with removal of Xe'
+                assert (data_nochem[nuclide][0][0] > data_chem[nuclide][0][0]), f'{nuclide} increased with removal of Xe'

@@ -36,7 +36,7 @@
         "irrad_type": "saturation",
         "incore_s": 10,
         "excore_s": 0,
-        "spatial_scaling": "scaled",
+        "spatial_scaling": "unscaled",
         "net_irrad_s": 420,
         "decay_time": 600,
         "num_decay_times": 300

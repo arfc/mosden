@@ -9,11 +9,7 @@
             "postprocessing": true,
             "logger": true
         },
-        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
-        "processed_data_dir": "/home/luke/github/mosden/examples/keepin_1957/",
-        "output_dir": "/home/luke/github/mosden/examples/keepin_1957/",
-        "log_level": 20,
-        "log_file": "/home/luke/github/mosden/examples/keepin_1957/keepin_1957.log"
+        "log_level": 20
     },
     "data_options": {
         "half_life": "iaea/eval.csv",

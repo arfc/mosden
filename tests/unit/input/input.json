@@ -38,7 +38,7 @@
         "irrad_type": "saturation",
         "incore_s": 10,
         "excore_s": 0,
-        "net_irrad_s": 1200,
+        "net_irrad_s": 630,
         "decay_time": 600,
         "num_decay_times": 100
     },
@@ -46,6 +46,7 @@
         "num_groups": 6,
         "method": "nlls",
         "samples": 1,
-        "sample_func": "normal"
+        "sample_func": "normal",
+        "seed": 1
     }
 }

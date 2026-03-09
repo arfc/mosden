@@ -48,6 +48,10 @@
         "method": "nlls",
         "samples": 1,
         "sample_func": "normal",
+        "initial_params": {
+            "yields": [0.000508, 0.00245, 0.00138, 0.00239, 0.00603, 0.0108],
+            "half_lives": [55.6, 24.6, 16.4, 5.6, 2.6, 0.98]
+        },
         "seed": 1
     }
 }

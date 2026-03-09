@@ -43,7 +43,10 @@ DEFAULTS = {
         "concentration_handling": "CFY",
         "count_rate_handling": "data",
         "reprocessing_locations": [""],
-        "spatial_scaling": "scaled",
+        "spatial_scaling": {
+            "flux": True,
+            "reprocessing": True
+        },
         "base_removal_scaling": 0.5,
         "reprocessing": {
             "Xe": 0.0
@@ -53,20 +56,40 @@ DEFAULTS = {
         "excore_s": 0,
         "net_irrad_s": 10000,
         "decay_time": 1200,
-        "num_decay_times": 800
+        "num_decay_times": 800,
+        "openmc_settings": {
+            "nps": 5000,
+            "mode": 'fixed source',
+            "batches": 10,
+            "source": 1,
+            "chain": 'endfb71/omcchain/chain_endfb71_pwr.xml',
+            "x_sections": 'endfb71/xs/cross_sections.xml',
+            "omc_file": 'omc_run.jinja',
+            "omc_dir": f'{current_dir}/omc',
+            "run_omc": True,
+            "write_fission_json": True,
+            "write_nuyield_json": True
+        }
     },
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
+        "parameter_guesses": 10,
+        "initial_params": {
+            "yields": [],
+            "half_lives": []
+        },
         "samples": 1,
         "sample_func": "normal",
         "seed": seed
     },
     "post_options": {
         "sensitivity_subplots": True,
+        "self_relative_counts": False,
         "top_num_nuclides": {
             'yield_top': 20,
-            'conc_top': 15
+            'conc_top': 15,
+            'conc_over_time_top': 5
         },
         "num_stacked_nuclides": 2,
         "lit_data": ['keepin', 'brady', 'synetos'],

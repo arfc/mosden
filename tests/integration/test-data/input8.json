@@ -34,6 +34,10 @@
         "count_rate_handling": "data",
         "reprocessing_locations": ["excore"],
         "base_removal_scaling": 1.0,
+        "spatial_scaling":{
+            "flux": true,
+            "reprocessing": false
+        },
         "reprocessing": {
             "Xe": 1.0
         },
