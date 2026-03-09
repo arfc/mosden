@@ -6,23 +6,66 @@ import shutil
 from copy import deepcopy
 import subprocess
 from mosden.utils.chemical_schemes import Reprocessing
+import numpy as np
 
 base_input_file = './input.json'
 analysis_list = list()
 
 name = 'tintex'
+dt = 5
+tf = 30
 residence_time_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': False,
+        'run_post': False,
+        'overwrite': True,
+    },
+    'incore_s': [10, 20, 30],
+    'excore_s': [float(i) for i in np.arange(0, tf+dt, dt)],
+    'multi_id': [name]
+}
+analysis_list.append(residence_time_analysis)
+
+name = 'OpenMC Particles'
+nps_analysis = {
     'meta': {
         'name': name,
         'run_full': True,
         'run_post': True,
         'overwrite': True,
     },
-    'incore_s': [100, 50],
-    'excore_s': [0, 50],
+    'nps': [10, 100, 500, 1000, 5000],#, 10000, 50000],
     'multi_id': [name]
 }
-analysis_list.append(residence_time_analysis)
+analysis_list.append(nps_analysis)
+
+
+name = 'Decay Times'
+decay_time_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True,
+    },
+    'num_decay_times': [50, 100, 200, 400, 800],
+    'multi_id': [name]
+}
+analysis_list.append(decay_time_analysis)
+
+name = 'Decay Time'
+decay_time_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True,
+    },
+    'decay_times': [150, 300, 600, 1200, 2400, 4800],
+    'multi_id': [name]
+}
+analysis_list.append(decay_time_analysis)
 
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:
