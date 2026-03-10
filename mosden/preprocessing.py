@@ -76,7 +76,7 @@ class Preprocess(BaseClass):
             elif data_type == 'half_life':
                 key = 'half_life_s'
                 target_key = 'half_life'
-            elif data_type == 'yield':
+            elif data_type == 'fission_yield':
                 key = 'yield'
                 target_key = 'CFY'
             else:
@@ -85,6 +85,7 @@ class Preprocess(BaseClass):
             for nuc, nuc_data in self.debug_dnp_data.items():
                 debug_data = nuc_data[key]
                 data = self._read_processed_data(data_type)
+                data[nuc] = dict()
                 _, old_val = list(data.items())[-1]
                 if type(old_val) is float:
                     data[nuc] = debug_data
