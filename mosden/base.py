@@ -58,13 +58,18 @@ class BaseClass:
                                 filemode=log_mode)
 
         self.name: str = self.input_data['name']
-        self.output_dir: str = self.input_data['file_options']['output_dir']
+        self.output_dir: str = self.input_data['file_options'].get('output_dir', '')
         self.logger.debug(f'{self.name = }')
 
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
         self.fissiles: dict[str, float] = data_options.get(
             'fissile_fractions', {})
         self.fissile_targets: list = list(self.fissiles.keys())
+
+        self.debug_dnp_data: dict = data_options.get('debug_dnps', {})
+        self.has_debug_dnps: bool = True
+        if self.debug_dnp_data == {}:
+            self.has_debug_dnps = False
 
         self.data_types: list[str] = [
             'fission_yield',
@@ -169,7 +174,7 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
-    
+     
     def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
         """
         Get all the times steps over which count rate data exists
@@ -425,6 +430,28 @@ class BaseClass:
         data_to_write = existing_data
         with open(self.postproc_path, 'w') as f:
             json.dump(data_to_write, f, indent=4)
+        return None
+    
+
+    def _write_processed_data(self, data_type: str, data: dict[str, dict[str, float]]) -> None:
+        """
+        Read the processed data for a given fissile nuclide.
+
+        Parameters
+        ----------
+        data_type : str
+            The type of data to read (e.g., "fission_yield", "half_life",
+                "cross_section", "emission_probability").
+        data : dict[str: dict[str: float]]
+            The processed data for the fissile nuclide.
+
+        """
+        data_path = os.path.join(self.processed_data_dir, f'{data_type}.csv')
+        csv_handler = CSVHandler(data_path, create=False)
+        if not csv_handler._file_exists():
+            raise FileNotFoundError(
+                f"Processed data file {data_path} does not exist.")
+        data = csv_handler.write_csv(data)
         return None
 
     def _read_processed_data(self,

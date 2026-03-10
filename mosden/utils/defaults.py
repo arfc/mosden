@@ -24,7 +24,8 @@ DEFAULTS = {
         "processed_data_dir": f"{current_dir}/",
         "output_dir": f"{current_dir}/",
         "log_level": 20,
-        "log_file": f"{current_dir}/log.log"
+        "log_file": f"{current_dir}/log.log",
+        "debug_dnps": {}
     },
     "data_options": {
         "half_life": "iaea/eval.csv",

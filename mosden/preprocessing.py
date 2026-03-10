@@ -56,7 +56,46 @@ class Preprocess(BaseClass):
                 if any(word in path for word in ids):
                     func(data_val, path)
         self.save_postproc()
+        self._add_debug_dnps()
         self.time_track(start, 'Preprocessing')
+        return None
+
+    def _add_debug_dnps(self) -> None:
+        """
+        Writes debug DNPs to all data files (if applicable)
+        """
+        if not self.debug_dnp_data:
+            return None
+        
+        data_types = ['emission_probability', 'half_life', 'fission_yield']
+        
+        for data_type in data_types:
+            if data_type == 'emission_probability':
+                key = 'pn'
+                target_key = 'emission probability'
+            elif data_type == 'half_life':
+                key = 'half_life_s'
+                target_key = 'half_life'
+            elif data_type == 'yield':
+                key = 'yield'
+                target_key = 'CFY'
+            else:
+                raise KeyError('Data type does not have a valid key')
+
+            for nuc, nuc_data in self.debug_dnp_data.items():
+                debug_data = nuc_data[key]
+                data = self._read_processed_data(data_type)
+                _, old_val = list(data.items())[-1]
+                if type(old_val) is float:
+                    data[nuc] = debug_data
+                    continue
+
+                for keys_needed, vals_used in old_val.items():
+                    if keys_needed == target_key:
+                        data[nuc][keys_needed] = debug_data
+                    else:
+                        data[nuc][keys_needed] = vals_used
+            self._write_processed_data(data_type, data)
         return None
 
     def openmc_preprocess(self, data_val: str, unprocessed_path: str) -> None:

@@ -23,7 +23,8 @@ class InputHandler:
         self.preprocessing_occurance_index = 2
         self.leaf_dict_keys: set = set((
             "reprocessing",
-            "fissile_fractions"
+            "fissile_fractions",
+            "debug_dnps"
         ))
         
         return None
@@ -90,6 +91,11 @@ class InputHandler:
                 if InputHandler._default_counts[full_key] == self.preprocessing_occurance_index:
                     self.logger.warning(f"Using default for '{full_key}': {defaults[k]!r}", stacklevel=2)
                 final[k] = defaults[k]
+
+        for k in data.keys():
+            if k not in defaults:
+                final[k] = data[k]
+
         return final
     
     def _check_behaviour(self, data: dict) -> None:

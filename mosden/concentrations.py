@@ -93,10 +93,60 @@ class Concentrations(BaseClass):
                 f"Concentration handling method '{
                     self.conc_method}' is not implemented")
 
+        data = self._add_debug_dnp_data(data)
         CSVHandler(self.concentration_path, self.conc_overwrite).write_csv_with_time(data)
         self.save_postproc()
         self.time_track(start, 'Concentrations')
         return
+    
+    def _add_debug_dnp_data(self, data: list[dict[str, float]]) -> list[dict[str, float]]:
+        """
+        Add debug DNP data to the existing concentration data
+
+        Parameters
+        ----------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
+        
+        Returns
+        -------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
+        """
+        if not self.has_debug_dnps:
+            return data
+
+        times = list(sorted(set(i['Time'] for i in data)))
+        for nuc, nuc_vals in self.debug_dnp_data.items():
+            fission_rates, _ = self._calculate_fission_term(False)
+            len_diff = len(times) - len(fission_rates)
+            fission_rates = np.append(fission_rates, [0]*len_diff)
+            concs = [0]
+            p_concs = [0]
+            lam = np.log(2) / nuc_vals['half_life_s']
+            y = nuc_vals['yield']
+            dt = np.diff(times)
+            try:
+                y_p = nuc_vals['parent']['yield']
+                lam_p  = np.log(2) / nuc_vals['parent']['half_life_s']
+            except NameError:
+                cur_p_conc = 0
+                y_p = 0
+                lam_p = 1
+            for ti, t in enumerate(times[:-1]):
+                cur_p_conc = ((p_concs[ti] + fission_rates[ti] * dt[ti] * y_p) / (1 + lam_p*dt[ti]))
+                cur_conc = ((concs[ti] + dt[ti] * lam * cur_p_conc + fission_rates[ti] * dt[ti] * y) / (1 + lam*dt[ti]))
+                p_concs.append(cur_p_conc)
+                concs.append(cur_conc)
+                data.append(
+                    {
+                        'Time': t,
+                        'Nuclide': nuc,
+                        'Concentration': concs[ti],
+                        'sigma Concentration': 1e-12
+                    }
+                )
+        return data
 
     def CFY_concentrations(self) -> list[dict[str, float]]:
         """
@@ -413,7 +463,7 @@ class Concentrations(BaseClass):
             json.dump(nuyield, f, indent=4, default=self._json_default)
         return nuyield
     
-    def _calculate_fission_term(self, only_incore: bool=True) -> list[float]:
+    def _calculate_fission_term(self, only_incore: bool=True) -> tuple[list[float], list[float]]:
         """
         Calculate the fission rate or number of fissions.
         The fission rate is used for saturation irradiations, while the number
