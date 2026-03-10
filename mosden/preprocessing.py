@@ -85,18 +85,18 @@ class Preprocess(BaseClass):
             for nuc, nuc_data in self.debug_dnp_data.items():
                 debug_data = nuc_data[key]
                 data = self._read_processed_data(data_type)
+                _, old_val = list(data.items())[0]
                 data[nuc] = dict()
-                _, old_val = list(data.items())[-1]
                 if type(old_val) is float:
                     data[nuc] = debug_data
                     continue
-
+                
                 for keys_needed, vals_used in old_val.items():
                     if keys_needed == target_key:
                         data[nuc][keys_needed] = debug_data
                     else:
                         data[nuc][keys_needed] = vals_used
-            self._write_processed_data(data_type, data)
+            self._write_processed_data(data_type, True, data)
         return None
 
     def openmc_preprocess(self, data_val: str, unprocessed_path: str) -> None:
