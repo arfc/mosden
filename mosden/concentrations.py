@@ -146,6 +146,14 @@ class Concentrations(BaseClass):
                         'sigma Concentration': 1e-12
                     }
                 )
+            data.append(
+                {
+                    'Time': times[-1],
+                    'Nuclide': nuc,
+                    'Concentration': concs[-1],
+                    'sigma Concentration': 1e-12
+                }
+            )
         return data
 
     def CFY_concentrations(self) -> list[dict[str, float]]:
