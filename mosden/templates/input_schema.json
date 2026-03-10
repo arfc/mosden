@@ -129,6 +129,46 @@
                         "type": "number",
                         "description": "These properties should be named the fissile nuclide (such as U235) and detail the weighting as a float (e.g. 0.3)"
                     }
+                },
+                "debug_dnps": {
+                    "type": "object",
+                    "description": "A set of delayed neutron precursors that can be manually defined for debugging purposes",
+                    "additionalProperties": {
+                        "type": "object",
+                        "description": "A single delayed neutron precursor definition",
+                        "properties": {
+                            "yield": {
+                                "type": "number",
+                                "description": "Yield of the nuclide"
+                            },
+                            "half_life_s": {
+                                "type": "number",
+                                "description": "Half-life in seconds"
+                            },
+                            "pn": {
+                                "type": "number",
+                                "description": "Delayed neutron emission probability"
+                            },
+                            "parent": {
+                                "type": "object",
+                                "description": "Optional parent nuclide of the DNP",
+                                "properties": {
+                                    "yield": {
+                                        "type": "number",
+                                        "description": "Yield of the parent (times the branching ratio)"
+                                    },
+                                    "half_life_s": {
+                                        "type": "number",
+                                        "description": "Half-life in seconds"
+                                    }
+                                },
+                                "required": ["yield", "half_life_s"],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": ["yield", "half_life_s", "pn"],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
