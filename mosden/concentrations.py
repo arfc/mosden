@@ -99,7 +99,41 @@ class Concentrations(BaseClass):
         self.time_track(start, 'Concentrations')
         return
     
-    def _evaluate_conc(self, cur_conc: float, cur_p_conc: float, lam_p: float, lam: float, ti: int, dt: list[float], fission_rates: list[float], concs: list[float], p_concs: list[float], y_p: float, y: float):
+    def _evaluate_conc(self, cur_conc: float, cur_p_conc: float, lam_p: float, lam: float, ti: int, dt: list[float], fission_rates: list[float], concs: list[float], p_concs: list[float], y_p: float, y: float) -> tuple[float, float]:
+        """
+        Evaluates the concentration of a nuclide and its decay parent.
+        Yield of parent is assumed to be scaled by branching ratio.
+
+        Parameters
+        ----------
+        cur_conc : float
+            Current concentration of target nuclide
+        cur_p_conc : float
+            Current concentration of parent nuclide
+        lam_p : float
+            Parent decay constant [s]
+        lam : float
+            Target decay constant [s]
+        ti : int
+            The current time index
+        dt : list[float]
+            The list of time step sizes [s]
+        fission_rates : list[float]
+            The list of fission rates at each time step [1/s]
+        concs : list[float]
+            The list of concentrations at each time step for the target nuclide
+        p_concs : list[float]
+            The list of concentrations at each time step for the parent nuclide
+        y_p : float
+            Parent yield per fission scaled by branching ratio
+        y : float
+            Target yield per fission
+
+        Returns
+        -------
+        cur_conc, cur_p_conc : tuple[float, float]
+            The updated concentrations of the target and parent nuclides
+        """
         exp_p = np.exp(-lam_p * dt[ti])
         exp_c = np.exp(-lam * dt[ti])
 
