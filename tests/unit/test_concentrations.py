@@ -85,15 +85,15 @@ def test_evaluate_conc():
     assert np.isclose(new_conc, expected)
 
     # Pulse irradiation
-    lam   = np.log(2) / 10
+    lam = np.log(2) / 10
     lam_p = 1.0
     y, y_p = 1.0, 0.0
     F = 846.364
 
     irrad_times = [0, 1e-5]
-    decay_times = list(np.linspace(1e-5, 600, 301))
-    all_times   = irrad_times + decay_times[1:]
-    dt_all      = np.diff(all_times)
+    decay_times = list(np.geomspace(1e-2, 600, 300))
+    all_times = irrad_times + (decay_times + 1e-5)
+    dt_all = np.diff(all_times)
 
     fission_rates = [F] + [0] * (len(dt_all))
 
@@ -109,13 +109,13 @@ def test_evaluate_conc():
         concs_all.append(cur_conc)
         p_concs_all.append(cur_p_conc)
 
-    times_arr  = np.array(all_times)
-    concs_arr  = np.array(concs_all)
+    times_arr = np.array(all_times)
+    concs_arr = np.array(concs_all)
     total_fissions = F * 1e-5
-    total_delnus   = trapezoid(lam * concs_arr, times_arr)
-    yield_val      = total_delnus / total_fissions
+    total_delnus = trapezoid(lam * concs_arr, times_arr)
+    yield_val = total_delnus / total_fissions
 
-    assert np.isclose(yield_val, 1.0, atol=1e-4), 'Yield incorrect'
+    assert np.isclose(yield_val, 1.0, atol=1e-6), 'Yield incorrect'
 
 
 def test_evaluate_conc():
