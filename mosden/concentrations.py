@@ -99,6 +99,35 @@ class Concentrations(BaseClass):
         self.time_track(start, 'Concentrations')
         return
     
+    def _evaluate_conc(self, cur_conc: float, cur_p_conc: float, lam_p: float, lam: float, ti: int, dt: list[float], fission_rates: list[float], concs: list[float], p_concs: list[float], y_p: float, y: float):
+        exp_p = np.exp(-lam_p * dt[ti])
+        exp_c = np.exp(-lam * dt[ti])
+
+        if lam_p > 0:
+            cur_p_conc = p_concs[ti] * exp_p + (fission_rates[ti] * y_p / lam_p) * (1 - exp_p)
+        else:
+            cur_p_conc = p_concs[ti] + fission_rates[ti] * y_p * dt[ti]
+
+        if lam > 0:
+            fission_source = (fission_rates[ti] * y / lam) * (1 - exp_c)
+            if abs(lam - lam_p) > 1e-10:
+                fission_source += fission_rates[ti] * y_p * (
+                    (1 - exp_c) / lam - (exp_p - exp_c) / (lam - lam_p)
+                )
+            else:
+                fission_source += fission_rates[ti] * y_p * dt[ti] * exp_c
+        else:
+            fission_source = fission_rates[ti] * y * dt[ti]
+
+        B = lam_p * p_concs[ti]
+        if abs(lam - lam_p) > 1e-10:
+            feed_term = (B / (lam - lam_p)) * (exp_p - exp_c)
+        else:
+            feed_term = B * dt[ti] * exp_c
+
+        cur_conc = concs[ti] * exp_c + fission_source + feed_term
+        return cur_conc, cur_p_conc
+    
     def _add_debug_dnp_data(self, data: list[dict[str, float]]) -> list[dict[str, float]]:
         """
         Add debug DNP data to the existing concentration data
@@ -126,16 +155,16 @@ class Concentrations(BaseClass):
             lam = np.log(2) / nuc_vals['half_life_s']
             y = nuc_vals['yield']
             dt = np.diff(times)
+            cur_p_conc = 0
+            cur_conc = 0
             try:
                 y_p = nuc_vals['parent']['yield']
                 lam_p  = np.log(2) / nuc_vals['parent']['half_life_s']
             except NameError:
-                cur_p_conc = 0
                 y_p = 0
                 lam_p = 1
             for ti, t in enumerate(times[:-1]):
-                cur_p_conc = ((p_concs[ti] + fission_rates[ti] * dt[ti] * y_p) / (1 + lam_p*dt[ti]))
-                cur_conc = ((concs[ti] + dt[ti] * lam * cur_p_conc + fission_rates[ti] * dt[ti] * y) / (1 + lam*dt[ti]))
+                cur_conc, cur_p_conc = self._evaluate_conc(cur_conc, cur_p_conc, lam_p, lam, ti, dt, fission_rates, concs, p_concs, y_p, y)
                 p_concs.append(cur_p_conc)
                 concs.append(cur_conc)
                 data.append(
