@@ -1,5 +1,6 @@
 from logging import INFO
 from uncertainties import ufloat, unumpy
+import uncertainties.umath as umath
 import numpy as np
 import os
 from mosden.utils.literature_handler import Literature
@@ -10,7 +11,7 @@ from mosden.utils.csv_handler import CSVHandler
 from mosden.base import BaseClass
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
-from scipy.integrate import cumulative_trapezoid, trapezoid
+from scipy.integrate import cumulative_trapezoid, trapezoid, simpson
 import re
 import pandas as pd
 from scipy.stats import linregress
@@ -1323,7 +1324,7 @@ class PostProcess(BaseClass):
             use_nucs.append(nuc)
         data_dict['net_nucs'] = use_nucs
         return data_dict
-
+    
     def _get_sorted_dnp_data(self) -> tuple[dict, dict, dict]:
         """
         Get the sorted delayed neutron precursor data by yield
@@ -1341,6 +1342,7 @@ class PostProcess(BaseClass):
 
         self.total_delayed_neutrons: float = 0.0
         nuc_concs: dict[str, float] = dict()
+        irrad_index = self.get_irrad_index(False)
 
         if self.omc:
             concs = Concentrations(self.input_path)
@@ -1371,7 +1373,9 @@ class PostProcess(BaseClass):
                     std_devs.append(std_dev)
                 concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
                 delnus_over_time = concs_with_uncerts * Pn * lam_val
-                total_delnus = trapezoid(delnus_over_time, times)
+                irrad_delnus = trapezoid(delnus_over_time[:irrad_index+1], times[:irrad_index+1])
+                decay_delnus = simpson(delnus_over_time[irrad_index:], times[irrad_index:])
+                total_delnus = irrad_delnus + decay_delnus
                 yield_val = total_delnus / total_fissions
 
             nuc_yield[nuc] = yield_val
