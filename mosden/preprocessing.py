@@ -73,23 +73,30 @@ class Preprocess(BaseClass):
             if data_type == 'emission_probability':
                 key = 'pn'
                 target_key = 'emission probability'
+                possible_old_val = {'emission probability': 0.0,
+                           'sigma emission probability': 1e-12}
             elif data_type == 'half_life':
                 key = 'half_life_s'
                 target_key = 'half_life'
+                possible_old_val = {'half_life': 10,
+                           'sigma half_life': 1e-12}
             elif data_type == 'fission_yield':
                 key = 'yield'
                 target_key = 'CFY'
+                possible_old_val = {'CFY': 1,
+                           'sigma CFY': 1e-12}
             else:
                 raise KeyError('Data type does not have a valid key')
 
             for nuc, nuc_data in self.debug_dnp_data.items():
                 debug_data = nuc_data[key]
                 data = self._read_processed_data(data_type)
-                _, old_val = list(data.items())[0]
+                try:
+                    _, old_val = list(data.items())[0]
+                except IndexError:
+                    old_val = possible_old_val
+
                 data[nuc] = dict()
-                if type(old_val) is float:
-                    data[nuc] = debug_data
-                    continue
                 
                 for keys_needed, vals_used in old_val.items():
                     if keys_needed == target_key:
