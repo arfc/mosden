@@ -38,8 +38,8 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 99.9,
-        "excore_s": 0.1,
+        "incore_s": 0.3,
+        "excore_s": 0,
         "net_irrad_s": 30,
         "decay_time": 600,
         "num_decay_times": 100,

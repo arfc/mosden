@@ -56,7 +56,54 @@ class Preprocess(BaseClass):
                 if any(word in path for word in ids):
                     func(data_val, path)
         self.save_postproc()
+        self._add_debug_dnps()
         self.time_track(start, 'Preprocessing')
+        return None
+
+    def _add_debug_dnps(self) -> None:
+        """
+        Writes debug DNPs to all data files (if applicable)
+        """
+        if not self.debug_dnp_data:
+            return None
+        
+        data_types = ['emission_probability', 'half_life', 'fission_yield']
+        
+        for data_type in data_types:
+            if data_type == 'emission_probability':
+                key = 'pn'
+                target_key = 'emission probability'
+                possible_old_val = {'emission probability': 0.0,
+                           'sigma emission probability': 1e-12}
+            elif data_type == 'half_life':
+                key = 'half_life_s'
+                target_key = 'half_life'
+                possible_old_val = {'half_life': 10,
+                           'sigma half_life': 1e-12}
+            elif data_type == 'fission_yield':
+                key = 'yield'
+                target_key = 'CFY'
+                possible_old_val = {'CFY': 1,
+                           'sigma CFY': 1e-12}
+            else:
+                raise KeyError('Data type does not have a valid key')
+
+            for nuc, nuc_data in self.debug_dnp_data.items():
+                debug_data = nuc_data[key]
+                data = self._read_processed_data(data_type)
+                try:
+                    _, old_val = list(data.items())[0]
+                except IndexError:
+                    old_val = possible_old_val
+
+                data[nuc] = dict()
+                
+                for keys_needed, vals_used in old_val.items():
+                    if keys_needed == target_key:
+                        data[nuc][keys_needed] = debug_data
+                    else:
+                        data[nuc][keys_needed] = vals_used
+            self._write_processed_data(data_type, True, data)
         return None
 
     def openmc_preprocess(self, data_val: str, unprocessed_path: str) -> None:

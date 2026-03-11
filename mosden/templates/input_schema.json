@@ -84,7 +84,7 @@
                     "description": "Path to the half-life unprocessed data",
                     "oneOf": [
                     {
-                        "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv"]
+                        "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv"]
                     },
                     {
                         "pattern": "^([A-Za-z0-9]+/)?omcchain/.+\\.xml"
@@ -98,12 +98,12 @@
                 "emission_probability": {
                     "type": "string",
                     "description": "Path to the emission probability data",
-                    "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv"]
+                    "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv"]
                 },
                 "fission_yield": {
                     "type": "string",
                     "description": "Path to the fission yield data",
-                    "pattern": "^(?:.*/)?(endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml)$"
+                    "pattern": "^(?:.*/)?(endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml|omcchain/four_dnp_test.xml)$"
                 },
                 "decay_time_spacing": {
                     "type": "string",
@@ -129,6 +129,46 @@
                         "type": "number",
                         "description": "These properties should be named the fissile nuclide (such as U235) and detail the weighting as a float (e.g. 0.3)"
                     }
+                },
+                "debug_dnps": {
+                    "type": "object",
+                    "description": "A set of delayed neutron precursors that can be manually defined for debugging purposes",
+                    "additionalProperties": {
+                        "type": "object",
+                        "description": "A single delayed neutron precursor definition",
+                        "properties": {
+                            "yield": {
+                                "type": "number",
+                                "description": "Yield of the nuclide"
+                            },
+                            "half_life_s": {
+                                "type": "number",
+                                "description": "Half-life in seconds"
+                            },
+                            "pn": {
+                                "type": "number",
+                                "description": "Delayed neutron emission probability"
+                            },
+                            "parent": {
+                                "type": "object",
+                                "description": "Optional parent nuclide of the DNP",
+                                "properties": {
+                                    "yield": {
+                                        "type": "number",
+                                        "description": "Yield of the parent (times the branching ratio)"
+                                    },
+                                    "half_life_s": {
+                                        "type": "number",
+                                        "description": "Half-life in seconds"
+                                    }
+                                },
+                                "required": ["yield", "half_life_s"],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": ["yield", "half_life_s", "pn"],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -145,6 +185,14 @@
                     "type": "string",
                     "description": "Method to use for calculating the delayed neutron count rate. This can either be from data or using existing group parameters from a MoSDeN output",
                     "enum": ["data", "groupfit"]
+                },
+                "residual_handling": {
+                    "type": "array",
+                    "description": "Which data to include in residual calculation. Default is post-irradiation `post-irrad` only. `in-core` means to include the residual solve only while the sample is in the core. `all` means to include the residual at all times during and post irradiation.",
+                    "items": {
+                        "type": "string",
+                        "enum": ["post-irrad", "incore", "excore", "all"]
+                    }
                 },
                 "reprocessing_locations": {
                     "type": "array",
@@ -253,6 +301,10 @@
                         "write_nuyield_json": {
                             "type": "boolean",
                             "description": "Whether or not to write the delayed neutron yield output to a JSON file"
+                        },
+                        "min_timestep": {
+                            "type": "number",
+                            "description": "The minimum time step size to use in OpenMC"
                         }
                     }
                 }
