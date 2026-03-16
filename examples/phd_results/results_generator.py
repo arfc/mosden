@@ -17,8 +17,8 @@ tf = 30
 residence_time_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
-        'run_post': False,
+        'run_full': True,
+        'run_post': True,
         'overwrite': True,
     },
     'incore_s': [10, 20, 30],
@@ -27,45 +27,57 @@ residence_time_analysis = {
 }
 analysis_list.append(residence_time_analysis)
 
-name = 'OpenMC Particles'
-nps_analysis = {
+name = 'decay_time_nodes'
+decay_times_analysis = {
     'meta': {
         'name': name,
         'run_full': True,
         'run_post': True,
-        'overwrite': True,
+        'overwrite': True
     },
-    'nps': [10, 100, 500, 1000, 5000],
+    'num_decay_times': [50, 100, 150, 200, 250, 400, 800],
     'multi_id': [name]
 }
-analysis_list.append(nps_analysis)
+analysis_list.append(decay_times_analysis)
 
-
-name = 'Decay Times'
-decay_time_analysis = {
+name = 'irrad_time'
+decay_times_analysis = {
     'meta': {
         'name': name,
         'run_full': True,
         'run_post': True,
-        'overwrite': True,
+        'overwrite': True
     },
-    'num_decay_times': [50, 100, 200, 400, 800],
+    'net_irrad_s': [1, 10, 100],
     'multi_id': [name]
 }
-analysis_list.append(decay_time_analysis)
+analysis_list.append(decay_times_analysis)
 
-name = 'Decay Time'
-decay_time_analysis = {
+name = 'omc_timestep'
+decay_times_analysis = {
     'meta': {
         'name': name,
         'run_full': True,
         'run_post': True,
-        'overwrite': True,
+        'overwrite': True
     },
-    'decay_times': [150, 300, 600, 1200, 2400, 4800],
+    'max_timestep': [0.1, 0.05, 0.01, 0.005, 0.001],
     'multi_id': [name]
 }
-analysis_list.append(decay_time_analysis)
+analysis_list.append(decay_times_analysis)
+
+name = 'total_decay_time'
+total_decay_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'decay_time': [150, 300, 600, 1200, 2400, 4800],
+    'multi_id': [name]
+}
+analysis_list.append(total_decay_analysis)
 
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:

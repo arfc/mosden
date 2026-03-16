@@ -33,15 +33,15 @@
         "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "saturation",
+        "irrad_type": "intermediate",
         "spatial_scaling": {
             "flux": false,
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 0.3,
+        "incore_s": 0.1,
         "excore_s": 0,
-        "net_irrad_s": 30,
+        "net_irrad_s": 10,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
@@ -50,7 +50,8 @@
             "source": 1e3,
             "run_omc": true,
             "write_fission_json": true,
-            "write_nuyield_json": true
+            "write_nuyield_json": true,
+            "max_timestep": 1e10
         }
     },
     "group_options": {

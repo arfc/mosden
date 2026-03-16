@@ -79,10 +79,16 @@ class MultiPostProcess():
                 post.name = f'{post.num_decay_times} nodes'
         elif self._is_name('total_decay_time'):
             for post in self.posts:
-                post.name = f'T = {post.total_decay_time}s'
+                post.name = rf'$T_d$ = {post.total_decay_time}s'
         elif self._is_name('detailed_decay'):
             for post in self.posts:
-                post.name = f'T = {post.total_decay_time}s with {post.num_decay_times} nodes'
+                post.name = rf'$T_d$ = {post.total_decay_time}s with {post.num_decay_times} nodes'
+        elif self._is_name('irrad_time'):
+            for post in self.posts:
+                post.name = f'T = {post.net_irrad_s}'
+        elif self._is_name('omc_timestep'):
+            for post in self.posts:
+                post.name = rf'$\Delta t$ = {post.openmc_settings["max_timestep"]}'
         return None
 
     def _post_heatmap_setup(self) -> None:
