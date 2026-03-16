@@ -302,9 +302,9 @@
                             "type": "boolean",
                             "description": "Whether or not to write the delayed neutron yield output to a JSON file"
                         },
-                        "min_timestep": {
+                        "max_timestep": {
                             "type": "number",
-                            "description": "The minimum time step size to use in OpenMC"
+                            "description": "The maximum time step size to use in OpenMC"
                         }
                     }
                 }

@@ -38,14 +38,14 @@ def test_get_irrad_index_with_min_time():
     index = base.get_irrad_index(False)
     assert index == 3
 
-    base.openmc_settings['min_timestep'] = 1
+    base.openmc_settings['max_timestep'] = 1
     index = base.get_irrad_index(False)
     assert index == 5
 
     base.t_net = 30
     base.t_in = 1
     base.t_ex = 0
-    base.openmc_settings['min_timestep'] = 0.25
+    base.openmc_settings['max_timestep'] = 0.25
     index = base.get_irrad_index(False)
     assert index == 120
 
@@ -67,11 +67,11 @@ def test_irrad_and_update():
     base.t_net = 10
     base.t_in = 5
     base.t_ex = 5
-    base.openmc_settings['min_timestep'] = 1e10
+    base.openmc_settings['max_timestep'] = 1e10
     assert base.t_in == 5
     assert base.t_ex == 5
     assert base.t_net == 10
-    assert base.openmc_settings['min_timestep'] > 5
+    assert base.openmc_settings['max_timestep'] > 5
     index = base.get_irrad_index(False)
     assert index == 2
 
@@ -132,14 +132,14 @@ def test_times_rates_mask():
     base.t_in = 1
     base.t_ex = 1
     base.t_net = 10
-    base.openmc_settings['min_timestep'] = 1e10
+    base.openmc_settings['max_timestep'] = 1e10
     base.flux_scaling = False
     assert not base.flux_scaling
     data = base._get_times_and_rates()
     assert base.t_in == 1
     assert base.t_ex == 1
     assert base.t_net == 10
-    assert base.openmc_settings['min_timestep'] > 1
+    assert base.openmc_settings['max_timestep'] > 1
     assert base._set_cycle_times(1) == [1]
 
     assert data['timesteps'][:10] == [1]*10
@@ -184,21 +184,21 @@ def test_times_rates_mask():
 def test_openmc_time_setting():
     input_path = './tests/unit/input/input.json'
     base = BaseClass(input_path)
-    base.openmc_settings['min_timestep'] = 1
+    base.openmc_settings['max_timestep'] = 1
     base.t_in = 1
     base.t_ex = 1
     base.t_net = 5
     in_vals = base._set_cycle_times(base.t_in)
     assert np.allclose(in_vals, [1])
 
-    base.openmc_settings['min_timestep'] = 0.5
+    base.openmc_settings['max_timestep'] = 0.5
     in_vals = base._set_cycle_times(base.t_in)
     assert np.allclose(in_vals, [0.5, 0.5])
 
-    base.openmc_settings['min_timestep'] = 0.3
+    base.openmc_settings['max_timestep'] = 0.3
     in_vals = base._set_cycle_times(base.t_in)
     assert np.allclose(in_vals, [0.3, 0.3, 0.3, 0.1])
 
-    base.openmc_settings['min_timestep'] = 1/3
+    base.openmc_settings['max_timestep'] = 1/3
     in_vals = base._set_cycle_times(base.t_in)
     assert np.allclose(in_vals, [1/3, 1/3, 1/3])

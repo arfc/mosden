@@ -215,12 +215,12 @@ class BaseClass:
         values : list[float]
             List of times to pass to OpenMC per residence
         """
-        min_value = np.min((self.openmc_settings['min_timestep'], residence_time))
-        if min_value == 0.0:
+        max_value = np.min((self.openmc_settings['max_timestep'], residence_time))
+        if max_value == 0.0:
             return []
-        min_cycles = int(np.floor(residence_time/min_value))
-        remainder = residence_time - min_cycles * min_value
-        values = [min_value] * min_cycles + [remainder]
+        min_cycles = int(np.floor(residence_time/max_value))
+        remainder = residence_time - min_cycles * max_value
+        values = [max_value] * min_cycles + [remainder]
         if np.isclose(values[-1], 0.0):
             values = values[:-1]
         return values
