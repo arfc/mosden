@@ -153,11 +153,10 @@ class Concentrations(BaseClass):
         else:
             fission_source = fission_rates[ti] * y * dt[ti]
 
-        B = lam_p * p_concs[ti]
         if abs(lam - lam_p) > 1e-10:
-            feed_term = (B / (lam - lam_p)) * (exp_p - exp_c)
+            feed_term = (lam_p * p_concs[ti] / (lam - lam_p)) * (exp_p - exp_c)
         else:
-            feed_term = B * dt[ti] * exp_c
+            feed_term = lam_p * p_concs[ti] * dt[ti] * exp_c
 
         cur_conc = concs[ti] * exp_c + fission_source + feed_term
         return cur_conc, cur_p_conc

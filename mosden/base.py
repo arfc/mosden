@@ -292,7 +292,7 @@ class BaseClass:
         timesteps[-1] = timesteps[-1] - diff
 
         decay_time_steps = np.diff(self.decay_times, prepend=[0.0])
-        for t in decay_time_steps:
+        for t in decay_time_steps[1:]:
             timesteps.append(t)
             source_rates.append(0)
 
@@ -324,7 +324,8 @@ class BaseClass:
                 0, self.decay_time, self.num_times)
         elif self.decay_time_spacing == 'log':
             self.decay_times: np.ndarray = np.geomspace(
-                1e-2, self.decay_time, self.num_times)
+                1e-2, self.decay_time, self.num_times-1)
+            self.decay_times = np.append([0], self.decay_times)
         else:
             raise ValueError(
                 f"Decay time spacing '{self.decay_time_spacing}' not supported.")

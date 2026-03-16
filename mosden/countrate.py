@@ -254,7 +254,7 @@ class CountRate(BaseClass):
                         unumpy.exp(-decay_const * use_times)
                 else:
                     if self.post_irrad_only:
-                        index_offset = post_irrad_index + 1
+                        index_offset = post_irrad_index
                     else:
                         index_offset = 0
                     if self.no_post_irrad:

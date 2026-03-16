@@ -451,3 +451,22 @@ def test_get_mod_counts():
     fit_irrad = grouper._get_irrad_counts(irrad_times, parameters)
     expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * irrad_times)))
     assert np.allclose(fit_irrad[1:], expected_counts[:-1]), "Fit error"
+
+def test_restructure_intermediate_yields_offsets():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.num_groups = 1
+    grouper.irrad_type = 'intermediate'
+    grouper.t_net = 1e-6
+    grouper.fission_times = np.array([0.0, 1e-6])
+    grouper.full_fission_term = np.array([9900.61988839969])
+    lam_val = np.log(2) / 10
+
+    fiss_component = grouper._get_effective_fission(np.asarray([lam_val]), np.exp, np.expm1)
+    scaled_param = (9900.61988839969 * 1e-6 * lam_val)
+    assert np.isclose(fiss_component, scaled_param)
+
+    params = np.array([scaled_param, 10.0])
+
+    actual = grouper._restructure_intermediate_yields(params, to_yield=True)
+    assert np.isclose(actual[0], 1.0, rtol=1e-6)
