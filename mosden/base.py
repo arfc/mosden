@@ -364,8 +364,8 @@ class BaseClass:
         if single_time_val:
             return 0
         
-        in_use_time = np.min((self.openmc_settings['min_timestep'], self.t_in))
-        ex_use_time = np.min((self.openmc_settings['min_timestep'], self.t_ex))
+        in_use_time = np.min((self.openmc_settings['max_timestep'], self.t_in))
+        ex_use_time = np.min((self.openmc_settings['max_timestep'], self.t_ex))
 
         if self.t_in == 0 and self.t_ex != 0:
             ratio = self.t_net / ex_use_time
