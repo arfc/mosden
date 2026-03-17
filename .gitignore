@@ -172,7 +172,13 @@ cython_debug/
 !/examples/**/input.json
 !/examples/**/*.py
 
-/examples/phd_results/tintex/*
+/examples/phd_results/*
+!/examples/phd_results/input.json
+!/examples/phd_results/results_generator.py
+!/examples/phd_results/prk/input.json
+!/examples/phd_results/prk/main.py
+!/examples/phd_results/t_net_analysis/dataNet/*
+!/examples/phd_results/t_net_analysis/analysis.py
 
 /examples/prelim_results/detailed_decay/*
 /examples/prelim_results/spacing_times/*
