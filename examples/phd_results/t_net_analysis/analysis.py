@@ -6,6 +6,8 @@ import os
 plt.style.use('mosden.plotting')
 
 def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yield=None):
+    if data_vals == {}:
+        return None
     formatted_data = defaultdict(list)
     formatted_data['yields'] = defaultdict(list)
     formatted_data['hls'] = defaultdict(list)
