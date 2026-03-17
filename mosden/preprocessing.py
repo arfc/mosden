@@ -88,9 +88,9 @@ class Preprocess(BaseClass):
             else:
                 raise KeyError('Data type does not have a valid key')
 
+            data = self._read_processed_data(data_type)
             for nuc, nuc_data in self.debug_dnp_data.items():
                 debug_data = nuc_data[key]
-                data = self._read_processed_data(data_type)
                 try:
                     _, old_val = list(data.items())[0]
                 except IndexError:
