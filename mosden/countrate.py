@@ -103,8 +103,9 @@ class CountRate(BaseClass):
         else:
             use_times = self.use_times[irrad_index+1:]
 
-        parameters = np.zeros(grouper.num_groups * 2, dtype=object)
-        for i in range(grouper.num_groups):
+        num_groups = len(self.group_params['yield'])
+        parameters = np.zeros(num_groups * 2, dtype=object)
+        for i in range(num_groups):
             yield_val = ufloat(
                 self.group_params['yield'][i],
                 self.group_params['sigma yield'][i])
