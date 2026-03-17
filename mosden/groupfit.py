@@ -202,6 +202,7 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
+        irrad_dt = np.diff(self.fission_times)[0]
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             a = yields[group]
@@ -212,7 +213,7 @@ class Grouper(BaseClass):
                     counts: np.ndarray[object] = np.zeros(
                         len(times), dtype=object)
                 counts += (a * lam * unumpy.exp(-lam * times))
-        return counts * self.fission_term[0]
+        return counts * self.refined_fission_term * irrad_dt
 
     def _saturation_fit_function(self,
                                  times: np.ndarray[float | object],

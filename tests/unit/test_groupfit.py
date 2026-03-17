@@ -393,6 +393,38 @@ def test_effective_fiss_many_ts():
     assert np.isclose(eff_fiss, stat_fiss, atol=1e-2)
     assert np.isclose(eff_fiss, irrad_fiss[0][-1], atol=1e-2)
 
+
+def test_effective_fiss_saturation():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+
+    hl = 250e-3
+    lam = np.log(2) / hl
+    lams = np.asarray([lam])
+
+    dt = 500
+    t_net = 5000
+
+    grouper.fission_times = np.arange(0.0, t_net + dt, dt)
+    grouper.t_net = t_net
+
+    t_mid = 0.5 * (grouper.fission_times[:-1] + grouper.fission_times[1:])
+    fiss_scalar = 3.7
+    full_fission = np.ones_like(t_mid) * fiss_scalar
+
+    grouper.full_fission_term = full_fission
+
+    grouper.refined_fission_term = 1
+
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
+    stat_fiss = grouper._get_saturation_fission_term(lam, np.exp) * fiss_scalar
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    
+    assert np.isclose(eff_fiss, stat_fiss, atol=1e-8)
+    assert np.isclose(stat_fiss, fiss_scalar)
+    assert np.isclose(eff_fiss, irrad_fiss[0][-1], atol=1e-2)
+
 def test_irrad_fit():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
