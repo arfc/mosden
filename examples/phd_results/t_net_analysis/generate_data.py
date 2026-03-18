@@ -1,6 +1,7 @@
 import subprocess
 import json
 import shutil
+import os
 
 
 
@@ -22,6 +23,7 @@ if __name__ == "__main__":
 
             subprocess.run(['mosden', '-pre', input_file])
             subprocess.run(['mosden', '-m', input_file])
+            os.makedirs(output_dir, exist_ok=True)
             shutil.move('./group_parameters.csv', f'{output_dir}/intermediate_{T}_{eval_method}.csv')
             subprocess.run(['mosden', '-g', input_file])
 
