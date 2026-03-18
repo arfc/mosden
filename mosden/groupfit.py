@@ -202,7 +202,9 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
-        irrad_dt = np.diff(self.fission_times)[0]
+        irrad_dt = 1
+        if self.fission_times:
+            irrad_dt = np.diff(self.fission_times)[0]
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             a = yields[group]
