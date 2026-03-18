@@ -26,9 +26,13 @@ class PRKE:
         total_yield = self.data['neutrons_per_fission']
         betas = np.asarray(cur_data['yields']) / total_yield
         beta_eff = np.sum(betas)
+        self.betaeff = beta_eff
         lams = np.log(2) / cur_data['hls']
+        self.betas = betas
+        self.lams = lams
         p0 = self.data['p0']
         gen = self.data['gen_time']
+        self.gen = gen
 
         times = np.arange(0, self.data['tf']+dt, dt)
         power_vals = list()
@@ -190,16 +194,17 @@ class PRKE:
     
     def compare_results(self, full_data):
         linestyles = [':', '-.', '--']
+        colors = self.post.get_colors(len(full_data))
         for pi, (problem, data) in enumerate(full_data.items()):
             label: str = problem.capitalize()
             times = data['times']
             power = data['power']
-            plt.plot(times, power, label=label, linestyle=linestyles[pi%len(linestyles)])
+            plt.plot(times, power, label=label, linestyle=linestyles[pi%len(linestyles)], color=colors[pi])
             print(f'{label} {power[-1] = }')
         plt.legend()
         #plt.xscale('log')
         plt.xlabel('Time [s]')
-        plt.ylabel('Relative Power')
+        plt.ylabel(r'$n$')
         plt.savefig(f'compare_power.png')
         plt.close()
 
@@ -212,10 +217,11 @@ class PRKE:
                 base_label = label
                 base_power = power
             power_diff = (base_power - power) / ((base_power + power) / 2) * 100
-            plt.plot(times, power_diff, label=f'{label}', linestyle=linestyles[pi%len(linestyles)])
+            plt.plot(times, power_diff, label=f'{label}', linestyle=linestyles[pi%len(linestyles)], color=colors[pi])
         plt.legend()
         plt.xlabel('Time [s]')
-        plt.ylabel(f'Power Difference from {base_label} [\%]')
+        plt.xscale('log')
+        plt.ylabel(rf'$\Delta n$ from {base_label} [\%]')
         plt.savefig(f'compare_power_percent.png')
         plt.close()
         
@@ -226,13 +232,38 @@ class PRKE:
                 concs = data['concs']
                 conc = np.asarray(concs)[:, group]
 
-                plt.plot(times, conc, label=label, linestyle=linestyles[pi%len(linestyles)])
+                plt.plot(times, conc, label=label, linestyle=linestyles[pi%len(linestyles)], color=colors[pi])
                 print(f'{label} {conc[-1] = }')
             plt.legend()
             plt.xlabel('Time [s]')
             plt.ylabel('Atoms [\#]')
             plt.savefig(f'compare_conc_{group+1}.png')
             plt.close()
+
+        for pi, (problem, data) in enumerate(full_data.items()):
+            label: str = problem.capitalize()
+            times = data['times']
+            power = np.asarray(data['power'])
+            base_rho = data['reactivity']
+            reactivity_data = list()
+            for t in times:
+                reactivity_data.append(base_rho(t))
+            concs = data['concs']
+            conc_contribution = 0
+            for group in range(self.num_groups):
+                conc = np.asarray(concs)[:, group]
+                conc_contribution += self.gen/power * self.betas[group] * self.lams[group]
+            reactivity = np.asarray(reactivity_data) - self.betaeff + np.asarray(conc_contribution)
+            print(f'{reactivity_data[-1] = }')
+            print(f'{conc_contribution[-1] = }')
+            print(f'{self.betaeff = }')
+            plt.plot(times, reactivity, label=f'{label}', linestyle=linestyles[pi%len(linestyles)], color=colors[pi])
+        plt.legend()
+        plt.xlabel('Time [s]')
+        plt.ylabel(f'Reactivity')
+        plt.savefig(f'compare_reactivity.png')
+        plt.close()
+        
 
         return
     
@@ -259,6 +290,7 @@ class PRKE:
             compare_data[problem]['times'] = times
             compare_data[problem]['power'] = powers
             compare_data[problem]['concs'] = precs
+            compare_data[problem]['reactivity'] = rho
             
             self._dt_plot(time_collections, power_collections, dt_list)
         if len(problems) > 1:
