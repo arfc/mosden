@@ -79,13 +79,16 @@ def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yiel
     plt.savefig(f'stack_yields{namemod}.png')
     plt.close()
 
-def build_data_dict(data_path=r'./dataNet/'):
+def build_data_dict(data_path=r'./dataNet/', post_name='_post', all_name='_all'):
     def helper(pathmod):
         files = glob.glob(os.path.join(data_path, f"*{pathmod}.csv"))
         data = {}
+        split_offset = 1
+        if '_' in data_path:
+            split_offset += 1
         for file in files:
             file: str = file
-            time = float(file.split('_')[1])
+            time = float(file.split('_')[split_offset])
             data[time] = dict()
             file_data = CSVHandler(file).read_vector_csv()
             data[time]['yields'] = file_data['yield']
@@ -93,14 +96,20 @@ def build_data_dict(data_path=r'./dataNet/'):
         data = dict(sorted(data.items()))
         return data
     
-    post_data = helper('_post')
-    all_data = helper('_all')
+    post_data = helper(post_name)
+    all_data = helper(all_name)
 
     return post_data, all_data
 
 if __name__ == '__main__':
-    #actual_yield = 0.018655
     actual_yield = None
+
+    post_data, all_data = build_data_dict('./dataNet_4', post_name='_post-irrad')
+    print(post_data)
+    print(all_data)
+    plot_data(post_data, '_post-irrad', actual_yield=actual_yield)
+    plot_data(all_data, '_all', actual_yield=actual_yield)
+
     post_data, all_data = build_data_dict()
     plot_data(post_data, '_post', actual_yield=actual_yield)
     plot_data(all_data, '_all', actual_yield=actual_yield)

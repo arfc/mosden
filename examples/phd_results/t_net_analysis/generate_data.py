@@ -18,6 +18,8 @@ if __name__ == "__main__":
             data['modeling_options']['residual_handling'] = [eval_method] 
             data['modeling_options']['incore_s'] = T
             data['modeling_options']['net_irrad_s'] = T
+            data['group_options']['num_groups'] = group
+
             with open(input_file, 'w') as f:
                 json.dump(data, f, indent=4)
 
