@@ -105,10 +105,8 @@ if __name__ == '__main__':
     actual_yield = None
 
     post_data, all_data = build_data_dict('./dataNet_4', post_name='_post-irrad')
-    print(post_data)
-    print(all_data)
-    plot_data(post_data, '_post-irrad', actual_yield=actual_yield)
-    plot_data(all_data, '_all', actual_yield=actual_yield)
+    plot_data(post_data, '_4_post-irrad', actual_yield=actual_yield)
+    plot_data(all_data, '_4_all', actual_yield=actual_yield)
 
     post_data, all_data = build_data_dict()
     plot_data(post_data, '_post', actual_yield=actual_yield)
