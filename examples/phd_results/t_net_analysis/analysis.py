@@ -104,9 +104,12 @@ def build_data_dict(data_path=r'./dataNet/', post_name='_post', all_name='_all')
 if __name__ == '__main__':
     actual_yield = None
 
-    post_data, all_data = build_data_dict('./dataNet_4', post_name='_post-irrad')
-    plot_data(post_data, '_4_post-irrad', actual_yield=actual_yield)
-    plot_data(all_data, '_4_all', actual_yield=actual_yield)
+    groups = [4, 6]
+
+    for group in groups:
+        post_data, all_data = build_data_dict(f'./dataNet_{group}', post_name='_post-irrad')
+        plot_data(post_data, f'_{group}_post-irrad', actual_yield=actual_yield)
+        plot_data(all_data, f'_{group}_all', actual_yield=actual_yield)
 
     post_data, all_data = build_data_dict()
     plot_data(post_data, '_post', actual_yield=actual_yield)
