@@ -16,7 +16,7 @@
         "half_life": "iaea/eval.csv",
         "cross_section": "",
         "emission_probability": "iaea/eval.csv",
-        "fission_yield": "endfb71/nfy/",
+        "fission_yield": "jeff311/nfpy/",
         "decay_time_spacing": "linear",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,

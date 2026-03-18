@@ -13,10 +13,10 @@
         "log_level": 20
     },
     "data_options": {
-        "half_life": "endfb71/decay/",
+        "half_life": "iaea/eval.csv",
         "cross_section": "",
-        "emission_probability": "endfb71/decay/",
-        "fission_yield": "endfb71/nfy/",
+        "emission_probability": "iaea/eval.csv",
+        "fission_yield": "jeff311/nfpy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
