@@ -1,14 +1,15 @@
 {
-    "name": "IAEA HF",
+    "name": "Four DNPs",
     "file_options": {
         "overwrite": {
-            "preprocessing": true,
+            "preprocessing": false,
             "concentrations": true,
             "count_rate": true,
             "group_fitting": true,
             "postprocessing": true,
             "logger": true
         },
+        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
         "log_level": 20
     },
     "data_options": {
@@ -22,17 +23,6 @@
         "energy_MeV": 0.0253e-6,
         "fissile_fractions": {
             "U235": 1.0
-        },
-        "debug_dnps": {
-            "Zz99": {
-                "yield": 1.0,
-                "half_life_s": 10,
-                "pn": 1,
-                "parent": {
-                    "yield": 0.000,
-                    "half_life_s": 10
-                }
-            }
         }
     },
     "modeling_options": {
@@ -49,11 +39,11 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 50,
+        "incore_s": 0.000001,
         "excore_s": 0,
-        "net_irrad_s": 5000,
+        "net_irrad_s": 0.00001,
         "decay_time": 600,
-        "num_decay_times": 100,
+        "num_decay_times": 10,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
@@ -65,14 +55,11 @@
         }
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 4,
         "method": "nlls",
         "parameter_guesses": 10,
-        "initial_params": {
-            "yields": [0.0005811, 0.00299617, 0.00166, 0.0065785, 0.00469921, 0.0021417],
-            "half_lives": [55.39525, 22.937965, 8.78718, 2.83386, 0.82695, 0.1575506]
-        },
         "samples": 1,
-        "sample_func": "normal"
+        "sample_func": "normal",
+        "seed": 1
     }
 }

@@ -1,5 +1,6 @@
 from logging import INFO
 from uncertainties import ufloat, unumpy
+import uncertainties.umath as umath
 import numpy as np
 import os
 from mosden.utils.literature_handler import Literature
@@ -10,7 +11,7 @@ from mosden.utils.csv_handler import CSVHandler
 from mosden.base import BaseClass
 import matplotlib.ticker as ticker
 import matplotlib.pyplot as plt
-from scipy.integrate import cumulative_trapezoid, trapezoid
+from scipy.integrate import cumulative_trapezoid, trapezoid, simpson
 import re
 import pandas as pd
 from scipy.stats import linregress
@@ -104,7 +105,10 @@ class PostProcess(BaseClass):
 
         """
         self.compare_yields()
-        self.compare_group_to_data()
+        if not self.post_irrad_only:
+            self.compare_counts()
+        if not self.no_post_irrad:
+            self.compare_group_to_data()
         self.MC_NLLS_analysis()
         return None
 
@@ -114,6 +118,60 @@ class PostProcess(BaseClass):
         """
         self._plot_group_vs_counts()
         return None
+    
+    def compare_counts(self) -> None:
+        """
+        Compare the counts from the actual data to the fit from params
+        """
+        grouper = Grouper(self.input_path)
+        group_data = CSVHandler(
+            self.group_path,
+            create=False).read_vector_csv()
+        count_data = CSVHandler(self.countrate_path).read_vector_csv()
+        times = np.asarray(count_data['times'])
+        counts = np.asarray(count_data['counts'])
+        count_errs = np.asarray(count_data['sigma counts'])
+        grouper._set_refined_fission_term(times)
+        parameters = group_data['yield'] + group_data['half_life']
+        parameters = grouper._restructure_intermediate_yields(parameters, False)
+        fit_func = grouper._get_fit_func()
+        times, counts, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(times, counts)        
+        irrad_fit_counts = grouper._get_irrad_counts(irrad_times, parameters)
+
+        post_irrad_fit_counts = fit_func(times, parameters)
+        if len(irrad_times) > 0 and not self.post_irrad_only:
+            irrad_times = np.append([0], irrad_times)
+            irrad_counts = np.append([0], irrad_counts)
+            irrad_fit_counts = np.append([0], irrad_fit_counts)
+
+        if not self.no_post_irrad and not self.post_irrad_only:
+            times = np.asarray(times) + irrad_times[-1]
+
+        total_time = np.append(irrad_times, times)
+        total_fit_counts = np.append(irrad_fit_counts, post_irrad_fit_counts)
+
+        markevery_irrad = 1
+        if not self.no_post_irrad:
+            markevery_irrad = 5
+        
+        plt.errorbar(irrad_times, irrad_counts, count_errs[:len(irrad_times)], label='Mean, This Work', color='black', marker='x', markersize=5, markevery=markevery_irrad, linestyle='')
+        plt.errorbar(times, counts, count_errs[len(irrad_times):], color='black', marker='x', markersize=5, linestyle='', markevery=5)
+
+        plt.plot(total_time, total_fit_counts, label='Group Fit, This Work', color='blue',
+                 linestyle='--')
+
+        if self.no_post_irrad:
+            plt.xscale('linear')
+        else:
+            plt.xscale('log')
+
+        plt.legend()
+        plt.xlabel('Time [s]')
+        plt.ylabel(r'Delayed Neutron Count Rate [$\# \cdot s^{-1}$]')
+        plt.tight_layout()
+        plt.savefig(f'{self.img_dir}full_countrate.png')
+        plt.close()
+
 
     def _plot_group_vs_counts(self) -> None:
         """
@@ -124,20 +182,31 @@ class PostProcess(BaseClass):
             create=False).read_vector_csv()
         countrate = CountRate(self.input_path)
         countrate.group_params = group_data
-        group_counts = countrate._count_rate_from_groups()['counts']
-        summed_counts = CSVHandler(
-            self.countrate_path).read_vector_csv()['counts']
+        group_data = countrate._count_rate_from_groups()
+        group_counts = np.asarray(group_data['counts'])
+        group_times = group_data['times']
+        summed_data = CSVHandler(
+            self.countrate_path).read_vector_csv()
+        summed_counts = summed_data['counts']
+        summed_times = summed_data['times']
+        index_shift = len(summed_times) - len(group_times)
+        subtractor = 0
+        if index_shift != 0:
+            subtractor = self.t_net
+        summed_counts = np.asarray(summed_counts[index_shift:])
+        summed_times = np.asarray(summed_times[index_shift:])
         pcnt_diff = (summed_counts - group_counts) / summed_counts * 100
-        plt.plot(self.decay_times, pcnt_diff)
+        plt.plot(np.asarray(summed_times)-subtractor, pcnt_diff)
         plt.xlabel('Time [s]')
         plt.xscale('log')
         plt.ylabel('Relative Difference [\\%]')
         plt.tight_layout()
-        plt.savefig(f'{self.img_dir}pcnt_diff_counts.png')
+        plt.savefig(f'{self.img_dir}pcnt_diff_post_irrad_counts.png')
         plt.close()
         return None
     
-    def _chart_form(self, name: str, data: dict, cbar_label: str) -> None:
+    def _chart_form(self, name: str, data: dict, cbar_label: str, vmin: float=1e-1,
+                    vmax: float=1e1) -> None:
         """
         Create a chart of the nuclides with file name and with data
 
@@ -148,6 +217,12 @@ class PostProcess(BaseClass):
         data : dict[str, float]
             Data to plot, using the nuclide name as a key and the value to plot
             (of the form "XE135")
+        cbar_label : str
+            Label for the colorbar
+        vmin : float, optional
+            The minimum value of the colorbar
+        vmax : float, optional
+            The maximum value of the colorbar
         """
         configure(permissive=True)
         plt.figure(figsize=(12, 8))
@@ -162,7 +237,9 @@ class PostProcess(BaseClass):
                 C.append(value)
             except KeyError:
                 continue
-        norm = LogNorm(vmin=0.1, vmax=10)
+        vmin_use = 10 ** np.floor(np.log10(vmin))
+        vmax_use = 10 ** np.ceil(np.log10(vmax))
+        norm = LogNorm(vmin=vmin_use, vmax=vmax_use)
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
@@ -177,7 +254,8 @@ class PostProcess(BaseClass):
         """
         Analyze Monte Carlo Non-linear Least Squares results
         """
-        self._plot_counts()
+        if not self.no_post_irrad:
+            self._plot_counts()
         if self.MC_samples > 2:
             self._plot_MC_group_params()
             self._get_sens_coeffs(write=True)
@@ -278,8 +356,10 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
-            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes')
-            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes')
+            chart_min_data = np.min((np.min(list(summed_pcc_data.values())), np.min(list(scaled_uncert_pcc.values()))))
+            chart_max_data = np.max((np.max(list(summed_pcc_data.values())), np.max(list(scaled_uncert_pcc.values()))))
+            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
+            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
             sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
             top = 10
             self.logger.info(f'Writing {top = } summed |PCC| nuclides')
@@ -746,7 +826,7 @@ class PostProcess(BaseClass):
                 times = list(concentration_data[nuc].keys())
                 nom_vals = list()
                 std_devs = list()
-                for t in times[irrad_index+1:]:
+                for t in times[irrad_index:]:
                     nom_val = concentration_data[nuc][t][0]
                     std_dev = concentration_data[nuc][t][1]
                     nom_vals.append(nom_val)
@@ -970,7 +1050,8 @@ class PostProcess(BaseClass):
 
         counts = self.post_data[self.names['countsMC']]
         countrate = CountRate(self.input_path)
-        times = countrate.decay_times
+        irrad_index = self.get_irrad_index(False) + 1
+        times = countrate.use_times
         alpha_MC: float = 1 / np.sqrt(self.MC_samples)
         for MC_iterm, count_val in enumerate(counts):
             label = mc_label if MC_iterm == 0 else None
@@ -998,7 +1079,7 @@ class PostProcess(BaseClass):
             base_sigma = np.asarray(count_data['sigma counts'])
         group_counts = countrate.calculate_count_rate(write_data=False)
         plt.plot(
-            times,
+            group_counts['times'],
             group_counts['counts'],
             color=group_color,
             alpha=0.75,
@@ -1006,7 +1087,7 @@ class PostProcess(BaseClass):
             linestyle='--',
             zorder=3)
         plt.fill_between(
-            times,
+            group_counts['times'],
             group_counts['counts'] -
             group_counts['sigma counts'],
             group_counts['counts'] +
@@ -1028,11 +1109,11 @@ class PostProcess(BaseClass):
                 name = name.capitalize()
             countrate.group_params = lit_data
             data = countrate._count_rate_from_groups()
-            plt.plot(times, data['counts'], label=f'{name} 6-Group Fit',
+            plt.plot(data['times'], data['counts'], label=f'{name} 6-Group Fit',
                      color=colors[index],
                      linestyle=self.linestyles[index%len(self.linestyles)])
             plt.fill_between(
-                times,
+                data['times'],
                 data['counts'] - data['sigma counts'],
                 data['counts'] + data['sigma counts'],
                 alpha=0.3,
@@ -1064,6 +1145,9 @@ class PostProcess(BaseClass):
         plt.savefig(f'{self.img_dir}MC_counts.png')
         plt.close()
 
+        times = self.decay_times
+        if len(counts) > len(times):
+            counts = counts[irrad_index:]
         for MC_iterm, count_val in enumerate(counts):
             label = mc_label if MC_iterm == 0 else None
             plt.plot(
@@ -1077,6 +1161,8 @@ class PostProcess(BaseClass):
                                          count_data['sigma counts'])
         counts_base = unumpy.uarray(base_counts,
                                     base_sigma)
+        if len(counts_this_work) > len(times):
+            counts_this_work = counts_this_work[irrad_index:]
         this_over_base = counts_this_work / counts_base
         plt.errorbar(
             times,
@@ -1256,14 +1342,15 @@ class PostProcess(BaseClass):
 
         self.total_delayed_neutrons: float = 0.0
         nuc_concs: dict[str, float] = dict()
+        irrad_index = self.get_irrad_index(False)
 
         if self.omc:
             concs = Concentrations(self.input_path)
             fission_term, fission_times = concs._calculate_fission_term(only_incore=False)
+            dx = np.diff(fission_times)
             concentration_data = CSVHandler(
                 self.concentration_path,
                 create=False).read_csv_with_time(trim=False)
-            dx = np.diff(fission_times)
             total_fissions = np.sum(dx * fission_term)
             self.logger.info(f'{total_fissions = }')
 
@@ -1286,7 +1373,9 @@ class PostProcess(BaseClass):
                     std_devs.append(std_dev)
                 concs_with_uncerts = unumpy.uarray(nom_vals, std_devs)
                 delnus_over_time = concs_with_uncerts * Pn * lam_val
-                total_delnus = trapezoid(delnus_over_time, times)
+                irrad_delnus = trapezoid(delnus_over_time[:irrad_index+1], times[:irrad_index+1])
+                decay_delnus = simpson(delnus_over_time[irrad_index:], times[irrad_index:])
+                total_delnus = irrad_delnus + decay_delnus
                 yield_val = total_delnus / total_fissions
 
             nuc_yield[nuc] = yield_val
@@ -1347,7 +1436,7 @@ class PostProcess(BaseClass):
             f'Writing nuclide emission times concentration (net yield)')
         for index_val, (nuc, yield_val) in enumerate(sorted_yields.items()):
             self.logger.info(
-                f'{nuc} - {round(yield_val.n, 5)} +/- {round(yield_val.s, 5)}')
+                f'{nuc} - {round(yield_val.n, 7)} +/- {round(yield_val.s, 7)}')
             sizes.append(yield_val.n)
             if nuc in self.nuc_colors.keys():
                 colors[index_val] = self.nuc_colors[nuc]

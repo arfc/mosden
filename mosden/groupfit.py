@@ -54,6 +54,8 @@ class Grouper(BaseClass):
             times: np.ndarray[float],
             counts: np.ndarray[float],
             count_err: np.ndarray[float],
+            irrad_counts: np.ndarray[float],
+            irrad_times: np.ndarray[float],
             fit_func: Callable) -> float:
         """
         Calculate the residual of the current set of parameters
@@ -68,6 +70,10 @@ class Grouper(BaseClass):
             List of delayed neutron counts
         count_err : np.ndarray[float]
             List of count errors
+        irrad_counts : np.ndarray[float]
+            List of delayed neutron counts during irradiation
+        irrad_times : np.ndarray[float]
+            List of times during irradiation
         fit_func : Callable
             Function that takes times and parameters to return list of counts
 
@@ -76,8 +82,103 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        residual = (counts - fit_func(times, parameters)) / (counts)
+        irrad_residual = []
+        if len(irrad_times) != 0:
+            irrad_residual = ((irrad_counts - self._get_irrad_counts(irrad_times, parameters)) / (irrad_counts))
+            irrad_residual = np.nan_to_num(irrad_residual)
+        post_residual = (counts - fit_func(times, parameters)) / (counts)
+        residual = np.concatenate((irrad_residual, post_residual))
         return residual
+
+    def _get_irrad_fission_component(self, times: np.ndarray[float],
+                                      lam: np.ndarray[float], exp: Callable,
+                                      expm1: Callable) -> np.ndarray[float]:
+        """
+        Get the fission component as a function of time during irradiation
+
+        Parameters
+        ----------
+        times : np.ndarray[float]
+            Irradiation times
+        lam : np.ndarray[float]
+            Decay constants for each group
+        exp : Callable
+            Exponential function (e.g. `np.exp`)
+        expm1 : Callable
+            Exponential subtraction function (e.g. `np.expm1`)
+
+        Returns
+        -------
+        fission_component : np.ndarray[float]
+            The fission term for each group as a function of time
+        """
+        t = np.asarray(times)
+        t1 = times[:-1]
+        t2 = times[1:]
+        dt = t2 - t1
+
+        lam = lam[:, None, None]
+        t_eval = t[None, :, None]
+        t2 = t2[None, None, :]
+        dt = dt[None, None, :]
+        F = np.asarray(self.full_fission_term[1:])[None, None, :]
+
+        a = -lam * (t_eval - t2)
+        b = -lam * dt
+
+        exponential_term = np.nan_to_num(exp(a) * -expm1(b))
+
+        mask = t_eval >= t2
+        exponential_term *= mask
+
+        scaled = F * exponential_term
+        fission_component = np.sum(scaled, axis=2)
+        return fission_component
+
+    
+    def _get_irrad_counts(self,
+                           times: np.ndarray[float | object],
+                           parameters: np.ndarray[float | object]
+                           ) -> np.ndarray[float | object]:
+        """
+        Fit function during irradiation
+
+        Parameters
+        ----------
+        times : np.ndarray[float|object]
+            Times at which to evaluate the fit function
+        parameters : np.ndarray[float|object]
+            Fit parameters for the model
+
+        Returns
+        -------
+        counts : np.ndarray[float|object]
+            Array of counts for each time point (can be float or ufloat)
+        """
+        parameters = self._restructure_intermediate_yields(parameters)
+        yields = parameters[:self.num_groups]
+        half_lives = parameters[self.num_groups:]
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+            expm1 = np.expm1
+            lam = np.log(2) / np.asarray(half_lives)
+            nu = np.asarray(yields)
+        except TypeError:
+            counts: np.ndarray[object] = np.zeros(
+                len(times), dtype=object)
+            lams = np.log(2) / half_lives
+            exp = unumpy.exp
+            expm1 = unumpy.expm1
+            lam = unumpy.uarray([lam.n for lam in lams],
+                                [lam.s for lam in lams])
+            nu = unumpy.uarray([v.n for v in yields],
+                               [v.s for v in yields])
+
+        fission_component = self._get_irrad_fission_component(times, lam, exp, expm1)
+        group_counts = nu[:, None] * fission_component
+        counts = np.sum(group_counts, axis=0)
+        return counts
 
     def _pulse_fit_function(self,
                             times: np.ndarray[float | object],
@@ -101,6 +202,9 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
+        irrad_dt = 1
+        if self.fission_times:
+            irrad_dt = np.diff(self.fission_times)[0]
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             a = yields[group]
@@ -111,7 +215,7 @@ class Grouper(BaseClass):
                     counts: np.ndarray[object] = np.zeros(
                         len(times), dtype=object)
                 counts += (a * lam * unumpy.exp(-lam * times))
-        return counts * self.fission_term[0]
+        return counts * self.refined_fission_term * irrad_dt
 
     def _saturation_fit_function(self,
                                  times: np.ndarray[float | object],
@@ -319,6 +423,72 @@ class Grouper(BaseClass):
             actual_yields = fission_per_group * np.asarray(scaled_yields)
         actual_parameters = np.concatenate((actual_yields, half_lives))
         return actual_parameters
+    
+    def _get_fit_func(self) -> Callable:
+        """
+        Get the associated function for the irradiation type
+
+        Returns
+        -------
+        fit_function : Callable
+            The function that fits the group parameter data to count rates
+
+        Raises
+        ------
+        NotImplementedError
+            If an irradiation type is not implemented
+        """
+        if self.irrad_type == 'pulse':
+            fit_function = self._pulse_fit_function
+        elif self.irrad_type == 'saturation':
+            fit_function = self._saturation_fit_function
+        elif self.irrad_type == 'intermediate':
+            fit_function = self._intermediate_numerical_fit_function
+        else:
+            raise NotImplementedError(f'{self.irrad_type} not supported')
+        return fit_function
+
+    
+    def _get_modified_counts_and_times(self, times: np.ndarray[float],
+                                       counts: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
+        """
+        Gets the counts and times during and post irradiation
+
+        Parameters
+        ----------
+        times : np.ndarray[float]
+            Times post-irradiation
+        counts : np.ndarray[float]
+            Counts post-irradiation
+
+        Returns
+        -------
+        times : np.ndarray[float]
+            Post-irradiation times
+        counts : np.ndarray[float]
+            Post-irradiation counts
+        irrad_times : np.ndarray[float]
+            Mid-irradiation times
+        irrad_counts : np.ndarray[float]
+            Mid-irradiation counts
+        """
+        post_irrad_index = self.get_irrad_index(False)
+        full_data = self._get_times_and_rates()
+        if self.post_irrad_only:
+            return times, counts, np.array([]), np.array([])
+
+        irrad_mask = np.asarray(full_data['irrad_mask'])
+        irrad_times = np.cumsum(full_data['timesteps'][:post_irrad_index]) * irrad_mask
+        irrad_counts = np.asarray(counts[1:post_irrad_index+1]) * irrad_mask
+
+        if self.no_post_irrad:
+            counts = np.asarray([])
+            times = np.asarray([])
+        else:
+            counts = counts[post_irrad_index+1:]
+            times = np.asarray(times[post_irrad_index+1:]) - times[post_irrad_index]
+
+        return times, counts, irrad_times, irrad_counts
 
 
     def _nonlinear_least_squares(self,
@@ -350,15 +520,7 @@ class Grouper(BaseClass):
             self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
-        if self.irrad_type == 'pulse':
-            fit_function = self._pulse_fit_function
-        elif self.irrad_type == 'saturation':
-            fit_function = self._saturation_fit_function
-        elif self.irrad_type == 'intermediate':
-            fit_function = self._intermediate_numerical_fit_function
-        else:
-            raise NotImplementedError(
-                f'{self.irrad_type} not supported in nonlinear least squares')
+        fit_function = self._get_fit_func()
 
         min_half_life = 1e-3
         max_half_life = 1e3
@@ -403,6 +565,8 @@ class Grouper(BaseClass):
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
 
+        times, counts, irrad_times, irrad_counts = self._get_modified_counts_and_times(times, counts)
+
         best = None
         for x0 in tqdm(starts):
             result = least_squares(self._residual_function,
@@ -415,7 +579,7 @@ class Grouper(BaseClass):
                                 xtol=1e-12,
                                 verbose=0,
                                 max_nfev=1e6,
-                                args=(times, counts, count_err, fit_function))
+                                args=(times, counts, count_err, irrad_counts, irrad_times, fit_function))
             if best is None or result.cost < best.cost:
                 best = result
         result = best
@@ -428,6 +592,8 @@ class Grouper(BaseClass):
         self.logger.info(f'{np.diag(cov) = }')
         sigma = np.sqrt(np.diag(cov))
         self.logger.info(f'{sigma = }')
+        residual = np.linalg.norm(self._residual_function(result.x, times, counts, count_err, irrad_counts, irrad_times, fit_function))
+        self.logger.info(f'{residual = }')
         self.logger.info(result)
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
@@ -445,6 +611,8 @@ class Grouper(BaseClass):
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
+                times, counts, irrad_times, irrad_counts = self._get_modified_counts_and_times(times, count_sample)
+
                 result = least_squares(
                     self._residual_function,
                     result.x,
@@ -459,6 +627,8 @@ class Grouper(BaseClass):
                         times,
                         count_sample,
                         count_sample_err,
+                        irrad_counts,
+                        irrad_times,
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)

@@ -9,37 +9,31 @@
             "postprocessing": true,
             "logger": true
         },
+        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
         "log_level": 20
     },
     "data_options": {
-        "half_life": "endfb71/decay/",
+        "half_life": "iaea/eval.csv",
         "cross_section": "",
-        "emission_probability": "endfb71/decay/",
-        "fission_yield": "endfb71/nfy/",
+        "emission_probability": "iaea/eval.csv",
+        "fission_yield": "jeff311/nfpy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
-        "energy_MeV": 0.0253e-6,
+        "energy_MeV": 2.53e-08,
         "fissile_fractions": {
             "U235": 1.0
-        },
-        "debug_dnps": {
-            "Zz99": {
-                "yield": 1.0,
-                "half_life_s": 10,
-                "pn": 1,
-                "parent": {
-                    "yield": 0.000,
-                    "half_life_s": 10
-                }
-            }
         }
     },
     "modeling_options": {
         "concentration_handling": "OMC",
         "count_rate_handling": "data",
-        "residual_handling": ["post-irrad"],
-        "reprocessing_locations": ["excore"],
+        "residual_handling": [
+            "post-irrad"
+        ],
+        "reprocessing_locations": [
+            "excore"
+        ],
         "reprocessing": {
             "Xe": 0.0
         },
@@ -49,29 +43,25 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 50,
+        "incore_s": 0.0001,
         "excore_s": 0,
-        "net_irrad_s": 5000,
+        "net_irrad_s": 0.0001,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
-            "source": 1e3,
+            "source": 1000.0,
             "run_omc": true,
             "write_fission_json": true,
             "write_nuyield_json": true,
-            "max_timestep": 1e10
+            "max_timestep": 10000000000.0
         }
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 12,
         "method": "nlls",
         "parameter_guesses": 10,
-        "initial_params": {
-            "yields": [0.0005811, 0.00299617, 0.00166, 0.0065785, 0.00469921, 0.0021417],
-            "half_lives": [55.39525, 22.937965, 8.78718, 2.83386, 0.82695, 0.1575506]
-        },
         "samples": 1,
         "sample_func": "normal"
     }

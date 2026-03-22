@@ -83,6 +83,9 @@ For example, using an in-core residence time of 30 seconds with a net
 irradiation time of 30 seconds (1 OpenMC simulation) will give less accurate 
 measures of the summed data than an in-core residence time of 30 seconds (30 
 OpenMC simulations).
+This can be resolved by using a smaller minimum OpenMC timestep.
+The minimum timestep should be set such that approximately 100 simulations are 
+run during irradiation.
 
 Chemical removal of DNPs changes the group parameters (as expected). However,
 chemical removal of fission products also has an effect due to the way MoSDeN 
