@@ -188,12 +188,3 @@ if __name__ == '__main__':
         accumulated_data[group] = post_data
     
     plot_accumulated_data(accumulated_data)
-
-    post_data, all_data = build_data_dict()
-    plot_data(post_data, '_post', actual_yield=actual_yield)
-    plot_data(all_data, '_all', actual_yield=actual_yield)
-
-    post_data, all_data = build_data_dict('./dataNumSteps5s/')
-    xlab = r'Number of Irradiation Time Steps'
-    plot_data(post_data, '_post_dt', xlab, actual_yield=actual_yield)
-    plot_data(all_data, '_all_dt', xlab, actual_yield=actual_yield)
