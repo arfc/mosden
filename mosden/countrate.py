@@ -113,7 +113,7 @@ class CountRate(BaseClass):
                 self.group_params['half_life'][i],
                 self.group_params['sigma half_life'][i])
             parameters[i] = yield_val
-            parameter[num_groups + i] = half_life
+            parameters[num_groups + i] = half_life
         grouper._set_refined_fission_term(self.decay_times)
         parameters = grouper._restructure_intermediate_yields(parameters,
                                                               to_yield=False)
