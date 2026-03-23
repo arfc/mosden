@@ -103,7 +103,7 @@
                 "fission_yield": {
                     "type": "string",
                     "description": "Path to the fission yield data",
-                    "pattern": "^(?:.*/)?(endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml|omcchain/four_dnp_test.xml)$"
+                    "pattern": "^(?:.*/)?(jeff40/nfpy/|endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml|omcchain/four_dnp_test.xml)$"
                 },
                 "decay_time_spacing": {
                     "type": "string",

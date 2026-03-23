@@ -17,6 +17,47 @@ roman_to_int() {
   esac
 }
 
+download_jeff_data() {
+  local JEFF_VERSION="$1"
+
+  local JEFF_VERSION_NOP="${JEFF_VERSION//./}"
+  local JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
+  local NFY_DIR="${JEFF_DIR}/nfpy/"
+  mkdir -p "$NFY_DIR"
+  echo "Saving data to ${NFY_DIR}"
+
+  local JEFF_URL
+  if [[ "${JEFF_VERSION}" == "3.1.1"  ||  "${JEFF_VERSION}" == "4.0" ]]; then
+    JEFF_URL="https://www-nds.iaea.org/public/download-endf/JEFF-${JEFF_VERSION}/nfpy/"
+  else
+    echo "Unsupported JEFF version: ${JEFF_VERSION}" >&2
+    return 1
+  fi
+
+  echo "Downloading NFY data for JEFF-${JEFF_VERSION}..."
+  echo "Accessing ${JEFF_URL}"
+  wget -4 --show-progress --recursive --no-parent --accept "*.zip" --no-host-directories --cut-dirs=3 -P "${JEFF_DIR}" "$JEFF_URL"
+
+  echo "Extracting NFY data..."
+  for f in "$NFY_DIR"/*.zip; do
+    unzip "$f" -d "$NFY_DIR"
+
+
+  if [[ "${JEFF_VERSION}" == "4.0" ]]; then
+    OPENMC_DIR="${JEFF_DIR}/omcchain/"
+    mkdir -p "$OPENMC_DIR"
+    echo "Getting OpenMC chain data for JEFF-4.0..."
+    wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_pwr.xml" "https://anl.box.com/shared/static/qpcfyrctoffb34m4dwyxz2vgp8tim8e7.xml"
+    wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_sfr.xml" "https://anl.box.com/shared/static/p6cettxz3ovbp151qg7bc3k9ov0zt3wm.xml"
+    echo "OpenMC chain data collected"
+  fi
+  done
+
+  echo "Removing zip files..."
+  rm "$NFY_DIR"/*.zip
+  echo "NFY data handled"
+}
+
 download_endf_data() {
   local ENDF_VERSION="$1"
 
@@ -119,41 +160,9 @@ download_endf_data "VIII.0"
 
 
 # JEFF --------------------------------------------------------------------
-JEFF_VERSION="3.1.1"
 
-JEFF_VERSION_NOP="${JEFF_VERSION//./}"
-
-JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
-NFY_DIR="${JEFF_DIR}/nfpy/"
-mkdir -p "$NFY_DIR"
-echo "Saving data to ${NFY_DIR}"
-
-if [[ "${JEFF_VERSION}" == "3.1.1" ]]; then
-  JEFF_URL="https://www-nds.iaea.org/public/download-endf/JEFF-${JEFF_VERSION}/nfpy/"
-fi
-
-
-echo "Downloading NFY data for JEFF-${JEFF_VERSION}..."
-echo "Accessing ${JEFF_URL}"
-wget -4 --show-progress --recursive --no-parent --accept "*.zip" --no-host-directories --cut-dirs=3 -P "${JEFF_DIR}" "$JEFF_URL"
-echo "Extracting NFY data..."
-for f in "$NFY_DIR"/*.zip; do
-    unzip "$f" -d "$NFY_DIR"
-done
-echo "Removing zip files..."
-rm "$NFY_DIR"/*.zip
-echo "NFY data handled"
-
-
-JEFF_VERSION="4.0"
-JEFF_VERSION_NOP="${JEFF_VERSION//./}"
-JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
-OPENMC_DIR="${JEFF_DIR}/omcchain/"
-mkdir -p "$OPENMC_DIR"
-echo "Getting OpenMC chain data for JEFF-4.0..."
-wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_pwr.xml" "https://anl.box.com/shared/static/qpcfyrctoffb34m4dwyxz2vgp8tim8e7.xml"
-wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_sfr.xml" "https://anl.box.com/shared/static/p6cettxz3ovbp151qg7bc3k9ov0zt3wm.xml"
-echo "OpenMC chain data collected"
+download_jeff_data "3.1.1"
+download_jeff_data "4.0"
 
 # /JEFF --------------------------------------------------------------------
 
