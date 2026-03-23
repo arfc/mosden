@@ -552,14 +552,14 @@ class Preprocess(BaseClass):
             Dictionary containing the fitted fission yield data.
         """
         fit_FY_endf: dict[str: float] = {}
-        endf_nucs: list[str] = list(fys[0].keys())
+        endf_nucs: list[str] = list(set().union(*[e.keys() for e in fys]))
         energy_index: int = np.argmin(
             np.abs(
                 np.array(energies) -
                 self.energy_MeV *
                 1e6))
         for i, nuc in enumerate(endf_nucs):
-            fission_yield = fys[energy_index][nuc]
+            fission_yield = fys[energy_index].get(nuc, ufloat(0.0, 0.0))
             uncert = fission_yield.s
             if fission_yield.s == 0.0:
                 uncert = 1e-12
