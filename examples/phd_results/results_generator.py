@@ -6,11 +6,14 @@ import shutil
 from copy import deepcopy
 import subprocess
 from mosden.utils.chemical_schemes import Reprocessing
+import numpy as np
 
 base_input_file = './input.json'
 analysis_list = list()
 
 name = 'tintex'
+dt = 5
+tf = 30
 residence_time_analysis = {
     'meta': {
         'name': name,
@@ -18,11 +21,63 @@ residence_time_analysis = {
         'run_post': True,
         'overwrite': True,
     },
-    'incore_s': [100, 50],
-    'excore_s': [0, 50],
+    'incore_s': [10, 20, 30],
+    'excore_s': [float(i) for i in np.arange(0, tf+dt, dt)],
     'multi_id': [name]
 }
 analysis_list.append(residence_time_analysis)
+
+name = 'decay_time_nodes'
+decay_times_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'num_decay_times': [50, 100, 150, 200, 250, 400, 800],
+    'multi_id': [name]
+}
+analysis_list.append(decay_times_analysis)
+
+name = 'irrad_time'
+decay_times_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'net_irrad_s': [1, 10, 100],
+    'multi_id': [name]
+}
+analysis_list.append(decay_times_analysis)
+
+name = 'omc_timestep'
+decay_times_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'max_timestep': [0.1, 0.05, 0.01, 0.005, 0.001],
+    'multi_id': [name]
+}
+analysis_list.append(decay_times_analysis)
+
+name = 'total_decay_time'
+total_decay_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'decay_time': [150, 300, 600, 1200, 2400, 4800],
+    'multi_id': [name]
+}
+analysis_list.append(total_decay_analysis)
 
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:

@@ -93,10 +93,130 @@ class Concentrations(BaseClass):
                 f"Concentration handling method '{
                     self.conc_method}' is not implemented")
 
+        data = self._add_debug_dnp_data(data)
         CSVHandler(self.concentration_path, self.conc_overwrite).write_csv_with_time(data)
         self.save_postproc()
         self.time_track(start, 'Concentrations')
         return
+    
+    def _evaluate_conc(self, cur_conc: float, cur_p_conc: float, lam_p: float, lam: float, ti: int, dt: list[float], fission_rates: list[float], concs: list[float], p_concs: list[float], y_p: float, y: float) -> tuple[float, float]:
+        """
+        Evaluates the concentration of a nuclide and its decay parent.
+        Yield of parent is assumed to be scaled by branching ratio.
+
+        Parameters
+        ----------
+        cur_conc : float
+            Current concentration of target nuclide
+        cur_p_conc : float
+            Current concentration of parent nuclide
+        lam_p : float
+            Parent decay constant [s]
+        lam : float
+            Target decay constant [s]
+        ti : int
+            The current time index
+        dt : list[float]
+            The list of time step sizes [s]
+        fission_rates : list[float]
+            The list of fission rates at each time step [1/s]
+        concs : list[float]
+            The list of concentrations at each time step for the target nuclide
+        p_concs : list[float]
+            The list of concentrations at each time step for the parent nuclide
+        y_p : float
+            Parent yield per fission scaled by branching ratio
+        y : float
+            Target yield per fission
+
+        Returns
+        -------
+        cur_conc, cur_p_conc : tuple[float, float]
+            The updated concentrations of the target and parent nuclides
+        """
+        exp_p = np.exp(-lam_p * dt[ti])
+        exp_c = np.exp(-lam * dt[ti])
+
+        if lam_p > 0:
+            cur_p_conc = p_concs[ti] * exp_p + (fission_rates[ti] * y_p / lam_p) * (1 - exp_p)
+        else:
+            cur_p_conc = p_concs[ti] + fission_rates[ti] * y_p * dt[ti]
+
+        if lam > 0:
+            fission_source = (fission_rates[ti] * y / lam) * (1 - exp_c)
+            if abs(lam - lam_p) > 1e-10:
+                fission_source += fission_rates[ti] * y_p * (
+                    (1 - exp_c) / lam - (exp_p - exp_c) / (lam - lam_p)
+                )
+            else:
+                fission_source += fission_rates[ti] * y_p * dt[ti] * exp_c
+        else:
+            fission_source = fission_rates[ti] * y * dt[ti]
+
+        if abs(lam - lam_p) > 1e-10:
+            feed_term = (lam_p * p_concs[ti] / (lam - lam_p)) * (exp_p - exp_c)
+        else:
+            feed_term = lam_p * p_concs[ti] * dt[ti] * exp_c
+
+        cur_conc = concs[ti] * exp_c + fission_source + feed_term
+        return cur_conc, cur_p_conc
+    
+    def _add_debug_dnp_data(self, data: list[dict[str, float]]) -> list[dict[str, float]]:
+        """
+        Add debug DNP data to the existing concentration data
+
+        Parameters
+        ----------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
+        
+        Returns
+        -------
+        data : list[dict[str, float]]
+            List of data at each point in time for concentration
+        """
+        if not self.has_debug_dnps:
+            return data
+
+        times = list(sorted(set(i['Time'] for i in data)))
+        for nuc, nuc_vals in self.debug_dnp_data.items():
+            fission_rates, _ = self._calculate_fission_term(False)
+            len_diff = len(times) - len(fission_rates)
+            fission_rates = np.append(fission_rates, [0]*len_diff)
+            concs = [0]
+            p_concs = [0]
+            lam = np.log(2) / nuc_vals['half_life_s']
+            y = nuc_vals['yield']
+            dt = np.diff(times)
+            cur_p_conc = 0
+            cur_conc = 0
+            try:
+                y_p = nuc_vals['parent']['yield']
+                lam_p  = np.log(2) / nuc_vals['parent']['half_life_s']
+            except NameError:
+                y_p = 0
+                lam_p = 1
+            for ti, t in enumerate(times[:-1]):
+                cur_conc, cur_p_conc = self._evaluate_conc(cur_conc, cur_p_conc, lam_p, lam, ti, dt, fission_rates, concs, p_concs, y_p, y)
+                p_concs.append(cur_p_conc)
+                concs.append(cur_conc)
+                data.append(
+                    {
+                        'Time': t,
+                        'Nuclide': nuc,
+                        'Concentration': concs[ti],
+                        'sigma Concentration': 1e-12
+                    }
+                )
+            data.append(
+                {
+                    'Time': times[-1],
+                    'Nuclide': nuc,
+                    'Concentration': concs[-1],
+                    'sigma Concentration': 1e-12
+                }
+            )
+        return data
 
     def CFY_concentrations(self) -> list[dict[str, float]]:
         """
@@ -157,6 +277,7 @@ class Concentrations(BaseClass):
         chain_file = os.path.join(self.unprocessed_data_dir, self.openmc_settings['chain'])
         cross_sections = os.path.join(self.unprocessed_data_dir, self.openmc_settings['x_sections'])
         omc_dir = self.openmc_settings['omc_dir']
+        time_rate_data = self._get_times_and_rates(self.f_in)
         render_data = {
             'nps': self.openmc_settings['nps'],
             'mode': self.openmc_settings['mode'],
@@ -167,19 +288,14 @@ class Concentrations(BaseClass):
             'density': self.density_g_cc,
             'temperature': self.temperature_K,
             'fissiles': self.fissiles,
-            't_in': self.t_in,
-            't_ex': self.t_ex,
-            'total_irrad_s': self.t_net,
-            'decay_times': self.decay_times,
-            'repr_locations': self.reprocess_locations,
             'reprocessing': self.reprocessing,
             'repr_scale': self.repr_scale,
             'chain_file': chain_file,
             'cross_sections': cross_sections,
             'omc_dir': omc_dir,
-            'flux_scaling': self.flux_scaling,
-            'chem_scaling': self.chem_scaling,
-            'f_in': self.f_in
+            'timesteps': time_rate_data['timesteps'],
+            'source_rates': time_rate_data['source_rates'],
+            'removal_indeces': time_rate_data['removal_indeces']
         }
         rendered_template = template.render(render_data)
         fname = 'omc.py'
@@ -417,7 +533,7 @@ class Concentrations(BaseClass):
             json.dump(nuyield, f, indent=4, default=self._json_default)
         return nuyield
     
-    def _calculate_fission_term(self, only_incore: bool=True) -> list[float]:
+    def _calculate_fission_term(self, only_incore: bool=True) -> tuple[list[float], list[float]]:
         """
         Calculate the fission rate or number of fissions.
         The fission rate is used for saturation irradiations, while the number

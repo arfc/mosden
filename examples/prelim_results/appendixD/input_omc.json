@@ -1,23 +1,24 @@
 {
-    "name": "prelim",
-    "multi_id": null,
+    "name": "omc_four_dnp",
     "file_options": {
         "overwrite": {
             "preprocessing": true,
             "concentrations": true,
             "count_rate": true,
             "group_fitting": true,
-            "postprocessing": true,
-            "logger": true
+            "postprocessing": true
         },
-        "log_level": 20
+        "unprocessed_data_dir": "../../../tests/integration/test-data",
+        "processed_data_dir": "./",
+        "output_dir": "./",
+        "log_level": 15
     },
     "data_options": {
-        "half_life": "iaea/eval.csv",
+        "half_life": "iaea/four_dnp_test.csv",
         "cross_section": "",
-        "emission_probability": "iaea/eval.csv",
-        "fission_yield": "jeff311/nfpy/",
-        "decay_time_spacing": "linear",
+        "emission_probability": "iaea/four_dnp_test.csv",
+        "fission_yield": "omcchain/four_dnp_test.xml",
+        "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
         "energy_MeV": 0.0253e-6,
@@ -27,24 +28,24 @@
     },
     "modeling_options": {
         "parent_feeding": false,
-        "concentration_handling": "CFY",
+        "concentration_handling": "OMC",
         "count_rate_handling": "data",
         "reprocessing_locations": ["excore"],
         "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "saturation",
-        "incore_s": 10,
+        "irrad_type": "intermediate",
+        "incore_s": 0.00001,
         "excore_s": 0,
-        "spatial_scaling": "unscaled",
-        "net_irrad_s": 420,
-        "decay_time": 600,
+        "net_irrad_s": 0.00004,
+        "decay_time": 1200,
         "num_decay_times": 300
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 4,
         "method": "nlls",
-        "samples": 1000,
-        "sample_func": "normal"
+        "samples": 1,
+        "sample_func": "normal",
+        "seed": 1
     }
 }

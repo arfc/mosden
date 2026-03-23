@@ -1,33 +1,45 @@
 {
-    "name": "IAEA HF",
-    "multi_id": null,
+    "name": "Four DNPs",
     "file_options": {
         "overwrite": {
-            "preprocessing": true,
+            "preprocessing": false,
             "concentrations": true,
             "count_rate": true,
             "group_fitting": true,
             "postprocessing": true,
             "logger": true
         },
+        "unprocessed_data_dir": "/home/luke/github/mosden/mosden/data/unprocessed/",
         "log_level": 20
     },
     "data_options": {
-        "half_life": "iaea/eval.csv",
+        "half_life": "endfb71/decay/",
         "cross_section": "",
-        "emission_probability": "iaea/eval.csv",
-        "fission_yield": "jeff311/nfpy/",
+        "emission_probability": "endfb71/decay/",
+        "fission_yield": "endfb71/nfy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
         "energy_MeV": 0.0253e-6,
         "fissile_fractions": {
             "U235": 1.0
+        },
+        "debug_dnps": {
+            "Zz99": {
+                "yield": 0.5,
+                "half_life_s": 3,
+                "pn": 1,
+                "parent": {
+                    "yield": 0.5,
+                    "half_life_s": 0.3
+                }
+            }
         }
     },
     "modeling_options": {
         "concentration_handling": "OMC",
         "count_rate_handling": "data",
+        "residual_handling": ["post-irrad"],
         "reprocessing_locations": ["excore"],
         "reprocessing": {
             "Xe": 0.0
@@ -38,15 +50,15 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 0.1,
+        "incore_s": 1e-6,
         "excore_s": 0,
-        "net_irrad_s": 10,
+        "net_irrad_s": 1e-5,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
-            "source": 1e3,
+            "source": 1.18e4,
             "run_omc": true,
             "write_fission_json": true,
             "write_nuyield_json": true,
@@ -54,9 +66,11 @@
         }
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 1,
         "method": "nlls",
+        "parameter_guesses": 10,
         "samples": 1,
-        "sample_func": "normal"
+        "sample_func": "normal",
+        "seed": 1
     }
 }
