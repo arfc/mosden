@@ -45,7 +45,7 @@ def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yiel
         plt.legend()
     plt.xscale(xscale)
     plt.xlabel(xlab)
-    plt.ylabel('Total Yield')
+    plt.ylabel(r'$\nu_d$')
     plt.savefig(f'total_yield{namemod}.png')
     plt.close()
 
@@ -94,15 +94,31 @@ def plot_accumulated_data(accumulated_data):
         formatted_data, total_yields = _cleanup_data(data_vals)
         times = formatted_data['xs']
         groups.append(group)
-        data.append(total_yields)
-    data = np.asarray(data).T
-
-
-
-
+        data.append(total_yields)    
+    
     post = PostProcess(None)
     colors = post.get_colors(len(data))
     markers = post.markers
+
+    for group in range(len(data)):
+        plt.plot(times, data[group], label=f"{groups[group]} Groups",
+                 marker=markers[group % len(markers)],
+                 color=colors[group], linestyle='--',
+                 linewidth=0.75,
+                 markersize=5)
+    plt.xlabel(r'Irradiation Time $[s]$')
+    plt.ylabel(r'$\nu_d$')
+    plt.xscale('log')
+    plt.legend()
+    plt.savefig(f'multiple_group_yields.png')
+    plt.close()
+
+
+
+
+    data = np.asarray(data).T
+    colors = post.get_colors(len(data))
+
     for i in range(len(data)):
         plt.plot(groups, data[i], label=f"T = {times[i]}",
                  marker=markers[i % len(markers)],
