@@ -8,7 +8,7 @@ from typing import Callable
 from time import time
 import warnings
 from tqdm import tqdm
-from scipy.linalg import svd
+from scipy.linalg import svd, LinAlgError
 from typing import Callable
 
 
@@ -569,17 +569,20 @@ class Grouper(BaseClass):
 
         best = None
         for x0 in tqdm(starts):
-            result = least_squares(self._residual_function,
-                                x0,
-                                bounds=bounds,
-                                method='trf',
-                                x_scale='jac',
-                                ftol=1e-12,
-                                gtol=1e-12,
-                                xtol=1e-12,
-                                verbose=0,
-                                max_nfev=1e6,
-                                args=(times, counts, count_err, irrad_counts, irrad_times, fit_function))
+            try:
+                result = least_squares(self._residual_function,
+                                    x0,
+                                    bounds=bounds,
+                                    method='trf',
+                                    x_scale='jac',
+                                    ftol=1e-12,
+                                    gtol=1e-12,
+                                    xtol=1e-12,
+                                    verbose=0,
+                                    max_nfev=1e6,
+                                    args=(times, counts, count_err, irrad_counts, irrad_times, fit_function))
+            except LinAlgError:
+                continue
             if best is None or result.cost < best.cost:
                 best = result
         result = best
