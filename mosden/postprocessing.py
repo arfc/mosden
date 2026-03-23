@@ -44,6 +44,8 @@ class PostProcess(BaseClass):
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
             self.logger.warning('Postdata does not exist')
+        except IndexError:
+            self.logger.warning('Could not access data at target index')
         grouper = Grouper(input_path)
         self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
 
