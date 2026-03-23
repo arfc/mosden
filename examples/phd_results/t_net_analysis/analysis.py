@@ -21,6 +21,7 @@ def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yiel
                 total_yield = sum(vals)
                 total_yields.append(total_yield)
     max_index = total_yields.index(max(total_yields))
+    min_index = total_yields.index(min(total_yields))
 
     for t_net, params in data_vals.items():
         formatted_data['xs'].append(t_net)
@@ -29,7 +30,7 @@ def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yiel
                 formatted_data[name][group].append(val)
 
     markers = ['.', '*', '>', '<', 'v', '^']
-    print(f'Maximum yield of {total_yields[max_index]} at {formatted_data["xs"][max_index]}s')
+    print(f'Max - min yield of {round(1e5*(total_yields[max_index] - total_yields[min_index]), 4)} pcm ({namemod})')
     plt.plot(formatted_data['xs'], total_yields, label="Yields")
     if actual_yield:
         plt.hlines(actual_yield, min(formatted_data['xs']), max(formatted_data['xs']), label='Actual Yield',
@@ -48,7 +49,7 @@ def plot_data(data_vals, namemod='', xlab=r'Irradiation Time $[s]$', actual_yiel
             continue
         for group, params in data.items():
             plt.plot(formatted_data['xs'], params, label=f'Group {group+1}',
-                    marker=markers[group], linestyle='--', markersize=5,
+                    marker=markers[group % len(markers)], linestyle='--', markersize=5,
                     linewidth=1)
         plt.legend()
         plt.xlabel(xlab)
@@ -104,7 +105,7 @@ def build_data_dict(data_path=r'./dataNet/', post_name='_post', all_name='_all')
 if __name__ == '__main__':
     actual_yield = None
 
-    groups = [4, 6]
+    groups = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13]#, 14]
 
     for group in groups:
         post_data, all_data = build_data_dict(f'./dataNet_{group}', post_name='_post-irrad')
