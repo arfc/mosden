@@ -17,76 +17,102 @@ roman_to_int() {
   esac
 }
 
+download_endf_data() {
+  local ENDF_VERSION="$1"
+
+  local LOWERCASE_VERSION
+  LOWERCASE_VERSION=$(echo "${ENDF_VERSION//./}" | tr '[:upper:]' '[:lower:]')
+
+  local ROMAN_PART="${LOWERCASE_VERSION//[0-9]/}"
+  local DIGIT_PART="${LOWERCASE_VERSION//[^0-9]/}"
+  local INTEGER_VALUE
+  INTEGER_VALUE=$(roman_to_int "$ROMAN_PART")
+  LOWERCASE_VERSION="${INTEGER_VALUE}${DIGIT_PART}"
+
+  local ENDF_DIR="${DATA_DIR}/endfb${LOWERCASE_VERSION}"
+  local NFY_DIR="${ENDF_DIR}"
+  local XS_DIR="${ENDF_DIR}/xs"
+  local decay_DIR="${ENDF_DIR}"
+  mkdir -p "$NFY_DIR"
+  mkdir -p "$XS_DIR"
+
+  local SEPARATOR decay_SEPARATOR XS_URL
+  if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
+    SEPARATOR="-"
+    decay_SEPARATOR="-"
+    XS_URL="https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz"
+  elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
+    SEPARATOR="_"
+    decay_SEPARATOR="_"
+    XS_URL="https://anl.box.com/shared/static/uhbxlrx7hvxqw27psymfbhi7bx7s6u6a.xz"
+  else
+    echo "Unsupported ENDF version: ${ENDF_VERSION}" >&2
+    return 1
+  fi
+
+  # NFY data
+  local NFY_ZIP_NAME="ENDF-B-${ENDF_VERSION}${SEPARATOR}nfy.zip"
+  local NFY_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${NFY_ZIP_NAME}"
+  local TEMP_ZIP="${NFY_DIR}/${NFY_ZIP_NAME}"
+  echo "Downloading NFY data for ENDF/B-${ENDF_VERSION}..."
+  echo "Accessing ${NFY_URL}"
+  wget -4 --show-progress -O "$TEMP_ZIP" "$NFY_URL"
+  echo "Extracting NFY data..."
+  unzip "$TEMP_ZIP" -d "$NFY_DIR"
+  rm "$TEMP_ZIP"
+  if [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
+    mv "${NFY_DIR}/ENDF-B-${ENDF_VERSION}${SEPARATOR}nfy" "${NFY_DIR}/nfy"
+  fi
+  echo "NFY data handled"
+
+  # Decay data
+  local decay_ZIP_NAME="ENDF-B-${ENDF_VERSION}${decay_SEPARATOR}decay.zip"
+  local decay_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${decay_ZIP_NAME}"
+  TEMP_ZIP="${decay_DIR}/${decay_ZIP_NAME}"
+  echo "Downloading decay data for ENDF/B-${ENDF_VERSION}..."
+  echo "Accessing ${decay_URL}"
+  wget -4 --show-progress -O "$TEMP_ZIP" "$decay_URL"
+  echo "Extracting decay data..."
+  unzip "$TEMP_ZIP" -d "$decay_DIR"
+  rm "$TEMP_ZIP"
+  if [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
+    mv "${decay_DIR}/ENDF-B-${ENDF_VERSION}${decay_SEPARATOR}decay" "${decay_DIR}/decay"
+  fi
+  echo "Decay data handled"
+
+  # Cross section data
+  TEMP_ZIP="${XS_DIR}/XS.tar.xz"
+  echo "Downloading cross section data for ENDF/B-${ENDF_VERSION}..."
+  wget -4 --show-progress -O "$TEMP_ZIP" "$XS_URL"
+  echo "Extracting XS data"
+  tar -xvf "$TEMP_ZIP" -C "$XS_DIR" --strip-components=1
+  rm "$TEMP_ZIP"
+  echo "Cross section data handled"
+
+  # OpenMC chain data
+  local OPENMC_DIR="${ENDF_DIR}/omcchain/"
+  mkdir -p "$OPENMC_DIR"
+  echo "Getting OpenMC chain data for ENDF/B-${ENDF_VERSION}..."
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_pwr.xml" "https://anl.box.com/shared/static/3nvnasacm2b56716oh5hyndxdyauh5gs.xml"
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_sfr.xml" "https://anl.box.com/shared/static/9fqbq87j0tx4m6vfl06pl4ccc0hwamg9.xml"
+  if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
+    wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/os1u896bwsbopurpgas72bi6aij2zzdc.xml"
+    wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/9058zje1gm0ekd93hja542su50pccvj0.xml"
+  elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
+    wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb80_pwr.xml" "https://anl.box.com/shared/static/nyezmyuofd4eqt6wzd626lqth7wvpprr.xml"
+    wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb80_sfr.xml" "https://anl.box.com/shared/static/x3kp739hr5upmeqpbwx9zk9ep04fnmtg.xml"
+  fi
+  echo "OpenMC chain data collected"
+}
+
 DATA_DIR="mosden/data/unprocessed"
+rm -rf "$DATA_DIR"
 mkdir -p "$DATA_DIR"
 
 # ENDF --------------------------------------------------------------------
-ENDF_VERSION="VII.1"
-ALLOWED_VERSIONS=("VIII.0" "VII.1")
 
-if [[ ! " ${ALLOWED_VERSIONS[*]} " =~ " ${ENDF_VERSION} " ]]; then
-    echo "Error: Invalid ENDF version '${ENDF_VERSION}'"
-    echo "Allowed versions: ${ALLOWED_VERSIONS[*]}"
-    exit 1
-fi
-
-LOWERCASE_VERSION=$(echo "${ENDF_VERSION//./}" | tr '[:upper:]' '[:lower:]')
-
-ROMAN_PART="${LOWERCASE_VERSION//[0-9]/}"
-DIGIT_PART="${LOWERCASE_VERSION//[^0-9]/}"
-INTEGER_VALUE=$(roman_to_int "$ROMAN_PART")
-LOWERCASE_VERSION="${INTEGER_VALUE}${DIGIT_PART}"
-
-ENDF_DIR="${DATA_DIR}/endfb${LOWERCASE_VERSION}"
-NFY_DIR="${ENDF_DIR}"
-XS_DIR="${ENDF_DIR}/xs"
-decay_DIR="${ENDF_DIR}"
-mkdir -p "$NFY_DIR"
-mkdir -p "$XS_DIR"
-
-if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
-  SEPARATOR="-"
-  decay_SEPARATOR="-"
-  XS_URL="https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz"
-elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
-  SEPARATOR="_"
-  decay_SEPARATOR="_"
-  XS_URL="https://anl.box.com/shared/static/uhbxlrx7hvxqw27psymfbhi7bx7s6u6a.xz"
-fi
-
-NFY_ZIP_NAME="ENDF-B-${ENDF_VERSION}${SEPARATOR}nfy.zip"
-NFY_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${NFY_ZIP_NAME}"
-
-echo "Downloading NFY data for ENDF/B-${ENDF_VERSION}..."
-TEMP_ZIP="${NFY_DIR}/${NFY_ZIP_NAME}"
-echo "Accessing ${NFY_URL}"
-wget -4 --show-progress -O "$TEMP_ZIP" "$NFY_URL"
-echo "Extracting NFY data..."
-unzip "$TEMP_ZIP" -d "$NFY_DIR"
-rm "$TEMP_ZIP"
-echo "NFY data handled"
-
-decay_ZIP_NAME="ENDF-B-${ENDF_VERSION}${decay_SEPARATOR}decay.zip"
-decay_URL="https://www.nndc.bnl.gov/endf-b${INTEGER_VALUE}.${DIGIT_PART}/zips/${decay_ZIP_NAME}"
-
-echo "Downloading decay data for ENDF/B-${ENDF_VERSION}..."
-TEMP_ZIP="${decay_DIR}/${decay_ZIP_NAME}"
-echo "Accessing ${decay_URL}"
-wget -4 --show-progress -O "$TEMP_ZIP" "$decay_URL"
-echo "Extracting decay data..."
-unzip "$TEMP_ZIP" -d "$decay_DIR"
-rm "$TEMP_ZIP"
-echo "Decay data handled"
-
-
-echo "Downloading cross section data for ENDF/B-${ENDF_VERSION}..."
-TEMP_ZIP="${XS_DIR}/XS.tar.xz"
-wget -4 --show-progress -O "$TEMP_ZIP" "$XS_URL"
-echo "Extracting XS data"
-tar -xvf "$TEMP_ZIP" -C "$XS_DIR" --strip-components=1
-rm "$TEMP_ZIP"
-echo "Cross section data handled"
-
+download_endf_data "VII.1"
+download_endf_data "VIII.0"
 
 # /ENDF --------------------------------------------------------------------
 
@@ -94,13 +120,7 @@ echo "Cross section data handled"
 
 # JEFF --------------------------------------------------------------------
 JEFF_VERSION="3.1.1"
-ALLOWED_VERSIONS=("3.1.1")
 
-if [[ ! " ${ALLOWED_VERSIONS[*]} " =~ " ${JEFF_VERSION} " ]]; then
-    echo "Error: Invalid JEFF version '${JEFF_VERSION}'"
-    echo "Allowed versions: ${ALLOWED_VERSIONS[*]}"
-    exit 1
-fi
 JEFF_VERSION_NOP="${JEFF_VERSION//./}"
 
 JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
@@ -125,6 +145,16 @@ rm "$NFY_DIR"/*.zip
 echo "NFY data handled"
 
 
+JEFF_VERSION="4.0"
+JEFF_VERSION_NOP="${JEFF_VERSION//./}"
+JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
+OPENMC_DIR="${JEFF_DIR}/omcchain/"
+mkdir -p "$OPENMC_DIR"
+echo "Getting OpenMC chain data for JEFF-4.0..."
+wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_pwr.xml" "https://anl.box.com/shared/static/qpcfyrctoffb34m4dwyxz2vgp8tim8e7.xml"
+wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_sfr.xml" "https://anl.box.com/shared/static/p6cettxz3ovbp151qg7bc3k9ov0zt3wm.xml"
+echo "OpenMC chain data collected"
+
 # /JEFF --------------------------------------------------------------------
 
 # IAEA --------------------------------------------------------------------
@@ -139,15 +169,3 @@ echo "Saved to $IAEA_FILE"
 
 # /IAEA --------------------------------------------------------------------
 
-# OpenMC --------------------------------------------------------------------
-OPENMC_DIR="${ENDF_DIR}/omcchain/"
-mkdir -p "$OPENMC_DIR"
-wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_pwr.xml" "https://anl.box.com/shared/static/3nvnasacm2b56716oh5hyndxdyauh5gs.xml"
-wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_sfr.xml" "https://anl.box.com/shared/static/9fqbq87j0tx4m6vfl06pl4ccc0hwamg9.xml"
-if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
-  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/os1u896bwsbopurpgas72bi6aij2zzdc.xml"
-  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/9058zje1gm0ekd93hja542su50pccvj0.xml"
-elif [[ "${ENDF_VERSION}" == "VIII.0" ]]; then
-  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/nyezmyuofd4eqt6wzd626lqth7wvpprr.xml"
-  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/x3kp739hr5upmeqpbwx9zk9ep04fnmtg.xml"
-fi
