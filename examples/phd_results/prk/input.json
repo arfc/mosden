@@ -2,7 +2,8 @@
     "p_selections": ["pulse (12 Group)", "pulse (6 Group)"],
     "s_selections": ["saturation (12 Group)", "saturation (6 Group)"],
     "12_selections": ["saturation (12 Group)", "pulse (12 Group)"],
-    "selections": ["fast pulse (9 Group)", "fast pulse (6 Group)"],
+    "fast_selections": ["fast pulse (9 Group)", "fast pulse (6 Group)"],
+    "selections": ["pulse (8 Group)", "intermediate (8 Group)", "saturation (8 Group)"],
     "_selections": ["saturation (6 Group)", "pulse (6 Group)"],
     "o_selections": ["pulse", "intermediate", "intermediate [all]", "saturation", "saturation [all]"],
     "problem": "step_relative",
@@ -12,8 +13,8 @@
     "step_relative_insertion": 0.25,
     "rho_max_dollars": 0.5,
     "neutrons_per_fission": 2.4,
-    "gen_time": 2e-7,
-    "old_gen_time": 2e-5,
+    "fast_gen_time": 2e-7,
+    "gen_time": 2e-5,
     "p0": 1,
     "rho_amplitude": 750e-5,
     "rho_relative_amplitude": 0.25,
@@ -22,6 +23,21 @@
     "keepin": {
       "yields": [0.00052, 0.00346, 0.00310, 0.00624, 0.00182, 0.00066],
       "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028]
+    },
+    "pulse (8 Group)": {
+      "description": "Calculated using IAEA and JEFF40 data, post-irrad, (0.0001,0) 0.0001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0004810412398,0.002747985876,0.001102469289,0.002812815944,0.005185550176,0.001834079671,0.001796392814,0.0001360405968],
+      "hls": [55.67180429,24.24290079,15.3710988,5.066760398,2.177984601,0.8800434482,0.3614118892,0.1414840313]
+    },
+    "intermediate (8 Group)": {
+      "description": "Calculated using IAEA and JEFF40 data, post-irrad, (0.0001,0) 0.0001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0004798412438,0.002609836129,0.001172955115,0.00228913104,0.00396493595,0.002839532266,0.002116834191,0.0006225115174],
+      "hls": [55.69446054,24.44150444,16.33155403,5.542215216,2.638502954,1.468718471,0.4947322385,0.2237650564]
+    },
+    "saturation (8 Group)": {
+      "description": "Calculated using IAEA and JEFF40 data, post-irrad, (0.0001,0) 0.0001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0004796809023,0.002599249108,0.001183678947,0.002381161476,0.004491262022,0.002411658835,0.002098340837,0.0004508185884],
+      "hls": [55.69771461,24.45926929,16.37416228,5.491068375,2.503326905,1.301201058,0.453571702,0.2032534501]
     },
     "fast pulse (6 Group)": {
       "description": "Calculated using IAEA and JEFF40 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
