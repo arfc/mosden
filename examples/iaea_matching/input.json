@@ -33,9 +33,9 @@
             "Xe": 0.0
         },
         "irrad_type": "saturation",
-        "incore_s": 10,
+        "incore_s": 4200,
         "excore_s": 0,
-        "net_irrad_s": 420,
+        "net_irrad_s": 4200,
         "decay_time": 120,
         "num_decay_times": 800
     },

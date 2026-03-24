@@ -12,10 +12,10 @@
         "log_level": 20
     },
     "data_options": {
-        "half_life": "endfb71/decay/",
+        "half_life": "iaea/eval.csv",
         "cross_section": "",
-        "emission_probability": "endfb71/decay/",
-        "fission_yield": "endfb71/nfy/",
+        "emission_probability": "iaea/eval.csv",
+        "fission_yield": "jeff40/nfpy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
@@ -25,7 +25,7 @@
         },
         "debug_dnps": {
             "Zz99": {
-                "yield": 1.0,
+                "yield": 0.0,
                 "half_life_s": 10,
                 "pn": 1,
                 "parent": {
@@ -49,15 +49,16 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 50,
+        "incore_s": 1e-5,
         "excore_s": 0,
-        "net_irrad_s": 5000,
+        "net_irrad_s": 1e-5,
         "decay_time": 600,
         "num_decay_times": 100,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
             "source": 1e3,
+            "chain": "jeff40/omcchain/chain_jeff40_pwr.xml",
             "run_omc": true,
             "write_fission_json": true,
             "write_nuyield_json": true,
