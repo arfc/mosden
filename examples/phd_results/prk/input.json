@@ -2,16 +2,18 @@
     "p_selections": ["pulse (12 Group)", "pulse (6 Group)"],
     "s_selections": ["saturation (12 Group)", "saturation (6 Group)"],
     "12_selections": ["saturation (12 Group)", "pulse (12 Group)"],
-    "selections": ["saturation (6 Group)", "pulse (6 Group)"],
+    "selections": ["fast pulse (9 Group)", "fast pulse (6 Group)"],
+    "_selections": ["saturation (6 Group)", "pulse (6 Group)"],
     "o_selections": ["pulse", "intermediate", "intermediate [all]", "saturation", "saturation [all]"],
     "problem": "step_relative",
     "euler_mode": "backward",
     "time_steps": [1e-3],
-    "tf": 60,
-    "step_relative_insertion": 0.2,
+    "tf": 50,
+    "step_relative_insertion": 0.25,
     "rho_max_dollars": 0.5,
     "neutrons_per_fission": 2.4,
-    "gen_time": 2e-5,
+    "gen_time": 2e-7,
+    "old_gen_time": 2e-5,
     "p0": 1,
     "rho_amplitude": 750e-5,
     "rho_relative_amplitude": 0.25,
@@ -20,6 +22,16 @@
     "keepin": {
       "yields": [0.00052, 0.00346, 0.00310, 0.00624, 0.00182, 0.00066],
       "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028]
+    },
+    "fast pulse (6 Group)": {
+      "description": "Calculated using IAEA and JEFF40 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005021036685,0.00341460966,0.00229365229,0.006027459811,0.002630153928,0.001228086463],
+      "hls": [55.252769,22.90792575,6.728068058,2.402756955,0.7460524157,0.2679809025]
+    },
+    "fast pulse (9 Group)": {
+      "description": "Calculated using IAEA and JEFF40 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.000479918173,0.002619743119,0.001167517464,0.002326700163,0.003923848714,0.002732455985,0.00181996685,0.0009886137857,3.76E-05],
+      "hls": [55.69299478,24.42762052,16.26819865,5.50448835,2.617191233,1.499191457,0.5528582752,0.278688309,0.09965688659]
     },
     "saturation (12 Group)": {
       "description": "Calculated using ENDFB71 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
