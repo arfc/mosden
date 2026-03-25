@@ -297,8 +297,9 @@ class Grouper(BaseClass):
         counts : np.ndarray[float|object]
             Array of counts for each time point (can be float or ufloat)
         """
-        yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters) / 2)
+        yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
@@ -403,8 +404,9 @@ class Grouper(BaseClass):
         if self.irrad_type != 'intermediate':
             return parameters
 
-        scaled_yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters) / 2)
+        scaled_yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
