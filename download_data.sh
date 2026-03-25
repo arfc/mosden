@@ -146,7 +146,8 @@ download_endf_data() {
 
 download_jendl_data() {
   local JENDL_VERSION="$1"
-  JENDL_DIR="${DATA_DIR}/jendl"
+  local JENDL_VERSION_NOP="${JENDL_VERSION//./}"
+  local JENDL_DIR="${DATA_DIR}/jendl${JENDL_VERSION_NOP}"
   mkdir -p "${JENDL_DIR}"
   local NFY_DIR="${JENDL_DIR}/fpy/"
   local DECAY_DIR="${JENDL_DIR}/decay/"
