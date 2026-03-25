@@ -358,10 +358,10 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
-            chart_min_data = np.min((np.min(list(summed_pcc_data.values())), np.min(list(scaled_uncert_pcc.values()))))
+            chart_min_data = np.min((np.mean(list(summed_pcc_data.values())), np.mean(list(scaled_uncert_pcc.values()))))
             chart_max_data = np.max((np.max(list(summed_pcc_data.values())), np.max(list(scaled_uncert_pcc.values()))))
-            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
-            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
+            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label=r'$PCC_i$', vmin=chart_min_data, vmax=chart_max_data)
+            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label=r'$U_i$', vmin=chart_min_data, vmax=chart_max_data)
             sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
             top = 10
             self.logger.info(f'Writing {top = } summed |PCC| nuclides')
