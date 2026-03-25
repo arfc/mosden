@@ -246,8 +246,8 @@ class PostProcess(BaseClass):
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
-        plt.xlabel("Number of neutrons (N)")
-        plt.ylabel("Number of protons (Z)")
+        plt.xlabel("Neutrons (N)")
+        plt.ylabel("Protons (Z)")
         plt.savefig(f'{self.img_dir}chart_{name}.png')
         plt.close()
         return None 
