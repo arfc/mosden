@@ -30,7 +30,7 @@ download_jeff_data() {
   if [[ "${JEFF_VERSION}" == "3.1.1"  ||  "${JEFF_VERSION}" == "4.0" ]]; then
     JEFF_URL="https://www-nds.iaea.org/public/download-endf/JEFF-${JEFF_VERSION}/nfpy/"
   else
-    echo "Unsupported JEFF version: ${JEFF_VERSION}" >&2
+    echo "Unsupported JEFF version: ${JEFF_VERSION}"
     return 1
   fi
 
@@ -41,6 +41,7 @@ download_jeff_data() {
   echo "Extracting NFY data..."
   for f in "$NFY_DIR"/*.zip; do
     unzip "$f" -d "$NFY_DIR"
+  done
 
 
   if [[ "${JEFF_VERSION}" == "4.0" ]]; then
@@ -51,7 +52,6 @@ download_jeff_data() {
     wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jeff40_sfr.xml" "https://anl.box.com/shared/static/p6cettxz3ovbp151qg7bc3k9ov0zt3wm.xml"
     echo "OpenMC chain data collected"
   fi
-  done
 
   echo "Removing zip files..."
   rm "$NFY_DIR"/*.zip
@@ -87,7 +87,7 @@ download_endf_data() {
     decay_SEPARATOR="_"
     XS_URL="https://anl.box.com/shared/static/uhbxlrx7hvxqw27psymfbhi7bx7s6u6a.xz"
   else
-    echo "Unsupported ENDF version: ${ENDF_VERSION}" >&2
+    echo "Unsupported ENDF version: ${ENDF_VERSION}"
     return 1
   fi
 
@@ -134,8 +134,6 @@ download_endf_data() {
   local OPENMC_DIR="${ENDF_DIR}/omcchain/"
   mkdir -p "$OPENMC_DIR"
   echo "Getting OpenMC chain data for ENDF/B-${ENDF_VERSION}..."
-  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_pwr.xml" "https://anl.box.com/shared/static/3nvnasacm2b56716oh5hyndxdyauh5gs.xml"
-  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_casl_sfr.xml" "https://anl.box.com/shared/static/9fqbq87j0tx4m6vfl06pl4ccc0hwamg9.xml"
   if [[ "${ENDF_VERSION}" == "VII.1" ]]; then
     wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_pwr.xml" "https://anl.box.com/shared/static/os1u896bwsbopurpgas72bi6aij2zzdc.xml"
     wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb71_sfr.xml" "https://anl.box.com/shared/static/9058zje1gm0ekd93hja542su50pccvj0.xml"
@@ -144,6 +142,62 @@ download_endf_data() {
     wget -4 -q --show-progress -O "${OPENMC_DIR}chain_endfb80_sfr.xml" "https://anl.box.com/shared/static/x3kp739hr5upmeqpbwx9zk9ep04fnmtg.xml"
   fi
   echo "OpenMC chain data collected"
+}
+
+download_jendl_data() {
+  local JENDL_VERSION="$1"
+  JENDL_DIR="${DATA_DIR}/jendl"
+  mkdir -p "${JENDL_DIR}"
+  local NFY_DIR="${JENDL_DIR}/fpy/"
+  local DECAY_DIR="${JENDL_DIR}/decay/"
+
+
+  # Fission product yields
+  local JENDL_URL
+  local JENDL_FPY_NAME
+  if [[ "${JENDL_VERSION}" = "5" ]]; then
+    JENDL_FPY_NAME="jendl5-fpy_upd8.tar.gz"
+    JENDL_URL="https://wwwndc.jaea.go.jp/ftpnd/ftp/JENDL/${JENDL_FPY_NAME}"
+  else
+    echo "Unsupported JENDL version: ${JENDL_VERSION}"
+    return 1
+  fi
+
+  echo "Downloading NFY data for JENDL-${JENDL_VERSION}..."
+  echo "Accessing ${JENDL_URL}"
+  wget -4 --show-progress -P "${NFY_DIR}" "${JENDL_URL}"
+
+  echo "Extracting NFY data..."
+  tar -xvf "${NFY_DIR}/${JENDL_FPY_NAME}" -C "${NFY_DIR}" --strip-components=1
+
+  # Decay data
+  local JENDL_URL
+  local JENDL_DECAY_NAME
+  if [[ "${JENDL_VERSION}" = "5" ]]; then
+    JENDL_DECAY_NAME="jendl5-dec_upd5.tar.gz"
+    JENDL_URL="https://wwwndc.jaea.go.jp/ftpnd/ftp/JENDL/${JENDL_DECAY_NAME}"
+  else
+    echo "Unsupported JENDL version: ${JENDL_VERSION}"
+    return 1
+  fi
+
+  echo "Downloading decay data for JENDL-${JENDL_VERSION}..."
+  echo "Accessing ${JENDL_URL}"
+  wget -4 --show-progress -P "${DECAY_DIR}" "${JENDL_URL}"
+
+  echo "Extracting decay data..."
+  tar -xvf "${DECAY_DIR}/${JENDL_DECAY_NAME}" -C "${DECAY_DIR}" --strip-components=1
+
+  # OpenMC chain data
+  local OPENMC_DIR="${JENDL_DIR}/omcchain/"
+  mkdir -p "${OPENMC_DIR}"
+  echo "Getting OpenMC chain data for JENDL${JENDL_VERSION}..."
+  if [[ "${JENDL_VERSION}" == "5" ]]; then
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jendl5_pwr.xml" "https://anl.box.com/shared/static/zgn4gkwxnl3tyh45vrig429yze24sy9d.xml"
+  wget -4 -q --show-progress -O "${OPENMC_DIR}chain_jendl5_sfr.xml" "https://anl.box.com/shared/static/yw4bsaf86d1vhva42wzurwstlp1ynhe5.xml"
+  fi
+  echo "OpenMC chain data collected"
+
 }
 
 DATA_DIR="mosden/data/unprocessed"
@@ -178,3 +232,8 @@ echo "Saved to $IAEA_FILE"
 
 # /IAEA --------------------------------------------------------------------
 
+# JENDL --------------------------------------------------------------------
+download_jendl_data "5"
+
+
+# /JENDL --------------------------------------------------------------------
