@@ -28,7 +28,7 @@ name = 'chem_long'
 chemical_long_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': False,
         'overwrite': True
     },
@@ -44,7 +44,7 @@ name = 'chem_bool'
 chemical_bool_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': False,
         'overwrite': True
     },
@@ -60,7 +60,7 @@ name = 'spacing_times'
 spacing_times_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': False,
         'overwrite': True
     },
@@ -73,7 +73,7 @@ name = 'decay_time_nodes'
 decay_times_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': False,
         'overwrite': True
     },
@@ -86,7 +86,7 @@ name = 'total_decay_time'
 total_decay_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': False,
         'overwrite': True
     },
@@ -99,8 +99,8 @@ name = 'detailed_decay'
 detailed_decay_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
-        'run_post': True,
+        'run_full': True,
+        'run_post': False,
         'overwrite': True
     },
     'decay_time': [1200, 2400],
@@ -253,8 +253,7 @@ def run_mosden(analysis: dict, input_paths: list[str]) -> None:
 
 if __name__ == '__main__':
     for analysis in analysis_list:
-        dir_name = f'./{analysis["meta"]["name"]}'
+        dir_name = f'./{analysis["meta"]["name"]}/'
         if analysis['meta']['run_full'] or analysis['meta']['run_post']:
             input_paths = populate_inputs(analysis, dir_name)
             run_mosden(analysis, input_paths)
-    pass
