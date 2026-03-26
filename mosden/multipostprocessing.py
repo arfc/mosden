@@ -82,7 +82,7 @@ class MultiPostProcess():
                 post.name = rf'$T_d$ = {post.total_decay_time}s'
         elif self._is_name('detailed_decay'):
             for post in self.posts:
-                post.name = rf'$T_d$ = {post.total_decay_time}s with {post.num_decay_times} nodes'
+                post.name = rf'$T_d$ = {post.decay_time}s with {post.num_decay_times} nodes'
         elif self._is_name('irrad_time'):
             for post in self.posts:
                 post.name = f'T = {post.net_irrad_s}'
