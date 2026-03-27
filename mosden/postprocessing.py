@@ -1054,6 +1054,7 @@ class PostProcess(BaseClass):
         countrate = CountRate(self.input_path)
         irrad_index = self.get_irrad_index(False) + 1
         times = countrate.use_times
+        tenth = int(len(times)/10)
         alpha_MC: float = 1 / np.sqrt(self.MC_samples)
         for MC_iterm, count_val in enumerate(counts):
             label = mc_label if MC_iterm == 0 else None
@@ -1073,7 +1074,8 @@ class PostProcess(BaseClass):
             marker='x',
             label='Mean, This Work',
             markersize=5,
-            markevery=5)
+            markevery=tenth,
+            errorevery=tenth)
         countrate.count_method = 'groupfit'
         if self.self_relative_data:
             base_name = mc_label
@@ -1139,6 +1141,7 @@ class PostProcess(BaseClass):
         plt.xlabel('Time [s]')
         plt.ylabel(r'Count Rate $[n \cdot s^{-1}]$')
         plt.yscale('log')
+        plt.xscale('log')
         leg = plt.legend()
         for line in leg.legend_handles:
             if line.get_label() == mc_label:
@@ -1175,7 +1178,8 @@ class PostProcess(BaseClass):
             marker='x',
             label='Mean, This Work',
             markersize=5,
-            markevery=5)
+            markevery=tenth,
+            errorevery=tenth)
 
         counts_group = unumpy.uarray(group_counts['counts'],
                                      group_counts['sigma counts'])
