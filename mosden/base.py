@@ -21,9 +21,11 @@ class BaseClass:
             Path to the input file
         """
         self.omc_data_words: list[str] = ['omcchain']
-        self.endf_data_words: list[str] = ['nfy', 'decay']
+        self.endf_data_words: list[str] = ['endfb71', 'endfb80']
         self.iaea_data_words: list[str] = ['iaea']
         self.jeff_data_words: list[str] = ['jeff']
+        self.jendl_data_words: list[str] = ['jendl5']
+
 
         self.input_path: str = input_path
         self.input_handler: InputHandler = InputHandler(input_path)
