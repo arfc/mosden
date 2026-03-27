@@ -94,10 +94,11 @@ DEFAULTS = {
             'conc_top': 15,
             'conc_over_time_top': 5
         },
+        "plot_means": False,
         "num_stacked_nuclides": 2,
         "lit_data": ['keepin', 'brady', 'synetos'],
         "nuc_colors": {
-            'Br87': '#FF474C'
+            #'Br87': '#FF474C'
         }
     }
 }
