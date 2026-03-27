@@ -176,6 +176,8 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._jeff_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in JEFF')
         return None
