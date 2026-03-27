@@ -511,10 +511,12 @@ class Preprocess(BaseClass):
         """
         import openmc.data
         data = dict()
+        valid_endings = ('.dat', '.endf')
         for file in os.listdir(dir):
             Pn = ufloat(0, 1e-12)
             half_life = ufloat(0, 1e-12)
-            if not file.startswith(f'dec-'):
+            is_valid = (file.startswith('dec') and file.endswith(valid_endings))
+            if not is_valid:
                 continue
             decay = openmc.data.Decay.from_endf(dir+file)
             half_life = decay.half_life
