@@ -55,7 +55,15 @@
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
-        "samples": 1,
+        "samples": 5000,
         "sample_func": "normal"
+    },
+    "post_options": {
+        "top_num_nuclides": {
+            "yield_top": 5,
+            "conc_top": 5,
+            "conc_over_time_top": 5
+        }
     }
+
 }
