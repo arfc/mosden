@@ -23,6 +23,7 @@ download_jeff_data() {
   local JEFF_VERSION_NOP="${JEFF_VERSION//./}"
   local JEFF_DIR="${DATA_DIR}/jeff${JEFF_VERSION_NOP}"
   local NFY_DIR="${JEFF_DIR}/nfpy/"
+  local DECAY_DIR="${JEFF_DIR}/decay/"
   mkdir -p "$NFY_DIR"
   echo "Saving data to ${NFY_DIR}"
 
@@ -44,6 +45,39 @@ download_jeff_data() {
   done
 
 
+  # Decay data (formatted as many small zipped files)
+  local JEFF_URL="https://www-nds.iaea.org/public/download-endf/JEFF-${JEFF_VERSION}/decay/"
+
+  echo "Downloading decay data for JEFF-${JEFF_VERSION}..."
+  echo "Accessing ${JEFF_URL}"
+  JEFF_URL="https://www-nds.iaea.org/public/download-endf/JEFF-3.1.1/decay/"
+
+  if command -v aria2c &>/dev/null; then
+      echo "aria2c in use"
+  
+      wget -q -O - "$JEFF_URL" \
+        | grep -oP 'href="\K[^"]+\.zip' \
+        | sed "s|^|$JEFF_URL|" \
+        > /tmp/jeff_urls.txt
+  
+      aria2c \
+        --input-file=/tmp/jeff_urls.txt \
+        --dir="${DECAY_DIR}" \
+        --max-concurrent-downloads=16 \
+        --split=1 \
+        --auto-file-renaming=false
+  
+      rm /tmp/jeff_urls.txt
+  else
+      echo "aria2c not available (highly suggested), using wget"
+      wget -4 --show-progress --recursive --no-parent --accept "*.zip" --no-host-directories --cut-dirs=3 -P "${JEFF_DIR}" "$JEFF_URL"
+  fi
+
+  echo "Extracting decay data..."
+  for f in "$DECAY_DIR"/*.zip; do
+    unzip "$f" -d "$DECAY_DIR"
+  done
+
   if [[ "${JEFF_VERSION}" == "4.0" ]]; then
     OPENMC_DIR="${JEFF_DIR}/omcchain/"
     mkdir -p "$OPENMC_DIR"
@@ -54,8 +88,9 @@ download_jeff_data() {
   fi
 
   echo "Removing zip files..."
+  rm "$DECAY_DIR"/*.zip
   rm "$NFY_DIR"/*.zip
-  echo "NFY data handled"
+  echo "JEFF-${JEFF_VERSION} data handled"
 }
 
 download_endf_data() {
