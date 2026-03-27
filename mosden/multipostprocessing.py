@@ -89,6 +89,8 @@ class MultiPostProcess():
         elif self._is_name('omc_timestep'):
             for post in self.posts:
                 post.name = rf'$\Delta t$ = {post.openmc_settings["max_timestep"]}'
+        elif self._is_name('data'):
+            self.data_table_gen()
         return None
 
     def _post_heatmap_setup(self) -> None:
@@ -121,6 +123,43 @@ class MultiPostProcess():
                 self.hm_y_vals.append(post.hm_y)
             except AttributeError:
                 self.do_heatmap = False
+        return None
+
+    def data_table_gen(self) -> None:
+        """
+        Write a csv table for the various data parameters and the results
+        """
+        csv_data = list()
+        rename = {
+            'endfb71/decay/': 'ENDF/B-VII.1',
+            'endfb80/decay/': 'ENDF/B-VIII.0',
+            'jeff311/decay/': 'JEFF-3.1.1',
+            'jendl5/decay/': 'JENDL-5',
+            'iaea/eval.csv': 'IAEA',
+            'endfb71/nfy/': 'ENDF/B-VII.1',
+            'endfb80/nfy/': 'ENDF/B-VIII.0',
+            'jeff311/nfpy/': 'JEFF-3.1.1',
+            'jendl5/fpy/': 'JENDL-5'
+        }
+        for post in self.posts:
+            cfy = post.input_data['data_options']['fission_yield']
+            pn = post.input_data['data_options']['emission_probability']
+            hl = post.input_data['data_options']['half_life']
+            row_data = {
+                r'$CFY$': rename[cfy],
+                r'$P_n$': rename[pn],
+                r'$\tau$': rename[hl],
+                r'$\nu_d (I)$': post.summed_yield.n,
+                r'$\Delta \nu_d (I)$': post.summed_yield.s,
+                r'$\bar{\tau} (I)$ $[s]$': post.summed_avg_halflife.n,
+                r'$\Delta \bar{\tau} (I)$ $[s]$': post.summed_avg_halflife.s,
+                r'$\nu_d (K)$': post.group_yield.n,
+                r'$\Delta \nu_d (K)$': post.group_yield.s,
+                r'$\bar{\tau} (K)$ $[s]$': post.group_avg_halflife.n,
+                r'$\Delta \bar{\tau} (K)$ $[s]$': post.group_avg_halflife.s
+            }
+            csv_data.append(row_data)
+        pd.DataFrame(csv_data).to_csv(f'{self.output_dir}data.csv', index=False)
         return None
 
     def run(self):
