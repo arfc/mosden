@@ -397,6 +397,10 @@
                     "type": "integer",
                     "description": "Plots the top X nuclides at each time step, where X is this value"
                 },
+                "plot_means": {
+                    "type": "boolean",
+                    "description": "Whether to plot the nominal values in count rate figures"
+                },
                 "lit_data": {
                     "type": "array",
                     "description": "Data from the literature to compare against. Must be present in the data directory",

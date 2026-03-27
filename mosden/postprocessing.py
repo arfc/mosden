@@ -1169,17 +1169,18 @@ class PostProcess(BaseClass):
         if len(counts_this_work) > len(times):
             counts_this_work = counts_this_work[irrad_index:]
         this_over_base = counts_this_work / counts_base
-        plt.errorbar(
-            times,
-            unumpy.nominal_values(this_over_base),
-            unumpy.std_devs(this_over_base),
-            color=mean_color,
-            linestyle='',
-            marker='x',
-            label='Mean, This Work',
-            markersize=5,
-            markevery=tenth,
-            errorevery=tenth)
+        if self.plot_means:
+            plt.errorbar(
+                times,
+                unumpy.nominal_values(this_over_base),
+                unumpy.std_devs(this_over_base),
+                color=mean_color,
+                linestyle='',
+                marker='x',
+                label='Mean, This Work',
+                markersize=5,
+                markevery=tenth,
+                errorevery=tenth)
 
         counts_group = unumpy.uarray(group_counts['counts'],
                                      group_counts['sigma counts'])
