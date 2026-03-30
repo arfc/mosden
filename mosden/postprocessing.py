@@ -404,7 +404,7 @@ class PostProcess(BaseClass):
                             edgecolor='black')
             handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
             plt.legend(handles, dnp_vals, title="DNP Value")
-            plt.xlabel(r"$U_{i}$")
+            plt.xlabel(r"$U_{i,v}$")
             plt.tight_layout()
             plt.savefig(f'{self.img_dir}pcc-bar.png')
             plt.close()
@@ -782,12 +782,16 @@ class PostProcess(BaseClass):
         self.summed_avg_halflife = summed_avg_halflife
         self.group_yield = group_yield
         self.group_avg_halflife = group_avg_halflife
+        yield_diff = 1e5*(summed_yield - group_yield)
+        avg_hl_diff = (summed_avg_halflife - group_avg_halflife)
 
         self._plot_nuclide_count_rates(self.num_stack)
         self.logger.info(f'{summed_yield = }')
         self.logger.info(f'{summed_avg_halflife = } s')
         self.logger.info(f'{group_yield = }')
         self.logger.info(f'{group_avg_halflife = } s')
+        self.logger.info(f'{yield_diff = } pcm')
+        self.logger.info(f'{avg_hl_diff = } s')
         if self.omc:
             yields = Concentrations(self.input_path).read_omc_nuyield_json()
             try:
