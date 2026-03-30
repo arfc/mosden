@@ -48,8 +48,8 @@ class Concentrations(BaseClass):
         
         if self.repr_scale <= 0.0:
             self.logger.info(f'{self.repr_scale = }')
-            self.logger.error('No valid chemical removal region provided')
-            self.logger.warning('Setting reprocessing scale to 1.0')
+            msg = 'No valid chemical removal region provided (scale set to 1.0)'
+            self.logger.warning(msg)
             self.repr_scale = 1.0
 
         return None
