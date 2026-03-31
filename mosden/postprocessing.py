@@ -34,22 +34,33 @@ class PostProcess(BaseClass):
         super().__init__(input_path)
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
         self.linestyles: list[str] = ['-', '--', ':', '-.']
-        self.load_post_data()
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
         if not os.path.exists(self.img_dir):
             os.makedirs(self.img_dir)
         self.group_data = None
+        self.post_data = None
+        self.MC_half_lives = None
+        self.MC_yields = None
 
+        grouper = Grouper(input_path)
+        self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
+        np.set_printoptions(legacy='1.25')
+
+        return None
+    
+    def get_MC_data_post(self) -> None:
+        """
+        Load post data and get the MC yield and half-lives
+        """
+        self.load_post_data()
         try:
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
             self.logger.warning('Postdata does not exist')
         except IndexError:
             self.logger.warning('Could not access data at target index')
-        grouper = Grouper(input_path)
-        self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
-
         return None
+
 
     def get_colors(self, num_colors: int, colormap: str = None,
                    min_val: float = 0.0, max_val: float = 1.0) -> list[tuple[float]]:
@@ -256,6 +267,7 @@ class PostProcess(BaseClass):
         """
         Analyze Monte Carlo Non-linear Least Squares results
         """
+        self.get_MC_data_post()
         if not self.no_post_irrad:
             self._plot_counts()
         if self.MC_samples > 2:
@@ -299,7 +311,7 @@ class PostProcess(BaseClass):
         group_names = ['Yield',
                        'Half-life']
         nucs_with_pcc = list()
-        pcc_cutoff = 0.2
+        pcc_cutoff = self.pcc_cutoff
         summed_pcc_data = dict()
         scaled_uncert_pcc = dict()
         pcc_data = dict()
@@ -365,14 +377,28 @@ class PostProcess(BaseClass):
             sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
             top = 10
             self.logger.info(f'Writing {top = } summed |PCC| nuclides')
+            PCC_table = dict()
+            PCC_table['Nuclide'] = list()
+            PCC_table[r'$PCC_{i}$'] = list()
             for nuc,sum_PCC in sorted_summed_pccs[:top]:
-                self.logger.info(f'{nuc = }    {sum_PCC = }')
+                nuc_name = self._convert_nuc_to_latex(nuc)
+                PCC_table['Nuclide'].append(nuc_name)
+                PCC_table[r'$PCC_{i}$'].append(sum_PCC)
+            PCC_table = pd.DataFrame(PCC_table).to_latex(index=False)
+            self.logger.info(f'\n{PCC_table}')
             sorted_uncert_pccs = sorted(scaled_uncert_pcc.items(), key=lambda item: item[1], reverse=True)
             self.logger.info(f'Writing {top = } summed uncertainty times |PCC| nuclides')
             nucs = list()
+            Ui_table = dict()
+            Ui_table['Nuclide'] = list()
+            Ui_table[r'$U_{i}$'] = list()
             for nuc,sum_PCC in sorted_uncert_pccs[:top]:
-                self.logger.info(f'{nuc = }    {sum_PCC = }')
+                nuc_name = self._convert_nuc_to_latex(nuc)
+                Ui_table['Nuclide'].append(nuc_name)
+                Ui_table[r'$U_{i}$'].append(sum_PCC)
                 nucs.append(nuc)
+            Ui_table = pd.DataFrame(Ui_table).to_latex(index=False)
+            self.logger.info(f'\n{Ui_table}')
             table_data = dict()
             for nuc in nucs:
                 nuc_name = self._convert_nuc_to_latex(nuc)
@@ -386,10 +412,10 @@ class PostProcess(BaseClass):
                                                                     False)
                     table_data.setdefault('Nuclide', []).append(nuc_name)
                     table_data.setdefault('DNP Value', []).append(nuc_lab)
-                    table_data.setdefault(r'$U_{i}$', []).append(scaled_uncert)
+                    table_data.setdefault(r'$U_{i,v}$', []).append(scaled_uncert)
             table_df_data: pd.DataFrame = pd.DataFrame.from_dict(
                 table_data, orient='columns')
-            df_sorted = table_df_data.nlargest(top, r"$U_{i}$").sort_values(r'$U_{i}$', ascending=True)
+            df_sorted = table_df_data.nlargest(top, r"$U_{i,v}$").sort_values(r'$U_{i,v}$', ascending=True)
             dnp_vals = df_sorted["DNP Value"].unique()
             colors = self.get_colors(len(dnp_vals))
             color_map = dict(zip(dnp_vals, colors))
@@ -400,7 +426,7 @@ class PostProcess(BaseClass):
                     dup_count = labels.count(label)
                     label = label + invisible_char * dup_count
                     labels.append(label)
-                    plt.barh(label, row[r"$U_{i}$"], color=color_map[row["DNP Value"]],
+                    plt.barh(label, row[r"$U_{i,v}$"], color=color_map[row["DNP Value"]],
                             edgecolor='black')
             handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
             plt.legend(handles, dnp_vals, title="DNP Value")
@@ -410,11 +436,17 @@ class PostProcess(BaseClass):
             plt.close()
             table_latex = table_df_data.to_latex(index=False)
             self.logger.info(f'\n{table_latex}')
-            plt.hist(list(summed_pcc_data.values()), bins=int(np.sqrt(len(list(summed_pcc_data.values())))))
+            plt.hist(list(summed_pcc_data.values()), bins=int(2*np.sqrt(len(list(summed_pcc_data.values())))))
             plt.yscale('log')
-            plt.xlabel(r'$\Sigma\left|PCC\right|$')
+            plt.xlabel(r'$PCC_i$')
             plt.ylabel(r'Frequency')
             plt.savefig(f'{self.img_dir}pcc-frequency.png')
+            plt.close()
+            plt.hist(list(scaled_uncert_pcc.values()), bins=int(2*np.sqrt(len(list(scaled_uncert_pcc.values())))))
+            plt.yscale('log')
+            plt.xlabel(r'$U_i$')
+            plt.ylabel(r'Frequency')
+            plt.savefig(f'{self.img_dir}u-frequency.png')
             plt.close()
 
             

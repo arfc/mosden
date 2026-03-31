@@ -123,6 +123,8 @@ class MultiPostProcess():
                 self.hm_y_vals.append(post.hm_y)
             except AttributeError:
                 self.do_heatmap = False
+            # Memory limitation for large datasets (~70 sims with 5k samples)
+            post.post_data = None
         return None
 
     def data_table_gen(self) -> None:
