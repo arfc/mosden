@@ -151,6 +151,7 @@ class BaseClass:
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
         self.plot_means = post_options.get('plot_means', False)
+        self.pcc_cutoff = post_options.get('pcc_cutoff', 0.2)
 
         self.post_irrad_only: bool = (len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks)
         self.no_post_irrad: bool = ('post-irrad' not in self.residual_masks and 'all' not in self.residual_masks)

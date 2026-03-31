@@ -401,6 +401,11 @@
                     "type": "boolean",
                     "description": "Whether to plot the nominal values in count rate figures"
                 },
+                "pcc_cutoff": {
+                    "type": "number",
+                    "description": "This is the cutoff value for logging PCCs",
+                    "minimum": 0.0
+                },
                 "lit_data": {
                     "type": "array",
                     "description": "Data from the literature to compare against. Must be present in the data directory",

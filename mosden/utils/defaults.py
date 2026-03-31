@@ -96,6 +96,7 @@ DEFAULTS = {
         },
         "plot_means": False,
         "num_stacked_nuclides": 2,
+        "pcc_cutoff": 0.2,
         "lit_data": ['keepin', 'brady', 'synetos'],
         "nuc_colors": {
             #'Br87': '#FF474C'
