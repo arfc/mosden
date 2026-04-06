@@ -22,6 +22,7 @@ def test_evaluate_conc():
     dt = np.diff([0, 1, 2])
 
     # N(dt) = (F*y/lam) * (1 - exp(-lam*dt))
+    name = 'Fission and decay'
     lam = np.log(2) / 10
     lam_p = np.log(2) / 10
     new_conc, new_p_conc = conc._evaluate_conc(
@@ -31,9 +32,10 @@ def test_evaluate_conc():
     )
     assert new_p_conc == 0
     expected = (1.0 / lam) * (1 - np.exp(-lam * 1))
-    assert np.isclose(new_conc, expected)
+    assert np.isclose(new_conc, expected), f"{name}"
 
     # N(dt) = N0 * exp(-lam*dt)
+    name = 'Pure decay'
     N0  = 5.0
     lam = np.log(2) / 10
     new_conc, new_p_conc = conc._evaluate_conc(
@@ -42,9 +44,10 @@ def test_evaluate_conc():
         y_p=0.0, y=1.0
     )
     expected = N0 * np.exp(-lam * 1)
-    assert np.isclose(new_conc, expected)
+    assert np.isclose(new_conc, expected), f"{name}"
 
     # N(dt) = N0*exp(-l*dt) + (lp*Np0/(l-lp)) * (exp(-lp*dt) - exp(-l*dt))
+    name = 'Pure decay with parent'
     lam_p = np.log(2) / 30
     lam   = np.log(2) / 10
     Np0, Nc0 = 10.0, 0.0
@@ -57,10 +60,11 @@ def test_evaluate_conc():
     expected_c = (Nc0 * np.exp(-lam * 1)
                   + (lam_p * Np0 / (lam - lam_p))
                   * (np.exp(-lam_p * 1) - np.exp(-lam * 1)))
-    assert np.isclose(new_p_conc, expected_p), 'Parent incorrect'
-    assert np.isclose(new_conc, expected_c), 'Daughter incorrect'
+    assert np.isclose(new_p_conc, expected_p), f'{name} Parent incorrect'
+    assert np.isclose(new_conc, expected_c), f'{name} Daughter incorrect'
 
     # Same but equal half-lives
+    name = 'Pure decay with parent (same hl)'
     lam_p = lam = np.log(2) / 10
     Np0, Nc0 = 10.0, 0.0
     new_conc, new_p_conc = conc._evaluate_conc(
@@ -70,10 +74,11 @@ def test_evaluate_conc():
     )
     expected_p = Np0 * np.exp(-lam_p * 1)
     expected_c = lam_p * Np0 * 1 * np.exp(-lam * 1)
-    assert np.isclose(new_p_conc, expected_p), 'Parent incorrect'
-    assert np.isclose(new_conc,   expected_c), 'Daughter incorrect'
+    assert np.isclose(new_p_conc, expected_p), f'{name} Parent incorrect'
+    assert np.isclose(new_conc,   expected_c), f'{name} Daughter incorrect'
 
     # N(dt) = N0 + F*y*dt
+    name = 'Fission no decay'
     lam = 0.0
     lam_p = np.log(2) / 10
     new_conc, new_p_conc = conc._evaluate_conc(
@@ -82,7 +87,7 @@ def test_evaluate_conc():
         y_p=0.0, y=3.0
     )
     expected = 2.0 * 3.0 * 1
-    assert np.isclose(new_conc, expected)
+    assert np.isclose(new_conc, expected), f'{name}'
 
     # Pulse irradiation
     lam = np.log(2) / 10
@@ -121,6 +126,7 @@ def test_evaluate_conc():
 def test_evaluate_conc():
     input_path = './tests/unit/input/input.json'
     conc = Concentrations(input_path)
+    conc.conc_method = 'IFY'
     times = [0, 1, 2]
     dt = np.diff(times)
     cur_conc = 0
@@ -136,4 +142,11 @@ def test_evaluate_conc():
     new_conc, new_p_conc = conc._evaluate_conc(cur_conc, cur_p_conc, lam_p, lam, ti, dt, fission_rates, concs, p_concs, y_p, y)
     assert new_p_conc == 0
     new_conc_expected = 1/lam * (1 - np.exp(-lam * 1))
-    assert new_conc == new_conc_expected
+    assert new_conc == new_conc_expected, "Concentrations don't match"
+
+    conc.conc_method = 'CFY'
+    new_conc, new_p_conc = conc._evaluate_conc(cur_conc, cur_p_conc, lam_p, lam, ti, dt, fission_rates, concs, p_concs, y_p, y)
+    assert new_p_conc == y_p / lam_p
+    new_conc_expected = (y_p + y) / lam
+    assert new_conc == new_conc_expected, "Concentrations don't match"
+
