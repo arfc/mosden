@@ -37,7 +37,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     num_groups = len(half_lives)
     grouper.num_groups = num_groups
     lams = np.log(2)/half_lives
-    times = np.linspace(0, 600, 100)
+    times = np.geomspace(1e-4, 600, 300)
     counts = np.zeros(len(times))
     fission_times = np.linspace(0, grouper.t_net, 10000)
     dt = np.diff(fission_times)[0]
@@ -157,9 +157,9 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     
     for group in range(grouper.num_groups):
         assert np.isclose(test_yields[group], sorted_original_yields[group], rtol=1e-1, atol=1e-1), \
-            f'Group {group+1} yields mismatch - {test_yields[group]=} != {sorted_original_yields[group]=}'
+            f'Group {group+1} yields mismatch - {test_yields=} != {sorted_original_yields=}'
         assert np.isclose(test_half_lives[group], sorted_original_half_lives[group], rtol=1e-1, atol=1e-1), \
-            f'Group {group+1} half lives mismatch - {test_half_lives[group]=} != {sorted_original_half_lives[group]=}'
+            f'Group {group+1} half lives mismatch - {test_half_lives=} != {sorted_original_half_lives=}'
     return None
 
 def test_grouper_pulse_fitting():
