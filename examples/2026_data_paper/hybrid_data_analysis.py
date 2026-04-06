@@ -5,7 +5,34 @@ import seaborn as sns
 plt.style.use('mosden.plotting')
 
 
-def pure_dataset_plot(base_df: pd.DataFrame):
+def bar_plot_gen(df, nu, nu_err, hl, hl_err, dataset, save_mod=''):
+    ax = sns.barplot(df, x=dataset, y=nu, palette='viridis')
+    x_coords = [p.get_x() + p.get_width() / 2 for p in ax.patches]
+    y_coords = [p.get_height() for p in ax.patches]
+    ax.errorbar(x=x_coords, y=y_coords, yerr=df[nu_err],
+                fmt='none', capsize=3)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
+    plt.xlabel('Dataset')
+    plt.ylim((0, np.max(1.1*df[nu])))
+    plt.tight_layout()
+    plt.savefig(f'./{save_mod}_yield_bar.png')
+    plt.close()
+
+
+    ax = sns.barplot(df, x=dataset, y=hl, palette='viridis')
+    x_coords = [p.get_x() + p.get_width() / 2 for p in ax.patches]
+    y_coords = [p.get_height() for p in ax.patches]
+    ax.errorbar(x=x_coords, y=y_coords, yerr=df[hl_err],
+                fmt='none', capsize=3)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
+    plt.xlabel('Dataset')
+    plt.ylim((0, np.max(1.1*df[hl])))
+    plt.tight_layout()
+    plt.savefig(f'./{save_mod}_hl_bar.png')
+    plt.close()
+
+
+def bar_plots(base_df: pd.DataFrame):
     cfy = r'$CFY$'
     tau = r'$\tau$'
     pn = r'$P_n$'
@@ -18,31 +45,14 @@ def pure_dataset_plot(base_df: pd.DataFrame):
     df = df.loc[df[cfy] == df[pn]]
     iaea_df_row = base_df.loc[base_df[cfy] == 'JENDL-5'].loc[base_df[pn] == 'IAEA'].loc[base_df[tau] == 'IAEA']
     pure_df = pd.concat((df, iaea_df_row))
+    
+    bar_plot_gen(pure_df, nu, nu_err, hl, hl_err, pn, save_mod='pure')
 
-    ax = sns.barplot(pure_df, x=pn, y=nu, palette='viridis')
-    x_coords = [p.get_x() + p.get_width() / 2 for p in ax.patches]
-    y_coords = [p.get_height() for p in ax.patches]
-    ax.errorbar(x=x_coords, y=y_coords, yerr=pure_df[nu_err],
-                fmt='none', capsize=3)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
-    plt.xlabel('Dataset')
-    plt.ylim((0, np.max(1.1*pure_df[nu])))
-    plt.tight_layout()
-    plt.savefig(f'./pure_yield_bar.png')
-    plt.close()
+    iaea_df = base_df.loc[base_df[pn] == 'IAEA'].loc[base_df[tau] == 'IAEA']
+    df = iaea_df
 
+    bar_plot_gen(iaea_df, nu, nu_err, hl, hl_err, cfy, save_mod='iaea')
 
-    ax = sns.barplot(pure_df, x=pn, y=hl, palette='viridis')
-    x_coords = [p.get_x() + p.get_width() / 2 for p in ax.patches]
-    y_coords = [p.get_height() for p in ax.patches]
-    ax.errorbar(x=x_coords, y=y_coords, yerr=pure_df[hl_err],
-                fmt='none', capsize=3)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
-    plt.xlabel('Dataset')
-    plt.ylim((0, np.max(1.1*pure_df[hl])))
-    plt.tight_layout()
-    plt.savefig(f'./pure_hl_bar.png')
-    plt.close()
 
     
     return None
@@ -76,7 +86,7 @@ def heatmap_plot(base_df: pd.DataFrame):
 
 def process_data(data_path: str):
     df = pd.read_csv(data_path)
-    pure_dataset_plot(df)
+    bar_plots(df)
     heatmap_plot(df)
 
     return None
@@ -85,4 +95,4 @@ def process_data(data_path: str):
 
 if __name__ == '__main__':
     data_table_path = './data/images/data.csv'
-    process_data(data_table_path)
+    process_data(data_table_path) 
