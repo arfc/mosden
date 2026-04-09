@@ -525,7 +525,6 @@ class Grouper(BaseClass):
         xticklabels = yticklabels
 
         ax = sns.heatmap(correlation_matrix, yticklabels=yticklabels, xticklabels=xticklabels, cmap='PuOr', vmin=-1, vmax=1)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
         ax.invert_yaxis()
         plt.savefig(f'{self.img_dir}correlation_heatmap.png')
         plt.close()
@@ -605,6 +604,7 @@ class Grouper(BaseClass):
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
 
+        times_original = times.copy()
         times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times, counts, count_err)
 
         if self.MC_samples == 1:
@@ -672,7 +672,7 @@ class Grouper(BaseClass):
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
-                times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times, count_sample, count_sample_err)
+                times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times_original, count_sample, count_sample_err)
 
                 result = least_squares(
                     self._residual_function,
