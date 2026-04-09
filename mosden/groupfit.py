@@ -531,7 +531,6 @@ class Grouper(BaseClass):
         plt.close()
 
 
-
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None,
                                  set_refined_fiss: bool = True
@@ -607,7 +606,9 @@ class Grouper(BaseClass):
             starts.append(x0)
 
         times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times, counts, count_err)
+
         if self.MC_samples == 1:
+            self.logger.warning('Existing deterministic uncertainty estimation is inaccurate')
             residual_denom = count_err
             irrad_denom = irrad_err
         else:
