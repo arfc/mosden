@@ -77,7 +77,7 @@ DEFAULTS = {
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
-        "parameter_guesses": 10,
+        "parameter_guesses": 50,
         "initial_params": {
             "yields": [],
             "half_lives": []
