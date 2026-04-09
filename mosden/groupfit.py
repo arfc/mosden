@@ -10,6 +10,10 @@ import warnings
 from tqdm import tqdm
 from scipy.linalg import svd, LinAlgError
 from typing import Callable
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+plt.style.use('mosden.plotting')
 
 
 class Grouper(BaseClass):
@@ -506,6 +510,26 @@ class Grouper(BaseClass):
             times = np.asarray(times[post_irrad_index+1:]) - times[post_irrad_index]
 
         return times, counts, count_errs, irrad_times, irrad_counts, irrad_count_errs
+    
+    def _plot_correlation_heatmap(self, correlation_matrix: np.ndarray[float]) -> None:
+        """
+        Plot the correlation matrix from the nominal least squares solve
+
+        Parameters
+        ----------
+        correlation_matrix : np.ndarray[float]
+            Two dimensional correlation matrix
+        """
+        num_groups = int(len(correlation_matrix) / 2)
+        yticklabels = [fr'$\nu_{{d, {i+1}}}$' for i in range(num_groups)] + [fr'$\tau_{i+1}$' for i in range(num_groups)]
+        xticklabels = yticklabels
+
+        ax = sns.heatmap(correlation_matrix, yticklabels=yticklabels, xticklabels=xticklabels, cmap='PuOr', vmin=-1, vmax=1)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        ax.invert_yaxis()
+        plt.savefig(f'{self.img_dir}correlation_heatmap.png')
+        plt.close()
+
 
 
     def _nonlinear_least_squares(self,
@@ -610,6 +634,17 @@ class Grouper(BaseClass):
                 best = result
         result = best
         J = result.jac
+        sampled_params: list[float] = list()
+        tracked_counts: list[float] = list()
+
+        sorted_params = self._sort_params_by_half_life(result.x)
+        sorted_params = self._restructure_intermediate_yields(sorted_params)
+        sampled_params.append(sorted_params)
+
+        sort_idx = np.array([np.argmin(np.abs(result.x[self.num_groups:] - hl)) for hl in sorted_params[self.num_groups:]])
+        perm = np.concatenate([sort_idx, sort_idx + self.num_groups])
+        J = J[:, perm]
+
         s = svd(J, compute_uv=False)
         self.logger.info(f'{s = }')
         condition_number = s[0] / s[-1]
@@ -618,14 +653,13 @@ class Grouper(BaseClass):
         self.logger.info(f'{np.diag(cov) = }')
         sigma = np.sqrt(np.diag(cov))
         self.logger.info(f'{sigma = }')
+        D_inv = np.diag(1/sigma)
+        corr_matrix = D_inv @ cov @ D_inv
         residual = np.linalg.norm(self._residual_function(result.x, times, counts, residual_denom, irrad_counts, irrad_times, irrad_denom, fit_function))
         self.logger.info(f'{residual = }')
         self.logger.info(result)
-        sampled_params: list[float] = list()
-        tracked_counts: list[float] = list()
-        sorted_params = self._sort_params_by_half_life(result.x)
-        sorted_params = self._restructure_intermediate_yields(sorted_params)
-        sampled_params.append(sorted_params)
+
+        self._plot_correlation_heatmap(corr_matrix)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
         post_data_save = []
@@ -704,9 +738,13 @@ class Grouper(BaseClass):
         for group in range(self.num_groups):
             data[group] = dict()
             data[group]['yield'] = np.mean(yields[group])
-            data[group]['sigma yield'] = np.std(yields[group])
             data[group]['half_life'] = np.mean(half_lives[group])
-            data[group]['sigma half_life'] = np.std(half_lives[group])
+            if len(sampled_params) == 1:
+                data[group]['sigma yield'] = sigma[:self.num_groups][group]
+                data[group]['sigma half_life'] = sigma[self.num_groups:][group]
+            else:
+                data[group]['sigma yield'] = np.std(yields[group])
+                data[group]['sigma half_life'] = np.std(half_lives[group])
         return data
 
     def _sort_params_by_half_life(
