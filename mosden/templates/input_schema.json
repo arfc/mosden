@@ -329,7 +329,8 @@
                 },
                 "samples": {
                     "type": "integer",
-                    "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)"
+                    "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)",
+                    "minimum": 1
                 },
                 "sample_func": {
                     "type": "string",
