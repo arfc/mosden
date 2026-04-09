@@ -148,7 +148,7 @@ class PostProcess(BaseClass):
         parameters = group_data['yield'] + group_data['half_life']
         parameters = grouper._restructure_intermediate_yields(parameters, False)
         fit_func = grouper._get_fit_func()
-        times, counts, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(times, counts)        
+        times, counts, _, irrad_times, irrad_counts, _ = grouper._get_modified_counts_and_times(times, counts, count_errs)        
         irrad_fit_counts = grouper._get_irrad_counts(irrad_times, parameters)
 
         post_irrad_fit_counts = fit_func(times, parameters)

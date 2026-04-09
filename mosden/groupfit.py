@@ -53,9 +53,10 @@ class Grouper(BaseClass):
             parameters: np.ndarray[float],
             times: np.ndarray[float],
             counts: np.ndarray[float],
-            count_err: np.ndarray[float],
+            residual_denom: np.ndarray[float],
             irrad_counts: np.ndarray[float],
             irrad_times: np.ndarray[float],
+            irrad_denom: np.ndarray[float],
             fit_func: Callable) -> float:
         """
         Calculate the residual of the current set of parameters
@@ -68,12 +69,16 @@ class Grouper(BaseClass):
             List of times
         counts : np.ndarray[float]
             List of delayed neutron counts
-        count_err : np.ndarray[float]
-            List of count errors
+        residual_denom : np.ndarray[float]
+            List of count errors for chi-square measure or list of counts for
+            relative residual
         irrad_counts : np.ndarray[float]
             List of delayed neutron counts during irradiation
         irrad_times : np.ndarray[float]
             List of times during irradiation
+        irrad_denom : np.ndarray[float]
+            List of count errors for chi-square measure or list of counts for
+            relative residual during irradiation
         fit_func : Callable
             Function that takes times and parameters to return list of counts
 
@@ -84,9 +89,9 @@ class Grouper(BaseClass):
         """
         irrad_residual = []
         if len(irrad_times) != 0:
-            irrad_residual = ((irrad_counts - self._get_irrad_counts(irrad_times, parameters)) / (irrad_counts))
+            irrad_residual = ((irrad_counts - self._get_irrad_counts(irrad_times, parameters)) / (irrad_denom))
             irrad_residual = np.nan_to_num(irrad_residual)
-        post_residual = (counts - fit_func(times, parameters)) / (counts)
+        post_residual = (counts - fit_func(times, parameters)) / (residual_denom)
         residual = np.concatenate((irrad_residual, post_residual))
         return residual
 
@@ -452,7 +457,8 @@ class Grouper(BaseClass):
 
     
     def _get_modified_counts_and_times(self, times: np.ndarray[float],
-                                       counts: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
+                                       counts: np.ndarray[float],
+                                       count_errs: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
         """
         Gets the counts and times during and post irradiation
 
@@ -462,6 +468,8 @@ class Grouper(BaseClass):
             Times post-irradiation
         counts : np.ndarray[float]
             Counts post-irradiation
+        count_err : np.ndarray[float]
+            The errors in the delayed neutron count rate
 
         Returns
         -------
@@ -469,28 +477,35 @@ class Grouper(BaseClass):
             Post-irradiation times
         counts : np.ndarray[float]
             Post-irradiation counts
+        count_errs: np.ndarray[float]
+            Post-irradiation count errors
         irrad_times : np.ndarray[float]
             Mid-irradiation times
         irrad_counts : np.ndarray[float]
             Mid-irradiation counts
+        irrad_count_errs: np.ndarray[float]
+            Mid-irradiation count errors
         """
         post_irrad_index = self.get_irrad_index(False)
         full_data = self._get_times_and_rates()
         if self.post_irrad_only:
-            return times, counts, np.array([]), np.array([])
+            return times, counts, count_errs, np.array([]), np.array([]), np.array([])
 
         irrad_mask = np.asarray(full_data['irrad_mask'])
         irrad_times = np.cumsum(full_data['timesteps'][:post_irrad_index]) * irrad_mask
         irrad_counts = np.asarray(counts[1:post_irrad_index+1]) * irrad_mask
+        irrad_count_errs = np.asarray(count_errs[1:post_irrad_index+1]) * irrad_mask
 
         if self.no_post_irrad:
             counts = np.asarray([])
+            count_errs = np.asarray([])
             times = np.asarray([])
         else:
             counts = counts[post_irrad_index+1:]
+            count_errs = count_errs[post_irrad_index+1:]
             times = np.asarray(times[post_irrad_index+1:]) - times[post_irrad_index]
 
-        return times, counts, irrad_times, irrad_counts
+        return times, counts, count_errs, irrad_times, irrad_counts, irrad_count_errs
 
 
     def _nonlinear_least_squares(self,
@@ -567,7 +582,13 @@ class Grouper(BaseClass):
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
 
-        times, counts, irrad_times, irrad_counts = self._get_modified_counts_and_times(times, counts)
+        times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times, counts, count_err)
+        if self.MC_samples == 1:
+            residual_denom = count_err
+            irrad_denom = irrad_err
+        else:
+            residual_denom = counts
+            irrad_denom = irrad_counts
 
         best = None
         for x0 in tqdm(starts):
@@ -582,7 +603,7 @@ class Grouper(BaseClass):
                                     xtol=1e-12,
                                     verbose=0,
                                     max_nfev=1e6,
-                                    args=(times, counts, count_err, irrad_counts, irrad_times, fit_function))
+                                    args=(times, counts, residual_denom, irrad_counts, irrad_times, irrad_denom, fit_function))
             except LinAlgError:
                 continue
             if best is None or result.cost < best.cost:
@@ -597,7 +618,7 @@ class Grouper(BaseClass):
         self.logger.info(f'{np.diag(cov) = }')
         sigma = np.sqrt(np.diag(cov))
         self.logger.info(f'{sigma = }')
-        residual = np.linalg.norm(self._residual_function(result.x, times, counts, count_err, irrad_counts, irrad_times, fit_function))
+        residual = np.linalg.norm(self._residual_function(result.x, times, counts, residual_denom, irrad_counts, irrad_times, irrad_denom, fit_function))
         self.logger.info(f'{residual = }')
         self.logger.info(result)
         sampled_params: list[float] = list()
@@ -616,7 +637,7 @@ class Grouper(BaseClass):
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
-                times, counts, irrad_times, irrad_counts = self._get_modified_counts_and_times(times, count_sample)
+                times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times, count_sample, count_sample_err)
 
                 result = least_squares(
                     self._residual_function,
@@ -631,9 +652,10 @@ class Grouper(BaseClass):
                     args=(
                         times,
                         count_sample,
-                        count_sample_err,
+                        count_sample,
                         irrad_counts,
                         irrad_times,
+                        irrad_counts,
                         fit_function))
             tracked_counts.append([i for i in count_sample])
             sorted_params = self._sort_params_by_half_life(result.x)
