@@ -12,7 +12,7 @@ from scipy.linalg import svd, LinAlgError
 from typing import Callable
 import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+import os
 plt.style.use('mosden.plotting')
 
 
@@ -520,6 +520,8 @@ class Grouper(BaseClass):
         correlation_matrix : np.ndarray[float]
             Two dimensional correlation matrix
         """
+        if not os.path.exists(self.img_dir):
+            os.makedirs(self.img_dir)
         num_groups = int(len(correlation_matrix) / 2)
         yticklabels = [fr'$\nu_{{d, {i+1}}}$' for i in range(num_groups)] + [fr'$\tau_{i+1}$' for i in range(num_groups)]
         xticklabels = yticklabels
@@ -637,6 +639,7 @@ class Grouper(BaseClass):
         J = result.jac
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
+        nominal_x = result.x.copy()
 
         sorted_params = self._sort_params_by_half_life(result.x)
         sorted_params = self._restructure_intermediate_yields(sorted_params)
@@ -676,23 +679,24 @@ class Grouper(BaseClass):
 
                 result = least_squares(
                     self._residual_function,
-                    result.x,
+                    nominal_x,
                     bounds=bounds,
                     method='trf',
+                    x_scale='jac',
                     ftol=1e-12,
                     gtol=1e-12,
                     xtol=1e-12,
                     verbose=0,
-                    max_nfev=1e3,
+                    max_nfev=1e6,
                     args=(
                         times,
-                        count_sample,
-                        count_sample,
+                        counts,
+                        counts,
                         irrad_counts,
                         irrad_times,
                         irrad_counts,
                         fit_function))
-            tracked_counts.append([i for i in count_sample])
+            tracked_counts.append([i for i in counts])
             sorted_params = self._sort_params_by_half_life(result.x)
             sorted_params = self._restructure_intermediate_yields(sorted_params)
             sampled_params.append(sorted_params)
