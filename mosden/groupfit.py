@@ -715,7 +715,11 @@ class Grouper(BaseClass):
             self.post_data['concMC'] = list()
         for post_data_vals in post_data_save:
             for key in self.post_data.keys():
-                self.post_data[key].append(post_data_vals[key])
+                try:
+                    self.post_data[key].append(post_data_vals[key])
+                except KeyError:
+                    # Running with pre-existing post data
+                    pass
         self.save_postproc()
 
         yields = np.zeros((self.num_groups, self.MC_samples))

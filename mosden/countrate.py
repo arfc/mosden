@@ -159,6 +159,8 @@ class CountRate(BaseClass):
                 return np.random.normal(val.n, val.s)
             elif dist == 'uniform':
                 return np.random.uniform(val.n - val.s, val.n + val.s)
+            elif dist == 'nominal':
+                return val.n
             else:
                 raise NotImplementedError(f'{dist} sampling not implemented')
             

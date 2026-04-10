@@ -252,6 +252,12 @@ class PostProcess(BaseClass):
                 continue
         vmin_use = 10 ** np.floor(np.log10(vmin))
         vmax_use = 10 ** np.ceil(np.log10(vmax))
+        if vmin_use == vmax_use:
+            if vmin_use == 0.0:
+                vmin_use = 0.1
+                vmax_use = 1.0
+            vmin_use = 0.1 * vmin_use
+            vmax_use = 10 * vmax_use
         norm = LogNorm(vmin=vmin_use, vmax=vmax_use)
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')

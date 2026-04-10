@@ -335,7 +335,7 @@
                 "sample_func": {
                     "type": "string",
                     "description": "The function type to use for randomly sampling data",
-                    "enum": ["normal", "uniform"]
+                    "enum": ["normal", "uniform", "nominal"]
                 },
                 "initial_params": {
                     "type": "object",
