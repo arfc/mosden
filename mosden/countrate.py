@@ -200,6 +200,8 @@ class CountRate(BaseClass):
         lam_post_data = dict()
         conc_post_data = dict()
 
+        is_warned = False
+
         for nuc in net_similar_nucs:
             Pn_data = self.emission_prob_data[nuc]
             Pn = ufloat(
@@ -223,6 +225,7 @@ class CountRate(BaseClass):
                 vals.append(val)
                 uncertainties.append(uncertainty)
             concentration_array = unumpy.uarray(vals, uncertainties)
+            nominal_concs = vals
             conc = concentration_array[post_irrad_index]
 
             if conc < 1e-24:
@@ -232,14 +235,23 @@ class CountRate(BaseClass):
             if Pn < 1e-24:
                 continue
 
+
+            if self.post_irrad_only:
+                index_offset = post_irrad_index
+            else:
+                index_offset = 0
+
             if MC_run and sampler_func:
-                if not single_time_val:
+                if not single_time_val and not is_warned:
                     msg = 'Concentration not sampled over time; using initial'
                     self.logger.warning(msg)
+                if not is_warned:
+                    self.logger.warning('Using nominal concentration')
+                is_warned = True
+                conc = concentration_array[post_irrad_index].n
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
-                conc = sample_parameter(concentration_array[post_irrad_index], sampler_func)
 
                 if conc < 0.0:
                     conc = 1e-12
@@ -248,18 +260,20 @@ class CountRate(BaseClass):
                 if Pn < 0.0:
                     Pn = 1e-12
 
-                counts = Pn * decay_const * conc * \
-                    np.exp(-decay_const * use_times)
+                if self.no_post_irrad:
+                    conc_vals = nominal_concs[:post_irrad_index+1]
+                else:
+                    conc_vals = nominal_concs[index_offset:]
+                
+                assert len(conc_vals) == len(use_times)
+
+                counts = Pn * decay_const * np.asarray(conc_vals)
                 count_rate += counts
             else:
                 if single_time_val:
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * use_times)
                 else:
-                    if self.post_irrad_only:
-                        index_offset = post_irrad_index
-                    else:
-                        index_offset = 0
                     if self.no_post_irrad:
                         counts = Pn * decay_const * concentration_array[:post_irrad_index+1]
                     else:
