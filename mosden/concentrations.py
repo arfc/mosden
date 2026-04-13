@@ -99,7 +99,10 @@ class Concentrations(BaseClass):
         self.time_track(start, 'Concentrations')
         return
     
-    def _evaluate_conc(self, cur_conc: float, cur_p_conc: float, lam_p: float, lam: float, ti: int, dt: list[float], fission_rates: list[float], concs: list[float], p_concs: list[float], y_p: float, y: float) -> tuple[float, float]:
+    def _evaluate_conc(self, cur_conc: float, cur_p_conc: float, lam_p: float,
+                       lam: float, ti: int, dt: list[float],
+                       fission_rates: list[float], concs: list[float],
+                       p_concs: list[float], y_p: float, y: float) -> tuple[float, float]:
         """
         Evaluates the concentration of a nuclide and its decay parent.
         Yield of parent is assumed to be scaled by branching ratio.
@@ -197,7 +200,10 @@ class Concentrations(BaseClass):
                 y_p = 0
                 lam_p = 1
             for ti, t in enumerate(times[:-1]):
-                cur_conc, cur_p_conc = self._evaluate_conc(cur_conc, cur_p_conc, lam_p, lam, ti, dt, fission_rates, concs, p_concs, y_p, y)
+                cur_conc, cur_p_conc = self._evaluate_conc(cur_conc, cur_p_conc,
+                                                           lam_p, lam, ti, dt,
+                                                           fission_rates, concs,
+                                                           p_concs, y_p, y)
                 p_concs.append(cur_p_conc)
                 concs.append(cur_conc)
                 data.append(
@@ -274,8 +280,10 @@ class Concentrations(BaseClass):
         env = Environment(loader=PackageLoader('mosden'))
         file = self.openmc_settings['omc_file']
         template = env.get_template(file)
-        chain_file = os.path.join(self.unprocessed_data_dir, self.openmc_settings['chain'])
-        cross_sections = os.path.join(self.unprocessed_data_dir, self.openmc_settings['x_sections'])
+        chain_file = os.path.join(self.unprocessed_data_dir,
+                                  self.openmc_settings['chain'])
+        cross_sections = os.path.join(self.unprocessed_data_dir,
+                                      self.openmc_settings['x_sections'])
         omc_dir = self.openmc_settings['omc_dir']
         time_rate_data = self._get_times_and_rates(self.f_in)
         render_data = {
@@ -407,7 +415,10 @@ class Concentrations(BaseClass):
             for tally in sp.tallies.keys():
                 tally_data = sp.get_tally(id=tally)
                 if 'fissionrate' in tally_data.name:
-                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    df = tally_data.get_pandas_dataframe(filters=False,
+                                                         scores=False,
+                                                         derivative=False,
+                                                         paths=False)
                     try:
                         df['mean'] = df['mean'] * self.openmc_settings['source']
                     except KeyError:
@@ -485,7 +496,10 @@ class Concentrations(BaseClass):
                 tally_data = sp.get_tally(id=tally)
                 if 'delnuyield' in tally_data.name:
                     use_dict = nuyield['d']
-                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    df = tally_data.get_pandas_dataframe(filters=False,
+                                                         scores=False,
+                                                         derivative=False,
+                                                         paths=False)
                     try:
                         df['mean'] = (df['mean'] * self.openmc_settings['source'] / avg_fission_rate)
                     except KeyError:
@@ -504,7 +518,10 @@ class Concentrations(BaseClass):
 
                 if 'pmtnuyield' in tally_data.name:
                     use_dict = nuyield['p']
-                    df = tally_data.get_pandas_dataframe(filters=False, scores=False, derivative=False, paths=False)
+                    df = tally_data.get_pandas_dataframe(filters=False,
+                                                         scores=False,
+                                                         derivative=False,
+                                                         paths=False)
                     try:
                         df['mean'] = (df['mean'] * self.openmc_settings['source'] / avg_fission_rate)
                     except KeyError:
