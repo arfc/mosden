@@ -23,7 +23,8 @@ class InputHandler:
         self.preprocessing_occurance_index = 2
         self.leaf_dict_keys: set = set((
             "reprocessing",
-            "fissile_fractions"
+            "fissile_fractions",
+            "debug_dnps"
         ))
         
         return None
@@ -90,6 +91,11 @@ class InputHandler:
                 if InputHandler._default_counts[full_key] == self.preprocessing_occurance_index:
                     self.logger.warning(f"Using default for '{full_key}': {defaults[k]!r}", stacklevel=2)
                 final[k] = defaults[k]
+
+        for k in data.keys():
+            if k not in defaults:
+                final[k] = data[k]
+
         return final
     
     def _check_behaviour(self, data: dict) -> None:
@@ -129,6 +135,12 @@ class InputHandler:
                 raise ValueError('Initial yield guess does not match number of groups')
             if len(data['group_options']['initial_params']['half_lives']) != data['group_options']['num_groups']:
                 raise ValueError('Initial half life guess does not match number of groups')
+        if len(data['modeling_options']['residual_handling']) == 0:
+            raise ValueError('Residual must be evaluated')
+        if data['modeling_options']['residual_handling'] != ['post-irrad'] and data['modeling_options']['concentration_handling'] != 'OMC':
+            raise ValueError('Alternative residuals only applicable for OpenMC evaluation approach')
+        if data['modeling_options']['residual_handling'] != ['post-irrad'] and data['modeling_options']['irrad_type'] != 'intermediate':
+            raise ValueError('Intermediate irradiation is the only type that enables non-post-irrad residual handling')
         return
 
 

@@ -24,7 +24,8 @@ DEFAULTS = {
         "processed_data_dir": f"{current_dir}/",
         "output_dir": f"{current_dir}/",
         "log_level": 20,
-        "log_file": f"{current_dir}/log.log"
+        "log_file": f"{current_dir}/log.log",
+        "debug_dnps": {}
     },
     "data_options": {
         "half_life": "iaea/eval.csv",
@@ -42,6 +43,7 @@ DEFAULTS = {
     "modeling_options": {
         "concentration_handling": "CFY",
         "count_rate_handling": "data",
+        "residual_handling": ["post-irrad"],
         "reprocessing_locations": [""],
         "spatial_scaling": {
             "flux": True,
@@ -68,7 +70,8 @@ DEFAULTS = {
             "omc_dir": f'{current_dir}/omc',
             "run_omc": True,
             "write_fission_json": True,
-            "write_nuyield_json": True
+            "write_nuyield_json": True,
+            "max_timestep": 1e10
         }
     },
     "group_options": {

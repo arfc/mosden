@@ -17,20 +17,13 @@ dens_g_cm3 = {{density}}
 temperature_K = {{temperature}}
 fissiles = {{fissiles}}
 xs_data = '{{cross_sections}}'
-t_in: float = {{t_in}}
-t_ex: float = {{t_ex}}
-t_net: float = {{total_irrad_s}}
-decay_times: np.ndarray[float] = [{{decay_times | join(', ')}}]
-reprocess_locations: list[str] = {{repr_locations}}
-flux = {{source}}
 chain_file = '{{chain_file}}'
 reprocessing = {{reprocessing}}
 repr_scale = {{repr_scale}}
 omc_dir = '{{omc_dir}}'
-flux_scaling: bool = {{flux_scaling}}
-chem_scaling: bool = {{chem_scaling}}
-f_in : float = {{f_in}}
-
+ts = {{timesteps}}
+sources = {{source_rates}}
+chem_times = {{removal_indeces}}
 
 volume = mass_g / dens_g_cm3
 radius = (3 * volume / (4 * np.pi)) ** (1/3)
@@ -133,49 +126,6 @@ def build_model(settings, materials, geometry, tallies):
     return model
 
 
-def get_times_and_rates():
-    removal_indeces = list()
-    timesteps = list()
-    source_rates = list()
-    current_time = 0
-    index_counter = 0
-    in_core = True
-    time_close = np.isclose(current_time, t_net)
-    while current_time < t_net and not time_close:
-        if in_core:
-            t = t_in
-            region = 'incore'
-            source = flux
-            in_core = False
-        else:
-            t = t_ex
-            region = 'excore'
-            source = 0
-            in_core = True
-
-        if t <= 0.0:
-            continue
-        
-        current_time += t
-        timesteps.append(t)
-        if (region in reprocess_locations) or chem_scaling:
-            removal_indeces.append(index_counter)
-        if flux_scaling:
-            source = flux * f_in
-        source_rates.append(source)
-        index_counter += 1
-        time_close = np.isclose(current_time, t_net)
-
-    diff = sum(timesteps) - t_net
-    timesteps[-1] = timesteps[-1] - diff
-
-    decay_time_steps = np.diff(decay_times, prepend=[0.0])
-    for t in decay_time_steps:
-        timesteps.append(t)
-        source_rates.append(0)
-    return timesteps, source_rates, removal_indeces
-
-
 def run():
     tally = tallies()
     mats = materials()
@@ -183,7 +133,6 @@ def run():
     sets = settings()
     model = build_model(sets,  mats, geom, tally)
 
-    ts, sources, chem_times = get_times_and_rates()
     operator = openmc.deplete.CoupledOperator(model, chain_file,
                                               normalization_mode='source-rate')
     operator.output_dir = omc_dir
