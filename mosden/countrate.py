@@ -18,6 +18,7 @@ class CountRate(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
+        self.is_warned = False
 
         return None
 
@@ -200,8 +201,6 @@ class CountRate(BaseClass):
         lam_post_data = dict()
         conc_post_data = dict()
 
-        is_warned = False
-
         for nuc in net_similar_nucs:
             Pn_data = self.emission_prob_data[nuc]
             Pn = ufloat(
@@ -242,13 +241,16 @@ class CountRate(BaseClass):
                 index_offset = 0
 
             if MC_run and sampler_func:
-                if not single_time_val and not is_warned:
+                if not single_time_val and not self.is_warned:
                     msg = 'Concentration not sampled over time; using initial'
                     self.logger.warning(msg)
-                if not is_warned:
                     self.logger.warning('Using nominal concentration')
-                is_warned = True
-                conc = concentration_array[post_irrad_index].n
+                    self.is_warned = True
+
+                if not single_time_val:
+                    conc = concentration_array[post_irrad_index].n
+                else:
+                    conc = sample_parameter(conc, sampler_func)
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
@@ -265,9 +267,12 @@ class CountRate(BaseClass):
                 else:
                     conc_vals = nominal_concs[index_offset:]
                 
-                assert len(conc_vals) == len(use_times)
-
-                counts = Pn * decay_const * np.asarray(conc_vals)
+                if not single_time_val:
+                    assert len(conc_vals) == len(use_times)
+                    counts = Pn * decay_const * np.asarray(conc_vals)
+                else:
+                    counts = (Pn * decay_const * conc * 
+                              np.exp(-decay_const * use_times))
                 count_rate += counts
             else:
                 if single_time_val:
