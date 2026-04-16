@@ -130,7 +130,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     count_data = {
         'times': times,
         'counts': counts,
-        'sigma counts': np.zeros(len(counts))
+        'sigma counts': counts*1e-12
     }
 
     assert grouper.irrad_type == irrad_type
@@ -139,8 +139,8 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     test_half_lives = [data[key]['half_life'] for key in range(grouper.num_groups)]
     parameters = test_yields + test_half_lives
     adjusted_parameters = grouper._restructure_intermediate_yields(parameters)
-    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, None, [], [], fit_func))
-    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, None, [], [], fit_func))
+    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, None, [], [], counts*1e-12, fit_func))
+    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, None, [], [], func_counts*1e-12, fit_func))
     grouper.logger.error(f'{base_parameters = }')
     grouper.logger.error(f'{base_inter_parameters = }')
     grouper.logger.error(f'{parameters = }')
