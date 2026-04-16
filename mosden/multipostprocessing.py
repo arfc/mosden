@@ -91,6 +91,12 @@ class MultiPostProcess():
                 post.name = rf'$\Delta t$ = {post.openmc_settings["max_timestep"]}'
         elif self._is_name('data'):
             self.data_table_gen()
+        elif self._is_name('flux_scaling'):
+            for post in self.posts:
+                if post.flux_scaling:
+                    post.name = rf'Scaled Flux'
+                else:
+                    post.name = 'Unscaled Flux'
         return None
 
     def _post_heatmap_setup(self) -> None:
