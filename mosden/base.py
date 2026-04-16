@@ -61,6 +61,8 @@ class BaseClass:
 
         self.name: str = self.input_data['name']
         self.output_dir: str = self.input_data['file_options'].get('output_dir', '')
+        if len(self.output_dir) > 1 and not self.output_dir.endswith('/'):
+            self.output_dir = self.output_dir + '/'
         self.logger.debug(f'{self.name = }')
 
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
