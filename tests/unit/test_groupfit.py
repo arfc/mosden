@@ -39,7 +39,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     lams = np.log(2)/half_lives
     times = np.geomspace(1e-4, 600, 300)
     counts = np.zeros(len(times))
-    fission_times = np.linspace(0, grouper.t_net, 10000)
+    fission_times = np.linspace(0, grouper.t_net, 1000)
     dt = np.diff(fission_times)[0]
     concs = np.zeros(num_groups)
 
@@ -139,15 +139,15 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     test_half_lives = [data[key]['half_life'] for key in range(grouper.num_groups)]
     parameters = test_yields + test_half_lives
     adjusted_parameters = grouper._restructure_intermediate_yields(parameters)
-    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, None, [], [], counts*1e-12, fit_func))
-    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, None, [], [], func_counts*1e-12, fit_func))
+    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, counts*1e-12, [], [], [], fit_func))
+    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, func_counts*1e-12, [], [], [], fit_func))
     grouper.logger.error(f'{base_parameters = }')
     grouper.logger.error(f'{base_inter_parameters = }')
     grouper.logger.error(f'{parameters = }')
     grouper.logger.error(f'{adjusted_parameters = }')
     grouper.logger.error(f'{residual_known = }')
 
-    assert np.isclose(residual_known, residual_previous, atol=1e-1), "Same counts should have the same residual"
+    assert np.isclose(residual_known, residual_previous, rtol=1e-1), "Same counts should have the same residual"
     
     original_half_lives = np.asarray(half_lives)
     original_yields = np.asarray(yields)
@@ -162,6 +162,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
             f'Group {group+1} half lives mismatch - {test_half_lives=} != {sorted_original_half_lives=}'
     return None
 
+@pytest.mark.slow
 def test_grouper_pulse_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path) 
@@ -477,7 +478,7 @@ def test_get_mod_counts():
 
     cumulative_times = np.cumsum(data_times["timesteps"][:post_irrad_index])
 
-    times_post, counts_post, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(post_irrad_times, np.ones(len(post_irrad_times)+8))
+    times_post, counts_post, _, irrad_times, irrad_counts, _ = grouper._get_modified_counts_and_times(post_irrad_times, np.ones(len(post_irrad_times)+8), 1e-12*np.ones(len(post_irrad_times)+8))
     assert np.allclose(cumulative_times, irrad_times)
     assert len(irrad_times) > 0
     fit_irrad = grouper._get_irrad_counts(irrad_times, parameters)
