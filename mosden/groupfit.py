@@ -663,7 +663,8 @@ class Grouper(BaseClass):
         self.logger.info(f'{residual = }')
         self.logger.info(result)
 
-        self._plot_correlation_heatmap(corr_matrix)
+        if self.plot_correlation:
+            self._plot_correlation_heatmap(corr_matrix)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
         post_data_save = []

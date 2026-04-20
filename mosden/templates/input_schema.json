@@ -377,6 +377,10 @@
                     "type": "boolean",
                     "description": "Whether to plot delayed neutron counts normalized to self or first item in `lit_data` for the literature comparison figure"
                 },
+                "plot_correlation": {
+                    "type": "boolean",
+                    "description": "Whether to plot the correlation matrices or not"
+                },
                 "top_num_nuclides": {
                     "type": "object",
                     "properties": {
