@@ -23,7 +23,8 @@ class Preprocess(BaseClass):
             'half_life',
             'cross_section',
             'emission_probability',
-            'fission_yield'
+            'fission_yield',
+            'spectra'
         ]
         self.data_to_proc: dict[str: str] = {
             key: self.input_data['data_options'][key] for key in data_keys
@@ -138,7 +139,7 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._endf_nfy_preprocess(data_val, unprocessed_path)
-        elif data_val == 'half_life' or data_val == 'emission_probability':
+        elif data_val == 'half_life' or data_val == 'emission_probability' or data_val == 'spectra':
             self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in ENDF')
@@ -157,7 +158,7 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._jendl_nfy_preprocess(data_val, unprocessed_path)
-        elif data_val == 'half_life' or data_val == 'emission_probability':
+        elif data_val == 'half_life' or data_val == 'emission_probability' or data_val == 'spectra':
             self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in ENDF')
@@ -176,7 +177,7 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._jeff_nfy_preprocess(data_val, unprocessed_path)
-        elif data_val == 'half_life' or data_val == 'emission_probability':
+        elif data_val == 'half_life' or data_val == 'emission_probability' or data_val == 'spectra':
             self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in JEFF')
@@ -341,7 +342,7 @@ class Preprocess(BaseClass):
         data_dir: str = os.path.join(self.data_dir, path)
         out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
         file_data: dict[str: dict[str: float]
-                        ] = self._process_endf_decay_file(data_dir)
+                        ] = self._process_endf_decay_file(data_dir, data_val)
         csv_path: str = os.path.join(out_path)
         CSVHandler(csv_path, self.preprocess_overwrite).write_csv(file_data)
         return None
@@ -495,7 +496,7 @@ class Preprocess(BaseClass):
         return data
     
     
-    def _process_endf_decay_file(self, dir: str) -> dict[str, dict[str: float]]:
+    def _process_endf_decay_file(self, dir: str, data_val: str) -> dict[str, dict[str: float]]:
         """
         Processes all ENDF decay files and returns the data as a dictionary.
 
@@ -503,6 +504,8 @@ class Preprocess(BaseClass):
         ----------
         file : str
             Name of the ENDF decay directory to process.
+        data_val : str
+            The name of the data value to evaluate
 
         Returns
         -------
@@ -519,8 +522,15 @@ class Preprocess(BaseClass):
             if not is_valid:
                 continue
             decay = openmc.data.Decay.from_endf(dir+file)
+            spectra = decay.spectra
             half_life = decay.half_life
             nuc_name = decay.nuclide['name']
+            # TODO - continuous normalization? Contains unceratinty?
+            try:
+                if 'beta-' in spectra['n']['continuous']['from_mode']:
+                    spectra_continuum = spectra['n']['continuous']['probability'] 
+            except KeyError:
+                pass
             data[nuc_name] = dict()
             modes = decay.modes
             for mode in modes:
@@ -528,11 +538,18 @@ class Preprocess(BaseClass):
                 if 'n' in products:
                     multiplier = products.count('n')
                     Pn += mode.branching_ratio * multiplier
-            if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:
-                data[nuc_name]['emission probability'] = Pn.n
-                data[nuc_name]['sigma emission probability'] = Pn.s
-                data[nuc_name]['half_life'] = half_life.n
-                data[nuc_name]['sigma half_life'] = half_life.s
+             
+            if data_val == 'spectra':
+                xs = self.eV_midpoints
+                for x in xs:
+                    data[nuc_name][x] = spectra_continuum(x)
+
+            else:
+                if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:
+                    data[nuc_name]['emission probability'] = Pn.n
+                    data[nuc_name]['sigma emission probability'] = Pn.s
+                    data[nuc_name]['half_life'] = half_life.n
+                    data[nuc_name]['sigma half_life'] = half_life.s
         return data
 
     def _process_chain_file(self, file: str) -> dict[str, dict[str: float]]:

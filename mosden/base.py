@@ -130,6 +130,7 @@ class BaseClass:
         self.initial_params: dict = group_options.get('initial_params', {'yields': [],
                                                                          "half_lives": []})
         self.energy_groups_MeV: list[float] = group_options.get('energy_groups_MeV', [0, 6.25e-7, 1e3])
+        self.eV_midpoints: list[float] = [1e6 * (self.energy_groups_MeV[i] + self.energy_groups_MeV[i+1]) / 2 for i in range(len(self.energy_groups_MeV) - 1)]
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.unprocessed_data_dir: str = file_options['unprocessed_data_dir']

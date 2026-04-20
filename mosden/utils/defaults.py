@@ -32,6 +32,7 @@ DEFAULTS = {
         "cross_section": "",
         "emission_probability": "iaea/eval.csv",
         "fission_yield": "endfb71/nfy/",
+        "spectra": "",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,

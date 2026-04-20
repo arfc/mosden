@@ -98,7 +98,12 @@
                 "emission_probability": {
                     "type": "string",
                     "description": "Path to the emission probability data",
-                    "enum": ["iaea/eval.csv", "endfb80/decay/", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv", "jendl5/decay/", "jeff311/decay/"]
+                    "enum": ["iaea/eval.csv", "endfb80/decay/", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv", "jendl5/decay/", "jeff311/decay/", "jeff40/decay/"]
+                },
+                "spectra": {
+                    "type": "string",
+                    "description": "Path to the spectral data",
+                    "enum": ["endfb80/decay/", "endfb71/decay/", "jendl5/decay/", "jeff311/decay/", "jeff40/decay/", ""]
                 },
                 "fission_yield": {
                     "type": "string",
@@ -329,7 +334,7 @@
                 },
                 "energy_groups_MeV": {
                     "type": "array",
-                    "description": "The energy group bounds (inclusive).",
+                    "description": "The energy group bounds (inclusive). Sampling occurs at midpoints.",
                     "items": 
                     {
                         "type": "number"
