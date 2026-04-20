@@ -462,7 +462,7 @@ class Grouper(BaseClass):
     
     def _get_modified_counts_and_times(self, times: np.ndarray[float],
                                        counts: np.ndarray[float],
-                                       count_errs: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
+                                       count_errs: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
         """
         Gets the counts and times during and post irradiation
 
@@ -747,12 +747,14 @@ class Grouper(BaseClass):
         for group in range(self.num_groups):
             data[group] = dict()
             data[group]['yield'] = np.mean(yields[group])
-            data[group]['half_life'] = np.mean(half_lives[group])
             if len(sampled_params) == 1:
                 data[group]['sigma yield'] = sigma[:self.num_groups][group]
-                data[group]['sigma half_life'] = sigma[self.num_groups:][group]
             else:
                 data[group]['sigma yield'] = np.std(yields[group])
+            data[group]['half_life'] = np.mean(half_lives[group])
+            if len(sampled_params) == 1:
+                data[group]['sigma half_life'] = sigma[self.num_groups:][group]
+            else:
                 data[group]['sigma half_life'] = np.std(half_lives[group])
         return data
 
