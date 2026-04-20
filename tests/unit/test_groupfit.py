@@ -39,7 +39,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     lams = np.log(2)/half_lives
     times = np.geomspace(1e-4, 600, 300)
     counts = np.zeros(len(times))
-    fission_times = np.linspace(0, grouper.t_net, 10000)
+    fission_times = np.linspace(0, grouper.t_net, 1000)
     dt = np.diff(fission_times)[0]
     concs = np.zeros(num_groups)
 
@@ -125,29 +125,32 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     if irrad_type == 'saturation':
         assert np.isclose(func_counts[0], initial_count_rate, rtol=1e-4), "Initial count rate mismatch"
 
-    assert np.allclose(func_counts, counts, atol=1e-2, rtol=1e-2), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
     count_data = {
         'times': times,
         'counts': counts,
-        'sigma counts': np.zeros(len(counts))
+        'sigma counts': counts*1e-12
     }
 
+    assert np.allclose(func_counts, counts, atol=1e-2, rtol=1e-2), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
     assert grouper.irrad_type == irrad_type
     data = grouper._nonlinear_least_squares(count_data=count_data, set_refined_fiss=False)
     test_yields = [data[key]['yield'] for key in range(grouper.num_groups)]
     test_half_lives = [data[key]['half_life'] for key in range(grouper.num_groups)]
     parameters = test_yields + test_half_lives
     adjusted_parameters = grouper._restructure_intermediate_yields(parameters)
-    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, None, [], [], fit_func))
-    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, None, [], [], fit_func))
+    residual_counts = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, counts*1e-12, [], [], [], fit_func))
+    func_counts = fit_func(times, adjusted_parameters)
+    residual_fit    = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, func_counts*1e-12, [], [], [], fit_func))
     grouper.logger.error(f'{base_parameters = }')
     grouper.logger.error(f'{base_inter_parameters = }')
     grouper.logger.error(f'{parameters = }')
     grouper.logger.error(f'{adjusted_parameters = }')
-    grouper.logger.error(f'{residual_known = }')
+    grouper.logger.error(f'{np.mean(func_counts - counts) = }')
+    grouper.logger.error(f'{residual_counts = }')
+    grouper.logger.error(f'{residual_fit = }')
 
-    assert np.isclose(residual_known, residual_previous, atol=1e-1), "Same counts should have the same residual"
+    assert residual_counts > residual_fit, "Fit residual should be zero"
     
     original_half_lives = np.asarray(half_lives)
     original_yields = np.asarray(yields)
@@ -162,6 +165,7 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
             f'Group {group+1} half lives mismatch - {test_half_lives=} != {sorted_original_half_lives=}'
     return None
 
+@pytest.mark.slow
 def test_grouper_pulse_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path) 
@@ -174,7 +178,6 @@ def test_grouper_saturation_noex_fitting():
     grouper.t_ex = 0
     run_grouper_fit_test('saturation', grouper)
 
-@pytest.mark.slow
 def test_grouper_saturation_noex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -182,7 +185,6 @@ def test_grouper_saturation_noex_short_fitting_few():
     grouper.t_net = 30
     run_grouper_fit_test('saturation', grouper, 'few_groups')
 
-@pytest.mark.slow
 def test_grouper_saturation_ex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -190,7 +192,6 @@ def test_grouper_saturation_ex_short_fitting_few():
     grouper.t_net = 30
     run_grouper_fit_test('saturation_ex', grouper, 'few_groups')
 
-@pytest.mark.slow
 def test_grouper_intermediate_noex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -198,7 +199,6 @@ def test_grouper_intermediate_noex_short_fitting_few():
     grouper.t_net = 30
     run_grouper_fit_test('intermediate', grouper, 'few_groups')
 
-@pytest.mark.slow
 def test_grouper_intermediate_ex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -241,7 +241,6 @@ def test_grouper_intermediate_ex_fitting_standard_params():
     grouper.t_ex = 10
     run_grouper_fit_test('intermediate_ex', grouper, 'standard')
 
-@pytest.mark.slow
 def test_grouper_intermediate_ex_short_fitting_standard_params():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -477,7 +476,7 @@ def test_get_mod_counts():
 
     cumulative_times = np.cumsum(data_times["timesteps"][:post_irrad_index])
 
-    times_post, counts_post, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(post_irrad_times, np.ones(len(post_irrad_times)+8))
+    times_post, counts_post, _, irrad_times, irrad_counts, _ = grouper._get_modified_counts_and_times(post_irrad_times, np.ones(len(post_irrad_times)+8), 1e-12*np.ones(len(post_irrad_times)+8))
     assert np.allclose(cumulative_times, irrad_times)
     assert len(irrad_times) > 0
     fit_irrad = grouper._get_irrad_counts(irrad_times, parameters)

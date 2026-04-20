@@ -79,6 +79,19 @@ total_decay_analysis = {
 }
 analysis_list.append(total_decay_analysis)
 
+name = 'flux_scaling'
+flux_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'flux': [True, False],
+    'multi_id': [name]
+}
+analysis_list.append(flux_analysis)
+
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:
     """
@@ -144,7 +157,7 @@ def set_data(new_data: dict, dir_path: str, idx: int, combination: tuple) -> tup
     filename = 'input.json'
     file_dir = dir_path / str(idx)
     file_path = file_dir / filename
-    new_data['file_options']['processed_data_dir'] = str(file_dir)
+    new_data['file_options']['processed_data_dir'] = str(file_dir) + '/'
     new_data['file_options']['output_dir'] = str(file_dir) + '/'
     new_data['file_options']['log_file'] = str(file_dir) + '/log.log'
     new_data['modeling_options']['openmc_settings']['omc_dir'] = str(file_dir) + '/omc'

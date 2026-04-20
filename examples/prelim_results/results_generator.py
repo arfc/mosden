@@ -14,7 +14,7 @@ name = 'tintex'
 residence_time_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
+        'run_full': True,
         'run_post': False,
         'overwrite': True,
     },
@@ -175,8 +175,8 @@ def set_data(new_data: dict, dir_path: str, idx: int, combination: tuple) -> tup
     filename = 'input.json'
     file_dir = dir_path / str(idx)
     file_path = file_dir / filename
-    new_data['file_options']['processed_data_dir'] = str(file_dir)
-    new_data['file_options']['output_dir'] = str(file_dir)
+    new_data['file_options']['processed_data_dir'] = str(file_dir) + '/'
+    new_data['file_options']['output_dir'] = str(file_dir) + '/'
     new_data['file_options']['log_file'] = str(file_dir) + '/log.log'
     new_data['name'] = str(combination)
     if analysis['meta']['run_full']:
