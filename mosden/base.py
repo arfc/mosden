@@ -129,6 +129,7 @@ class BaseClass:
         self.sample_func: str = group_options.get('sample_func', 'normal')
         self.initial_params: dict = group_options.get('initial_params', {'yields': [],
                                                                          "half_lives": []})
+        self.energy_groups_MeV: list[float] = group_options.get('energy_groups_MeV', [0, 6.25e-7, 1e3])
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.unprocessed_data_dir: str = file_options['unprocessed_data_dir']

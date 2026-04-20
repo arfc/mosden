@@ -77,6 +77,7 @@ DEFAULTS = {
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
+        "energy_groups_MeV": [0, 6.25e-7, 1e3],
         "parameter_guesses": 50,
         "initial_params": {
             "yields": [],

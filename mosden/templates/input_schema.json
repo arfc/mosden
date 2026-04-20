@@ -327,6 +327,14 @@
                     "type": "integer",
                     "description": "The number of guesses to use to calculate the optimal group parameters to avoid local minima"
                 },
+                "energy_groups_MeV": {
+                    "type": "array",
+                    "description": "The energy group bounds (inclusive).",
+                    "items": 
+                    {
+                        "type": "number"
+                    }
+                },
                 "samples": {
                     "type": "integer",
                     "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)",
