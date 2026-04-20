@@ -36,13 +36,25 @@
         "incore_s": 4200,
         "excore_s": 0,
         "net_irrad_s": 4200,
-        "decay_time": 120,
+        "decay_time": 600,
         "num_decay_times": 800
     },
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
         "samples": 1,
+        "parameter_guesses": 50,
         "sample_func": "normal"
+    },
+    "post_options": {
+        "self_relative_counts": false,
+        "sensitivity_subplots": true,
+        "top_num_nuclides": {
+            "yield_top": 5,
+            "conc_top": 5,
+            "conc_over_time_top": 5
+        },
+        "pcc_cutoff": 0.2,
+        "lit_data": ["keepin", "brady", "synetos"]
     }
 }
