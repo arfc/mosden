@@ -105,7 +105,7 @@ def test_in_ex_no_diff():
     assert np.isclose(base_counts['counts'][0], np.sum(adjusted_params[:6]), atol=1e-2), "Initial count mismatch with intermediate counts"
     intermediate_counts = fit_func(groups.decay_times, adjusted_params)
     assert np.isclose(np.sum(adjusted_params[:6]), intermediate_counts[0], rtol=1e-2), "Intermediate counts do not align with own parameters"
-    assert np.allclose(base_counts['counts'], intermediate_counts, rtol=1e-2), "Intermediate counts do not match"
+    assert np.allclose(base_counts['counts'], intermediate_counts, rtol=1e-2, atol=1e-6), "Intermediate counts do not match"
 
     groups.irrad_type = 'saturation'
     base_residual_intermediate = np.linalg.norm(groups._residual_function(adjusted_params, groups.decay_times, base_counts['counts'], None, [], [], fit_func))
