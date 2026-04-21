@@ -545,8 +545,13 @@ class Preprocess(BaseClass):
                 if not spectra_exists:
                     continue
                 xs = self.eV_midpoints
+                sum_normalization = list()
                 for x in xs:
-                    data[nuc_name][x] = spectra_continuum(x)
+                    sum_normalization.append(spectra_continuum(x))
+                sum_normalization.sort()
+                sum_normalization = np.sum(sum_normalization)
+                for x in xs:
+                    data[nuc_name][x] = spectra_continuum(x) / sum_normalization
 
             else:
                 if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:

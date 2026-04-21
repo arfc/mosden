@@ -130,7 +130,7 @@ class BaseClass:
         self.initial_params: dict = group_options.get('initial_params', {'yields': [],
                                                                          "half_lives": []})
         self.energy_groups_MeV: list[float] = group_options.get('energy_groups_MeV', [0, 6.25e-7, 1e3])
-        self.eV_midpoints: list[float] = [1e6 * (self.energy_groups_MeV[i] + self.energy_groups_MeV[i+1]) / 2 for i in range(len(self.energy_groups_MeV) - 1)]
+        self.eV_midpoints: list[float] = self._get_midpoint_eVs(self.energy_groups_MeV)
         if len(self.energy_groups_MeV) >= 3:
             self.is_spectral_calculation = True
         else:
@@ -189,6 +189,9 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+    
+    def _get_midpoint_eVs(self, energy_groups_MeV: list[float]) -> list[float]:
+        return ([1e6 * (self.energy_groups_MeV[i] + self.energy_groups_MeV[i+1]) / 2 for i in range(len(self.energy_groups_MeV) - 1)])
      
     def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
         """
