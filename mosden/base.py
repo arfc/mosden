@@ -131,6 +131,10 @@ class BaseClass:
                                                                          "half_lives": []})
         self.energy_groups_MeV: list[float] = group_options.get('energy_groups_MeV', [0, 6.25e-7, 1e3])
         self.eV_midpoints: list[float] = [1e6 * (self.energy_groups_MeV[i] + self.energy_groups_MeV[i+1]) / 2 for i in range(len(self.energy_groups_MeV) - 1)]
+        if len(self.energy_groups_MeV) >= 3:
+            self.is_spectral_calculation = True
+        else:
+            self.is_spectral_calculation = False
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.unprocessed_data_dir: str = file_options['unprocessed_data_dir']
@@ -138,6 +142,10 @@ class BaseClass:
             file_options['output_dir'], 'concentrations.csv')
         self.countrate_path: str = os.path.join(
             file_options['output_dir'], 'count_rate.csv')
+        self.spectra_path: str = os.path.join(
+            file_options['output_dir'], 'spectra.csv')
+        self.spectra_count_path: str = os.path.join(
+            file_options['output_dir'], 'spectra_counts.csv')
         self.group_path: str = os.path.join(
             file_options['output_dir'], 'group_parameters.csv')
         self.postproc_path: str = os.path.join(
