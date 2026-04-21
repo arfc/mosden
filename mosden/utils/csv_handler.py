@@ -220,7 +220,7 @@ class CSVHandler:
         """
         df = pd.DataFrame.from_dict(data, orient='index', columns=col_names)
         df.reset_index(inplace=True)
-        df.rename(columns={'index': 'time'}, inplace=True)
+        df.rename(columns={'index': 'times'}, inplace=True)
         df.to_csv(self.file_path, index=False)
         return None
 
