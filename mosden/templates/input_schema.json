@@ -103,7 +103,7 @@
                 "spectra": {
                     "type": "string",
                     "description": "Path to the spectral data",
-                    "pattern": "^(?:.*/)?(jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/)$"
+                    "pattern": "^(?:.*/)?(jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/|)$"
                 },
                 "fission_yield": {
                     "type": "string",
