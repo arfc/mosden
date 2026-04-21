@@ -133,7 +133,7 @@ class CountRate(BaseClass):
     
     def _calculate_spectral_count_rate(self,
                                        counts_per_nuc: dict[str, np.ndarray[float]],
-                                       use_times: np.ndarray[float]) -> dict[str: np.ndarray[float]]:
+                                       use_times: np.ndarray[float]) -> dict[str, np.ndarray[float]]:
         """
         Calculates the count rate distributed amongst the energy groups
 
@@ -146,7 +146,7 @@ class CountRate(BaseClass):
         
         Returns
         -------
-        spectral_counts : dict[float: np.ndarray[float]]
+        spectral_counts : dict[float, np.ndarray[float]]
             The spectrum evaluated at each point in time
         """
         available_nucs = list(set(self.spectral_data.keys()) & set(counts_per_nuc.keys()))
