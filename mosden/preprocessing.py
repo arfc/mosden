@@ -541,7 +541,9 @@ class Preprocess(BaseClass):
                     multiplier = products.count('n')
                     Pn += mode.branching_ratio * multiplier
              
-            if data_val == 'spectra' and spectra_exists:
+            if data_val == 'spectra':
+                if not spectra_exists:
+                    continue
                 xs = self.eV_midpoints
                 for x in xs:
                     data[nuc_name][x] = spectra_continuum(x)
