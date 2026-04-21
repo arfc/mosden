@@ -525,10 +525,12 @@ class Preprocess(BaseClass):
             spectra = decay.spectra
             half_life = decay.half_life
             nuc_name = decay.nuclide['name']
+            spectra_exists = False
             # TODO - continuous normalization? Contains unceratinty?
             try:
                 if 'beta-' in spectra['n']['continuous']['from_mode']:
                     spectra_continuum = spectra['n']['continuous']['probability'] 
+                    spectra_exists = True
             except KeyError:
                 pass
             data[nuc_name] = dict()
@@ -539,7 +541,7 @@ class Preprocess(BaseClass):
                     multiplier = products.count('n')
                     Pn += mode.branching_ratio * multiplier
              
-            if data_val == 'spectra':
+            if data_val == 'spectra' and spectra_exists:
                 xs = self.eV_midpoints
                 for x in xs:
                     data[nuc_name][x] = spectra_continuum(x)
