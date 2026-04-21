@@ -98,12 +98,12 @@
                 "emission_probability": {
                     "type": "string",
                     "description": "Path to the emission probability data",
-                    "pattern": "^(?:.*/)?(iaea/eval.csv|iaea/eval_test.csv|iaea/four_dnp_test.csv|jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/$"
+                    "pattern": "^(?:.*/)?(iaea/eval.csv|iaea/eval_test.csv|iaea/four_dnp_test.csv|jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/)$"
                 },
                 "spectra": {
                     "type": "string",
                     "description": "Path to the spectral data",
-                    "pattern": "^(?:.*/)?(jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/$"
+                    "pattern": "^(?:.*/)?(jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/)$"
                 },
                 "fission_yield": {
                     "type": "string",
