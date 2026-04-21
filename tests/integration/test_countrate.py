@@ -90,3 +90,9 @@ def test_spectra_counts():
         spectral_rates = [spectra_data[str(e)][ti] for e in spectral_energies]
         spectral_counts = np.sum(spectral_rates)
         assert np.isclose(counts, spectral_counts), f"Count rates do not match at {ti}"
+
+    br87_spectra = np.asarray([countrate.spectral_data['Br87'][str(e)] for e in spectral_energies])
+    expected_spectral_counts = br87_spectra * countrate_data['counts'][0]
+    spectral_counts = [spectra_data[str(e)][0] for e in spectral_energies]
+
+    assert np.allclose(expected_spectral_counts, spectral_counts)
