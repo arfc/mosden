@@ -61,7 +61,8 @@ class Grouper(BaseClass):
             irrad_counts: np.ndarray[float],
             irrad_times: np.ndarray[float],
             irrad_denom: np.ndarray[float],
-            fit_func: Callable) -> float:
+            fit_func: Callable,
+            is_spectra: bool = False) -> float:
         """
         Calculate the residual of the current set of parameters
 
@@ -85,6 +86,8 @@ class Grouper(BaseClass):
             relative residual during irradiation
         fit_func : Callable
             Function that takes times and parameters to return list of counts
+        is_spectra : bool (optional)
+            True if calculating spectra
 
         Returns
         -------
@@ -95,7 +98,10 @@ class Grouper(BaseClass):
         if len(irrad_times) != 0:
             irrad_residual = ((irrad_counts - self._get_irrad_counts(irrad_times, parameters)) / (irrad_denom))
             irrad_residual = np.nan_to_num(irrad_residual)
-        post_residual = (counts - fit_func(times, parameters)) / (residual_denom)
+        if is_spectra:
+            post_residual = (counts - fit_func(None, None, parameters)) / (residual_denom)
+        else:
+            post_residual = (counts - fit_func(times, parameters)) / (residual_denom)
         residual = np.concatenate((irrad_residual, post_residual))
         return residual
 
@@ -191,7 +197,8 @@ class Grouper(BaseClass):
 
     def _pulse_fit_function(self,
                             times: np.ndarray[float | object],
-                            parameters: np.ndarray[float | object]
+                            parameters: np.ndarray[float | object],
+                            spectral_vector: np.ndarray[float | object] = None
                             ) -> np.ndarray[float | object]:
         """
         Fit function for a pulse irradiation
@@ -202,6 +209,8 @@ class Grouper(BaseClass):
             Times at which to evaluate the fit function
         parameters : np.ndarray[float|object]
             Fit parameters for the model
+        spectral_vector : np.ndarray[float|object]
+            The delayed neutron spectrum for a single energy bin
 
         Returns
         -------
@@ -211,6 +220,8 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
+        if spectral_vector is None:
+            spectral_vector = np.ones_like(yields)
         irrad_dt = 1
         if self.fission_times:
             irrad_dt = np.diff(self.fission_times)[0]
@@ -223,12 +234,13 @@ class Grouper(BaseClass):
                 if group == 0:
                     counts: np.ndarray[object] = np.zeros(
                         len(times), dtype=object)
-                counts += (a * lam * unumpy.exp(-lam * times))
+                counts += spectral_vector[group] * (a * lam * unumpy.exp(-lam * times))
         return counts * self.refined_fission_term * irrad_dt
 
     def _saturation_fit_function(self,
                                  times: np.ndarray[float | object],
-                                 parameters: np.ndarray[float | object]
+                                 parameters: np.ndarray[float | object],
+                                 spectral_vector: np.ndarray[float | object] = None
                                  ) -> np.ndarray[float | object]:
         """
         Fit function for a saturation irradiation
@@ -239,6 +251,8 @@ class Grouper(BaseClass):
             Times at which to evaluate the fit function
         parameters : np.ndarray[float|object]
             Fit parameters for the model
+        spectral_vector : np.ndarray[float|object]
+            The delayed neutron spectrum for a single energy bin
 
         Returns
         -------
@@ -248,6 +262,8 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
+        if spectral_vector is None:
+            spectral_vector = np.ones_like(yields)
         
         try:
             np.exp(-np.log(2)/half_lives[0])
@@ -263,7 +279,7 @@ class Grouper(BaseClass):
             fiss_term = self._get_saturation_fission_term(lam, exp)
             group_counts = fiss_term * exp(-lam*times) * nu
 
-            counts += group_counts
+            counts += spectral_vector[group] * group_counts
         return counts
     
     def _get_saturation_fission_term(self, lam: float, exp: Callable) -> float:
@@ -289,7 +305,8 @@ class Grouper(BaseClass):
             
     def _intermediate_numerical_fit_function(self,
                                  times: np.ndarray[float | object],
-                                 parameters: np.ndarray[float | object]
+                                 parameters: np.ndarray[float | object],
+                                 spectral_vector: np.ndarray[float | object] = None
                                  ) -> np.ndarray[float | object]:
         """
         Fit function for any irradiation using numerical integration
@@ -300,6 +317,8 @@ class Grouper(BaseClass):
             Times at which to evaluate the fit function
         parameters : np.ndarray[float|object]
             Fit parameters for the model
+        spectral_vector : np.ndarray[float|object]
+            The delayed neutron spectrum for a single energy bin
 
         Returns
         -------
@@ -309,6 +328,8 @@ class Grouper(BaseClass):
         num_groups = int(len(parameters) / 2)
         yields = parameters[:num_groups]
         half_lives = parameters[num_groups:]
+        if spectral_vector is None:
+            spectral_vector = np.ones_like(yields)
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
@@ -326,7 +347,7 @@ class Grouper(BaseClass):
             nu = unumpy.uarray([v.n for v in yields],
                                [v.s for v in yields])
         count_exponential = exp(-lam[:, None] * times[None, :])
-        group_counts = nu[:, None] * count_exponential
+        group_counts = spectral_vector[:, None] * nu[:, None] * count_exponential
         counts = np.sum(group_counts, axis=0)
         return counts
     
@@ -531,6 +552,63 @@ class Grouper(BaseClass):
         plt.savefig(f'{self.img_dir}correlation_heatmap.png')
         plt.close()
 
+    def _spectra_group_solve(self, spectral_counts: dict[float, np.ndarray[float]],
+                             sorted_params: np.ndarray[float|object],
+                             residual_denom: np.ndarray[float],
+                             fit_function: Callable) -> np.ndarray[np.ndarray[float]]:
+        """
+        Calculate the group spectra using the counts with spectral data and the
+        group parameters
+        TODO - Only calculated using post-irrad data. Does not currently include
+        functionality for calculation using mid-irradiation data. Needs 
+        `_get_irrad_counts` to be updated as well to enable this.
+        TODO - Does not have chi-squared statistic implemented properly (called
+        only using residual_denom==spectral_counts)
+
+        Parameters
+        ----------
+        spectral_counts : dict[float, np.ndarray[float]]
+            The counts at each time (key) as a numpy array for each energy bin
+        sorted_params : np.ndarray[float | object]
+            The group parameters (half-life and yield)
+        residual_denom : np.ndarray[float]
+            List of count errors for chi-square measure or list of counts for
+            relative residual
+
+        fit_func : Callable
+            Function that takes times and parameters to return list of counts
+
+        Returns
+        -------
+        group_spectra : np.ndarray[np.ndarray[float]]
+            The spectra for each group as an array, where each array is by energy
+        """
+        x0 = np.ones_like(self.eV_midpoints)
+        times = np.asarray(spectral_counts['times'])
+        group_spectra = np.zeros((self.num_groups, len(self.eV_midpoints)))
+        lower_bounds = np.zeros_like(x0)
+        upper_bounds = np.ones_like(x0)
+        bounds = (lower_bounds, upper_bounds)
+        spectra_function = lambda a, b, x: fit_function(times, sorted_params, x)
+        for ei, e in enumerate(tqdm(self.eV_midpoints, desc='Solving spectra')):
+            e_counts = np.zeros(len(times))
+            for ti, t in enumerate(times):
+                e_counts[ti] = spectral_counts[str(e)][ti]
+
+            result = least_squares(self._residual_function,
+                        x0,
+                        method='trf',
+                        x_scale='jac',
+                        bounds=bounds,
+                        ftol=1e-6,
+                        gtol=1e-6,
+                        xtol=1e-6,
+                        verbose=0,
+                        max_nfev=1e6,
+                        args=(times, e_counts, e_counts, [], [], [], spectra_function, True))
+            for group in range(self.num_groups):
+                group_spectra[group][ei] = result.x[group]
+        return group_spectra
 
     def _nonlinear_least_squares(self,
                                  count_data: dict[str: np.ndarray[float]] = None,
@@ -618,7 +696,7 @@ class Grouper(BaseClass):
             irrad_denom = irrad_counts
 
         best = None
-        for x0 in tqdm(starts):
+        for x0 in tqdm(starts, desc='Attempting various initial parameters'):
             try:
                 result = least_squares(self._residual_function,
                                     x0,
@@ -643,7 +721,12 @@ class Grouper(BaseClass):
 
         sorted_params = self._sort_params_by_half_life(result.x)
         sorted_params = self._restructure_intermediate_yields(sorted_params)
+        if self.is_spectral_calculation:
+            spectral_counts = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
+            spectra_params = self._spectra_group_solve(spectral_counts, sorted_params,
+                                                       spectral_counts, fit_function)
         sampled_params.append(sorted_params)
+        input(spectra_params)
 
         sort_idx = np.array([np.argmin(np.abs(result.x[self.num_groups:] - hl)) for hl in sorted_params[self.num_groups:]])
         perm = np.concatenate([sort_idx, sort_idx + self.num_groups])
@@ -671,6 +754,7 @@ class Grouper(BaseClass):
         for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
+                # TODO - This is also returning spectral data now
                 data, post_data = countrate.calculate_count_rate(
                     MC_run=True, sampler_func=self.sample_func)
                 post_data_save.append(post_data)
