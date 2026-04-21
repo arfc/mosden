@@ -204,11 +204,28 @@ class CSVHandler:
         df = df.sort_values(by=sortby, ascending=False)
         df.to_csv(self.file_path, index=False)
         return None
+    
+
+    def write_spectral_count_csv(self, data: dict[str, list[float]],
+                                 col_names: list[float]) -> None:
+        """
+        Write the spectral count rate to a CSV file.
+
+        Parameters
+        ----------
+        data : dict[str, list[float]]
+            The spectral data to write at each time
+        col_names : list[float]
+            The energy bins
+        """
+        df = pd.DataFrame.from_dict(data, orient='index', columns=col_names)
+        df.reset_index(inplace=True)
+        df.rename(columns={'index': 'time'}, inplace=True)
+        df.to_csv(self.file_path, index=False)
+        return None
 
     
-    def write_count_rate_csv(self, data: dict[str: list[float]],
-                             is_spectra: bool = False,
-                             col_names: list[float] = None) -> None:
+    def write_count_rate_csv(self, data: dict[str: list[float]]) -> None:
         """
         Write the count rate data to a CSV file.
 
@@ -216,18 +233,10 @@ class CSVHandler:
         ----------
         data : dict[str: list[float]]
             The data to write, where keys are nuclides and values are lists of count rates
-        is_spectra : bool (optional)
-            If the data is for spectra counts
-        col_names : list[float] (optional)
-            New names for each column (for spectra this is the energy bin midpoints)
         """
         if not self.overwrite and self._file_exists():
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
         df = pd.DataFrame(data)
-        if is_spectra:
-            df = df.T
-        if col_names:
-            df.columns = col_names
         df.to_csv(self.file_path, index=False)
         return None
     

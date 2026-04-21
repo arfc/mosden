@@ -360,9 +360,8 @@ class CountRate(BaseClass):
             if not MC_run and write_s_data:
                 CSVHandler(
                     self.spectra_count_path,
-                    self.count_overwrite).write_count_rate_csv(spectral_data,
-                                                               is_spectra=True,
-                                                               col_names=self.eV_midpoints)
+                    self.count_overwrite).write_spectral_count_csv(spectral_data,
+                                                                   col_names=self.eV_midpoints)
 
         data = {
             'times': use_times,
