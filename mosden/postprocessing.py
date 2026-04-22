@@ -121,9 +121,9 @@ class PostProcess(BaseClass):
         The main run function for postprocessing
 
         """
-        #self.compare_yields()
-        #if not self.post_irrad_only:
-        #    self.compare_counts()
+        self.compare_yields()
+        if not self.post_irrad_only:
+            self.compare_counts()
         if self.is_spectral_calculation:
             self.evaluate_spectra()
         input('pause')
