@@ -515,12 +515,11 @@ class Preprocess(BaseClass):
         data_dict = dict()
         a = np.asarray(self.energy_groups_MeV[:-1]) * 1e6
         b = np.asarray(self.energy_groups_MeV[1:]) * 1e6
-        normalization = 0
         region_integrals = list()
         for i, e in enumerate(self.eV_midpoints):
             region_integral, err = quad(spectra_continuum, a[i], b[i])
-            normalization += region_integral
             region_integrals.append(region_integral)
+        normalization = np.sum(sorted(region_integrals))
         if normalization == 0:
             normalization = 1
         for i, e in enumerate(self.eV_midpoints):
