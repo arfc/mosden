@@ -18,6 +18,7 @@ from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
 from matplotlib.colors import LogNorm
+from tqdm import tqdm
 plt.style.use('mosden.plotting')
 
 
@@ -37,6 +38,9 @@ class PostProcess(BaseClass):
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
         if not os.path.exists(self.img_dir):
             os.makedirs(self.img_dir)
+        if self.is_spectral_calculation:
+            if not os.path.exists(self.spectra_img_dir):
+                os.makedirs(self.spectra_img_dir)
         self.group_data = None
         self.post_data = None
         self.MC_half_lives = None
@@ -117,9 +121,12 @@ class PostProcess(BaseClass):
         The main run function for postprocessing
 
         """
-        self.compare_yields()
-        if not self.post_irrad_only:
-            self.compare_counts()
+        #self.compare_yields()
+        #if not self.post_irrad_only:
+        #    self.compare_counts()
+        if self.is_spectral_calculation:
+            self.evaluate_spectra()
+        input('pause')
         if not self.no_post_irrad:
             self.compare_group_to_data()
         self.MC_NLLS_analysis()
@@ -130,6 +137,16 @@ class PostProcess(BaseClass):
         Runs functions that compare the group parameters to the data
         """
         self._plot_group_vs_counts()
+        return None
+    
+    def evaluate_spectra(self) -> None:
+        """
+        Runs functions that evaluate spectral fits
+        """
+        self._compare_spectral_counts()
+        self._plot_group_spectra()
+        if self.MC_samples > 2:
+            self._plot_MC_spectra()
         return None
     
     def compare_counts(self) -> None:
@@ -492,17 +509,17 @@ class PostProcess(BaseClass):
         ylabel_replace = {
             "Half-life": fr"$\tau_{group_val}$ $[s]$",
             "Decay Constant": fr"$\lambda_{group_val}$ $[s^{{-1}}]$",
-            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
+            "Yield": fr"${{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         offnom_ylabel_replace = {
             "Half-life": fr"$\Delta \tau_{group_val}$ $[s]$",
             "Decay Constant": fr"$\Delta \lambda_{group_val}$ $[s^{{-1}}]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
+            "Yield": fr"$\Delta {{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         pcnt_ylabel_replace = {
             "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val}$ $[\%]$",
             "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val}$ $[\%]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}}$ $[\%]$",
+            "Yield": fr"$\Delta {{\nu}}_{{d, {group_val}}} / {{\nu}}_{{d, {group_val}}}$ $[\%]$",
         }
         pcnt_xlabel_replace = {
             "Half-life": fr"$\Delta \tau_i / \tau_i$ $[\%]$",
@@ -959,6 +976,46 @@ class PostProcess(BaseClass):
         plt.savefig(f'{self.img_dir}individual_nuclide_counts_stacked.png')
         plt.close()
 
+        return None
+    
+    def _compare_spectral_counts(self) -> None:
+        spectra_data = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
+
+        group_data = CSVHandler(self.group_path,
+                                create=False).read_vector_csv()
+        countrate = CountRate(self.input_path)
+        countrate.group_params = group_data
+        group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
+        group_counts = dict()
+        for ei, each in enumerate(group_spectra.T):
+            group_data = countrate._count_rate_from_groups(group_spectra=each)
+            group_counts[str(self.eV_midpoints[ei])] = group_data['counts']
+        
+        for ti, t in enumerate(tqdm(group_data['times'], desc="Plotting spectra")):
+            use_actual_spectra = [spectra_data[str(e)][0] for e in self.eV_midpoints]
+            use_actual_spectra += [spectra_data[str(self.eV_midpoints[-1])][ti]]
+            use_group_spectra  = [group_counts[str(e)][0] for e in self.eV_midpoints]
+            use_group_spectra += [group_counts[str(self.eV_midpoints[-1])][ti]]
+            colors = self.get_colors(2)
+            plt.step(self.energy_groups_MeV, use_actual_spectra, label='Data',
+                    color=colors[0], linestyle='--')
+            plt.step(self.energy_groups_MeV, use_group_spectra, label='Group Fit',
+                    color=colors[1], linestyle='-.')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.xscale('log')
+            plt.yscale('log')
+            plt.legend()
+            plt.ylabel(r'Delayed Neutron Count Rate $[\# \cdot s^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_counts_{t:.5f}.png')
+            plt.close()
+
+        return None
+    
+    def _plot_group_spectra(self) -> None:
+        return None
+    
+    def _plot_MC_spectra(self) -> None:
         return None
 
     def _group_param_helper(self,

@@ -76,9 +76,15 @@ class CountRate(BaseClass):
             self.time_track(start, 'Countrate')
         return data
 
-    def _count_rate_from_groups(self) -> dict[str: list[float]]:
+    def _count_rate_from_groups(self,
+                                group_spectra: np.ndarray[np.ndarray[float]] = None) -> dict[str: list[float]]:
         """
         Calculate the delayed neutron count rate from group parameters
+
+        Parameters
+        ----------
+        group_spectra : np.ndarray[np.ndarray[float]] (optional)
+            The group spectra (None if not modeling spectra)
 
         Returns
         -------
@@ -120,7 +126,10 @@ class CountRate(BaseClass):
         grouper._set_refined_fission_term(self.decay_times)
         parameters = grouper._restructure_intermediate_yields(parameters,
                                                               to_yield=False)
-        counts = fit_function(self.decay_times, parameters)
+        if group_spectra is None:
+            counts = fit_function(self.decay_times, parameters)
+        else:
+            counts = fit_function(self.decay_times, parameters, group_spectra)
         count_rate = np.asarray(unumpy.nominal_values(counts), dtype=float)
         sigma_count_rate = np.asarray(unumpy.std_devs(counts), dtype=float)
 

@@ -154,6 +154,7 @@ class BaseClass:
             file_options['output_dir'], 'postproc.json')
 
         self.img_dir: str = self.output_dir + 'images/'
+        self.spectra_img_dir: str = self.img_dir + 'spectra/'
         self.post_overwrite: bool = overwrite_options.get('postprocessing', False)
         self.sens_subplot: bool = post_options.get('sensitivity_subplots', True)
         self.lit_data: list[str] = post_options.get('lit_data', ['keepin'])
