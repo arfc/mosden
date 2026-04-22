@@ -978,9 +978,7 @@ class PostProcess(BaseClass):
 
         return None
     
-    def _compare_spectral_counts(self) -> None:
-        spectra_data = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
-
+    def _load_group_spectral_counts(self):
         group_data = CSVHandler(self.group_path,
                                 create=False).read_vector_csv()
         countrate = CountRate(self.input_path)
@@ -991,9 +989,18 @@ class PostProcess(BaseClass):
             group_data = countrate._count_rate_from_groups(group_spectra=each)
             group_counts[str(self.eV_midpoints[ei])] = group_data['counts']
         
+        times = group_data['times']
+        return times, group_counts
+
+    
+    def _compare_spectral_counts(self) -> None:
+        spectra_data = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
+
+        times, group_counts = self._load_group_spectral_counts()
+        
         colors = self.get_colors(2)
         single_color = self.get_colors(1)[0]
-        for ti, t in enumerate(tqdm(group_data['times'], desc="Plotting spectra")):
+        for ti, t in enumerate(tqdm(times, desc="Plotting spectra")):
             use_actual_spectra = [spectra_data[str(e)][0] for e in self.eV_midpoints]
             use_actual_spectra += [spectra_data[str(self.eV_midpoints[-1])][ti]]
             use_group_spectra  = [group_counts[str(e)][0] for e in self.eV_midpoints]
@@ -1023,6 +1030,26 @@ class PostProcess(BaseClass):
         return None
     
     def _plot_group_spectra(self) -> None:
+        nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
+        br87_spectrum = [nuc_spectra['Br87'][str(e)] for e in self.eV_midpoints]
+        br87_spectrum += [br87_spectrum[-1]]
+
+        group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
+
+        for group, spectrum in enumerate(group_spectra):
+            spectrum = np.concatenate((spectrum, [spectrum[-1]]))
+            plt.step(self.energy_groups_MeV, spectrum, label=f'Group {group+1}')
+            if group == 0:
+                plt.step(self.energy_groups_MeV, br87_spectrum,
+                         label=r'$^{87}$Br')
+                plt.legend()
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.xscale('log')
+            plt.legend()
+            plt.ylabel(r'Delayed Neutron Count Rate $[\# \cdot s^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_{group}.png')
+            plt.close() 
         return None
     
     def _plot_MC_spectra(self) -> None:
