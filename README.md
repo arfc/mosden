@@ -57,7 +57,9 @@ value from 0 to 1, the ex-core fraction (assuming chemical removal in the that
 region). Whatever chemical removal rates are used, this term should represent 
 the scaling that has been applied to that data (for example, if the removal 
 occurs everywhere in the primary loop, then the scaling would be 1.0 since this 
-term captures the spatial component).
+term captures the spatial component) (for example, in the MSBR, there is an
+in-core residence time of 9 seconds and ex-core residence time of 16 seconds,
+which results in a scaling term of 0.64 assuming removals take place ex-core).
 - The group parameter data from the literature should be given as absolute 
 yields (calculable from the relative yield and total yield values).
 
@@ -83,6 +85,9 @@ For example, using an in-core residence time of 30 seconds with a net
 irradiation time of 30 seconds (1 OpenMC simulation) will give less accurate 
 measures of the summed data than an in-core residence time of 30 seconds (30 
 OpenMC simulations).
+This can be resolved by using a smaller minimum OpenMC timestep.
+The minimum timestep should be set such that approximately 100 simulations are 
+run during irradiation.
 
 Chemical removal of DNPs changes the group parameters (as expected). However,
 chemical removal of fission products also has an effect due to the way MoSDeN 

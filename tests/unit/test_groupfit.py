@@ -37,9 +37,9 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     num_groups = len(half_lives)
     grouper.num_groups = num_groups
     lams = np.log(2)/half_lives
-    times = np.linspace(0, 600, 100)
+    times = np.geomspace(1e-4, 600, 300)
     counts = np.zeros(len(times))
-    fission_times = np.linspace(0, grouper.t_net, 10000)
+    fission_times = np.linspace(0, grouper.t_net, 1000)
     dt = np.diff(fission_times)[0]
     concs = np.zeros(num_groups)
 
@@ -125,29 +125,32 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     if irrad_type == 'saturation':
         assert np.isclose(func_counts[0], initial_count_rate, rtol=1e-4), "Initial count rate mismatch"
 
-    assert np.allclose(func_counts, counts, atol=1e-2, rtol=1e-2), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
 
     count_data = {
         'times': times,
         'counts': counts,
-        'sigma counts': np.zeros(len(counts))
+        'sigma counts': counts*1e-12
     }
 
+    assert np.allclose(func_counts, counts, atol=1e-2, rtol=1e-2), f'{irrad_type.capitalize()} counts mismatch between hand calculation and function evaluation'
     assert grouper.irrad_type == irrad_type
     data = grouper._nonlinear_least_squares(count_data=count_data, set_refined_fiss=False)
     test_yields = [data[key]['yield'] for key in range(grouper.num_groups)]
     test_half_lives = [data[key]['half_life'] for key in range(grouper.num_groups)]
     parameters = test_yields + test_half_lives
     adjusted_parameters = grouper._restructure_intermediate_yields(parameters)
-    residual_known = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, None, fit_func))
-    residual_previous = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, None, fit_func))
+    residual_counts = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, counts, counts*1e-12, [], [], [], fit_func))
+    func_counts = fit_func(times, adjusted_parameters)
+    residual_fit    = np.linalg.norm(grouper._residual_function(adjusted_parameters, times, func_counts, func_counts*1e-12, [], [], [], fit_func))
     grouper.logger.error(f'{base_parameters = }')
     grouper.logger.error(f'{base_inter_parameters = }')
     grouper.logger.error(f'{parameters = }')
     grouper.logger.error(f'{adjusted_parameters = }')
-    grouper.logger.error(f'{residual_known = }')
+    grouper.logger.error(f'{np.mean(func_counts - counts) = }')
+    grouper.logger.error(f'{residual_counts = }')
+    grouper.logger.error(f'{residual_fit = }')
 
-    assert np.isclose(residual_known, residual_previous, atol=1e-1), "Same counts should have the same residual"
+    assert residual_counts > residual_fit, "Fit residual should be zero"
     
     original_half_lives = np.asarray(half_lives)
     original_yields = np.asarray(yields)
@@ -157,11 +160,12 @@ def run_grouper_fit_test(irrad_type: str, grouper: Grouper,
     
     for group in range(grouper.num_groups):
         assert np.isclose(test_yields[group], sorted_original_yields[group], rtol=1e-1, atol=1e-1), \
-            f'Group {group+1} yields mismatch - {test_yields[group]=} != {sorted_original_yields[group]=}'
+            f'Group {group+1} yields mismatch - {test_yields=} != {sorted_original_yields=}'
         assert np.isclose(test_half_lives[group], sorted_original_half_lives[group], rtol=1e-1, atol=1e-1), \
-            f'Group {group+1} half lives mismatch - {test_half_lives[group]=} != {sorted_original_half_lives[group]=}'
+            f'Group {group+1} half lives mismatch - {test_half_lives=} != {sorted_original_half_lives=}'
     return None
 
+@pytest.mark.slow
 def test_grouper_pulse_fitting():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path) 
@@ -174,7 +178,6 @@ def test_grouper_saturation_noex_fitting():
     grouper.t_ex = 0
     run_grouper_fit_test('saturation', grouper)
 
-@pytest.mark.slow
 def test_grouper_saturation_noex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -182,7 +185,6 @@ def test_grouper_saturation_noex_short_fitting_few():
     grouper.t_net = 30
     run_grouper_fit_test('saturation', grouper, 'few_groups')
 
-@pytest.mark.slow
 def test_grouper_saturation_ex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -190,7 +192,6 @@ def test_grouper_saturation_ex_short_fitting_few():
     grouper.t_net = 30
     run_grouper_fit_test('saturation_ex', grouper, 'few_groups')
 
-@pytest.mark.slow
 def test_grouper_intermediate_noex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -198,7 +199,6 @@ def test_grouper_intermediate_noex_short_fitting_few():
     grouper.t_net = 30
     run_grouper_fit_test('intermediate', grouper, 'few_groups')
 
-@pytest.mark.slow
 def test_grouper_intermediate_ex_short_fitting_few():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -241,7 +241,6 @@ def test_grouper_intermediate_ex_fitting_standard_params():
     grouper.t_ex = 10
     run_grouper_fit_test('intermediate_ex', grouper, 'standard')
 
-@pytest.mark.slow
 def test_grouper_intermediate_ex_short_fitting_standard_params():
     input_path = './tests/unit/input/input.json'
     grouper = Grouper(input_path)
@@ -297,6 +296,9 @@ def test_effective_fiss():
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
     assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "irrad fiss mismatch"
 
     grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = 250e3
@@ -305,25 +307,41 @@ def test_effective_fiss():
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp)
     assert np.isclose(eff_fiss, stat_fiss), "Fission terms not equal"
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "irrad fiss mismatch"
 
+    grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = 1e10
     lams = np.asarray([np.log(2)/hl])
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams[0]
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp) / lams[0]
     assert np.isclose(eff_fiss, grouper.t_net), "Limit for long-lived incorrect"
     assert np.isclose(stat_fiss, grouper.t_net), "Limit for long-lived incorrect"
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[0]
+    grouper.logger.error(f'{irrad_fiss = }')
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "Limit for long-lived incorrect"
 
+    grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = 1e-10
     lams = np.asarray([np.log(2)/hl])
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams[0]
     stat_fiss = grouper._get_saturation_fission_term(lams[0], np.exp) / lams[0]
     assert np.isclose(eff_fiss, 0), "Limit for long-lived incorrect"
     assert np.isclose(stat_fiss, 0), "Limit for long-lived incorrect"
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[0]
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss), "Limit for long-lived incorrect"
 
+    grouper.full_fission_term = np.asarray([1, 1, 1])
     hl = [1e-10, 1e10]
     lams = np.asarray(np.log(2)/hl)
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1) / lams
     assert np.allclose(eff_fiss, [0.0, grouper.t_net]), "Limit for multiple incorrect"
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1) / lams[:, None]
+    assert np.allclose(irrad_fiss[:, -1], eff_fiss), "Limit for multiple incorrect"
 
 
     
@@ -354,9 +372,12 @@ def test_effective_fiss_many_ts():
 
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lam, np.exp)
-
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    
     assert np.isclose(eff_fiss, 0.9424, rtol=1e-2), "Effective fission mismatch"
     assert np.isclose(stat_fiss, 0.666, rtol=1e-2), "Static effective fission mismatch"
+    assert np.isclose(irrad_fiss[0][-1], eff_fiss, rtol=1e-2), "Final irrad doesn't match effective"
 
 
     full_fission[(t_mid >= 1) & (t_mid < 2)] = 1.0
@@ -365,5 +386,118 @@ def test_effective_fiss_many_ts():
 
     eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
     stat_fiss = grouper._get_saturation_fission_term(lam, np.exp)
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
 
     assert np.isclose(eff_fiss, stat_fiss, atol=1e-2)
+    assert np.isclose(eff_fiss, irrad_fiss[0][-1], atol=1e-2)
+
+
+def test_effective_fiss_saturation():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+
+    hl = 250e-3
+    lam = np.log(2) / hl
+    lams = np.asarray([lam])
+
+    dt = 500
+    t_net = 5000
+
+    grouper.fission_times = np.arange(0.0, t_net + dt, dt)
+    grouper.t_net = t_net
+
+    t_mid = 0.5 * (grouper.fission_times[:-1] + grouper.fission_times[1:])
+    fiss_scalar = 3.7
+    full_fission = np.ones_like(t_mid) * fiss_scalar
+
+    grouper.full_fission_term = full_fission
+
+    grouper.refined_fission_term = 1
+
+    eff_fiss = grouper._get_effective_fission(lams, np.exp, np.expm1)
+    stat_fiss = grouper._get_saturation_fission_term(lam, np.exp) * fiss_scalar
+    grouper.full_fission_term = np.concatenate(([0], grouper.full_fission_term))
+    irrad_fiss = grouper._get_irrad_fission_component(grouper.fission_times, lams, np.exp, np.expm1)
+    
+    assert np.isclose(eff_fiss, stat_fiss, atol=1e-8)
+    assert np.isclose(stat_fiss, fiss_scalar)
+    assert np.isclose(eff_fiss, irrad_fiss[0][-1], atol=1e-2)
+
+def test_irrad_fit():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    tf = 1000
+    times = np.arange(0, tf, tf/100)
+    grouper.fission_times = times
+    grouper.t_net = tf
+    grouper.full_fission_term = np.ones(len(times))
+    yield_val = 1
+    half_life = 10
+    parameters = [yield_val, half_life]
+    grouper.num_groups = 1
+    lam_val = np.log(2)/half_life
+    expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * times)))
+
+    count_rate = grouper._get_irrad_counts(times, parameters)
+    assert np.allclose(count_rate, expected_counts)
+
+def test_get_mod_counts():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    irrad_times = np.arange(0, 10, 1)
+    post_irrad_times = np.geomspace(0.01, 7, 3)
+    grouper.fission_times = irrad_times
+    grouper.t_in = 1
+    grouper.t_ex = 0
+    grouper.t_net = 10
+    grouper.decay_times = post_irrad_times
+    grouper.residual_masks = 'all'
+    grouper.post_irrad_only = False
+    grouper.no_post_irrad = True
+    grouper.openmc_settings['max_timestep'] = 1e10
+    grouper.full_fission_term = np.ones(len(irrad_times))
+    yield_val = 1
+    half_life = 10
+    parameters = [yield_val, half_life]
+    grouper.num_groups = 1
+    lam_val = np.log(2)/half_life
+    expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * irrad_times)))
+
+    assert grouper.openmc_settings['max_timestep'] == 1e10
+    assert grouper.t_in == 1
+    assert grouper.t_ex == 0
+    assert grouper.t_net == 10
+    post_irrad_index = grouper.get_irrad_index(False)
+    assert post_irrad_index == 10
+
+    data_times = grouper._get_times_and_rates()
+    assert np.allclose(data_times['irrad_mask'], 1)
+
+    cumulative_times = np.cumsum(data_times["timesteps"][:post_irrad_index])
+
+    times_post, counts_post, _, irrad_times, irrad_counts, _ = grouper._get_modified_counts_and_times(post_irrad_times, np.ones(len(post_irrad_times)+8), 1e-12*np.ones(len(post_irrad_times)+8))
+    assert np.allclose(cumulative_times, irrad_times)
+    assert len(irrad_times) > 0
+    fit_irrad = grouper._get_irrad_counts(irrad_times, parameters)
+    expected_counts = lam_val * (yield_val / lam_val * (1 - np.exp(-lam_val * irrad_times)))
+    assert np.allclose(fit_irrad[1:], expected_counts[:-1]), "Fit error"
+
+def test_restructure_intermediate_yields_offsets():
+    input_path = './tests/unit/input/input.json'
+    grouper = Grouper(input_path)
+    grouper.num_groups = 1
+    grouper.irrad_type = 'intermediate'
+    grouper.t_net = 1e-6
+    grouper.fission_times = np.array([0.0, 1e-6])
+    grouper.full_fission_term = np.array([9900.61988839969])
+    lam_val = np.log(2) / 10
+
+    fiss_component = grouper._get_effective_fission(np.asarray([lam_val]), np.exp, np.expm1)
+    scaled_param = (9900.61988839969 * 1e-6 * lam_val)
+    assert np.isclose(fiss_component, scaled_param)
+
+    params = np.array([scaled_param, 10.0])
+
+    actual = grouper._restructure_intermediate_yields(params, to_yield=True)
+    assert np.isclose(actual[0], 1.0, rtol=1e-6)

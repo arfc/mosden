@@ -104,7 +104,8 @@ class CSVHandler:
         df = pd.read_csv(self.file_path, header=1)
         for _, row in df.iterrows():
             iaea_nuc = row['nucid']
-            nuc = self._iaea_to_mosden_nuc(iaea_nuc)
+            metastable_id = row[' liso']
+            nuc = self._iaea_to_mosden_nuc(iaea_nuc, metastable_id)
             half_life = row[' T1/2 [s] ']
             half_life_uncertainty = row[' D T1/2 [s]']
             if row['D pn1'] < 0:
@@ -128,7 +129,7 @@ class CSVHandler:
             data[nuc]['sigma emission probability'] = emission_prob.s
         return data
     
-    def _iaea_to_mosden_nuc(self, iaea_nuc: str) -> str:
+    def _iaea_to_mosden_nuc(self, iaea_nuc: str, metastable_id: int) -> str:
         """
         Converts IAEA nuclide format to MoSDeN format.
 
@@ -136,6 +137,8 @@ class CSVHandler:
         ----------
         iaea_nuc : str
             IAEA nuclide identifier
+        metastable_id : int
+            Value indicating metastable index
 
         Returns
         -------
@@ -147,7 +150,10 @@ class CSVHandler:
             i += 1
         mass = iaea_nuc[:i]
         element = iaea_nuc[i:].capitalize()
-        return f"{element}{mass}"
+        m_id = ''
+        if metastable_id != 0:
+            m_id = f'_m{metastable_id}'
+        return f"{element}{mass}{m_id}"
 
     def write_csv(self, data: dict[str: dict[str, float]]) -> None:
         """
@@ -160,6 +166,7 @@ class CSVHandler:
         """
         if not self.overwrite and self._file_exists():
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
+            return None
         df = pd.DataFrame.from_dict(data, orient='index')
         df.index.name = 'Nuclide'
         df.to_csv(self.file_path, index=True)

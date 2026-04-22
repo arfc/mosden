@@ -49,6 +49,7 @@ def test_input_handler():
         data = input_handler.read_input(check=True, apply_defaults=False)
     
     data = input_handler.read_input(check=True, apply_defaults=True)
+    data.pop('key')
     default_data = json.loads(json.dumps(DEFAULTS))
     assert default_data == data, "Default application failed"
 

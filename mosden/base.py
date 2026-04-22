@@ -21,9 +21,11 @@ class BaseClass:
             Path to the input file
         """
         self.omc_data_words: list[str] = ['omcchain']
-        self.endf_data_words: list[str] = ['nfy', 'decay']
+        self.endf_data_words: list[str] = ['endf']
         self.iaea_data_words: list[str] = ['iaea']
         self.jeff_data_words: list[str] = ['jeff']
+        self.jendl_data_words: list[str] = ['jendl']
+
 
         self.input_path: str = input_path
         self.input_handler: InputHandler = InputHandler(input_path)
@@ -58,13 +60,20 @@ class BaseClass:
                                 filemode=log_mode)
 
         self.name: str = self.input_data['name']
-        self.output_dir: str = self.input_data['file_options']['output_dir']
+        self.output_dir: str = self.input_data['file_options'].get('output_dir', '')
+        if len(self.output_dir) > 1 and not self.output_dir.endswith('/'):
+            self.output_dir = self.output_dir + '/'
         self.logger.debug(f'{self.name = }')
 
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
         self.fissiles: dict[str, float] = data_options.get(
             'fissile_fractions', {})
         self.fissile_targets: list = list(self.fissiles.keys())
+
+        self.debug_dnp_data: dict = data_options.get('debug_dnps', {})
+        self.has_debug_dnps: bool = True
+        if self.debug_dnp_data == {}:
+            self.has_debug_dnps = False
 
         self.data_types: list[str] = [
             'fission_yield',
@@ -91,8 +100,6 @@ class BaseClass:
         self.t_in: float = modeling_options.get('incore_s', 0.0)
         self.t_ex: float = modeling_options.get('excore_s', 0.0)
         self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
-        if self.t_in/self.t_net >= 0.9:
-            self.logger.warning('It is suggested to use a smaller in-core residence time or a longer total time')
         self.t_net = self._update_t_net()
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: dict[str: str] = modeling_options.get(
@@ -103,6 +110,7 @@ class BaseClass:
         self.temperature_K: float = data_options.get('temperature_K', 920)
         self.density_g_cc: float = data_options.get('density_g_cm3', 2.3275)
         self.openmc_settings: dict = modeling_options.get('openmc_settings', {})
+        self.residual_masks: list[str] = modeling_options.get('residual_handling', ["post-irrad"])
 
         
         self.count_overwrite: bool = overwrite_options.get('count_rate', False)
@@ -144,8 +152,15 @@ class BaseClass:
         self.num_over_time = self.num_top.get('conc_over_time_top', 3)
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
+        self.plot_means = post_options.get('plot_means', False)
+        self.pcc_cutoff = post_options.get('pcc_cutoff', 0.2)
+        self.plot_correlation = post_options.get('plot_correlation', False)
 
+        self.post_irrad_only: bool = (len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks)
+        self.no_post_irrad: bool = ('post-irrad' not in self.residual_masks and 'all' not in self.residual_masks)
         self.decay_times = self._set_decay_times()
+        self.use_times = self._get_use_times()
+
 
         np.random.seed(self.seed)
 
@@ -164,6 +179,134 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+     
+    def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
+        """
+        Get all the times steps over which count rate data exists
+
+        Parameters
+        ----------
+        single_time_val : bool
+            Whether the problem is evaluated at a single point in time
+
+        Returns
+        -------
+        use_times : np.ndarray[float]
+            The time values where data exists
+        """
+        if self.post_irrad_only:
+            use_times = self.decay_times
+        else:
+            mask_data = self._get_times_and_rates()
+            use_times = np.concatenate(([0], np.cumsum(mask_data['timesteps'])))
+
+        if self.no_post_irrad:
+            post_irrad_index = self.get_irrad_index(single_time_val)
+            use_times = use_times[:post_irrad_index+1]
+        return use_times
+
+    
+    def _set_cycle_times(self, residence_time: float) -> list[float]:
+        """
+        Returns the list of times applied in OpenMC for each residence time
+
+        Parameters
+        ----------
+        residence_time : float
+            In-core or ex-core residence time
+
+        Returns
+        -------
+        values : list[float]
+            List of times to pass to OpenMC per residence
+        """
+        max_value = np.min((self.openmc_settings['max_timestep'], residence_time))
+        if max_value == 0.0:
+            return []
+        min_cycles = int(np.floor(residence_time/max_value))
+        remainder = residence_time - min_cycles * max_value
+        values = [max_value] * min_cycles + [remainder]
+        if np.isclose(values[-1], 0.0):
+            values = values[:-1]
+        return values
+
+    
+    def _get_times_and_rates(self, f_in: float = 1.0) -> dict[str, list[float|int]]:
+        """
+        Calculates the time steps to evaluate in OpenMC, the source rates
+        to use at each time step, and the chemical removal indeces where
+        removal occurs.
+
+        Parameters
+        ----------
+        f_in : float (optional)
+            Only required if the flux is scaled. The in-core salt fraction.
+
+        Returns
+        -------
+        time_rate_data : dict[str, list[float|int]]
+            Keys are names for different datasets, values are the time-dependent
+            data. Keys include `timesteps`, `source_rates`, `removal_indeces`,
+            and `irrad_mask`
+        """
+        time_rate_data = dict()
+        removal_indeces = list()
+        timesteps = list()
+        source_rates = list()
+        irrad_residual_mask = list()
+        current_time = 0
+        index_counter = 0
+        in_core = True
+
+        incore_values = self._set_cycle_times(self.t_in)
+        excore_values = self._set_cycle_times(self.t_ex)
+
+        time_close = np.isclose(current_time, self.t_net)
+        while current_time < self.t_net and not time_close:
+            mask_val = 0
+            if in_core:
+                ts = incore_values
+                region = 'incore'
+                source = self.openmc_settings['source']
+                in_core = False
+                if 'incore' in self.residual_masks:
+                    mask_val = 1
+            else:
+                ts = excore_values
+                region = 'excore'
+                source = 0
+                in_core = True
+                if 'excore' in self.residual_masks:
+                    mask_val = 1
+
+            for t in ts:
+                current_time += t
+                timesteps.append(t)
+                if (region in self.reprocess_locations) or self.chem_scaling:
+                    removal_indeces.append(index_counter)
+                if self.flux_scaling:
+                    source = self.openmc_settings['source'] * f_in
+                source_rates.append(source)
+                index_counter += 1
+                time_close = np.isclose(current_time, self.t_net)
+                if 'all' in self.residual_masks:
+                    mask_val = 1
+                irrad_residual_mask.append(mask_val)
+
+        diff = sum(timesteps) - self.t_net
+        timesteps[-1] = timesteps[-1] - diff
+
+        decay_time_steps = np.diff(self.decay_times, prepend=[0.0])
+        for t in decay_time_steps[1:]:
+            timesteps.append(t)
+            source_rates.append(0)
+
+        time_rate_data['timesteps'] = timesteps
+        time_rate_data['source_rates'] = source_rates
+        time_rate_data['removal_indeces'] = removal_indeces
+        time_rate_data['irrad_mask'] = irrad_residual_mask
+        return time_rate_data
+
     
     def _set_decay_times(self) -> np.ndarray[float]:
         """
@@ -186,7 +329,8 @@ class BaseClass:
                 0, self.decay_time, self.num_times)
         elif self.decay_time_spacing == 'log':
             self.decay_times: np.ndarray = np.geomspace(
-                1e-2, self.decay_time, self.num_times)
+                1e-2, self.decay_time, self.num_times-1)
+            self.decay_times = np.append([0], self.decay_times)
         else:
             raise ValueError(
                 f"Decay time spacing '{self.decay_time_spacing}' not supported.")
@@ -224,13 +368,20 @@ class BaseClass:
         """
         if single_time_val:
             return 0
+        
+        in_use_time = np.min((self.openmc_settings['max_timestep'], self.t_in))
+        ex_use_time = np.min((self.openmc_settings['max_timestep'], self.t_ex))
 
-        if self.t_in == 0:
-            return int(np.ceil(self.t_net / self.t_ex))
-        if self.t_ex == 0:
-            return int(np.ceil(self.t_net / self.t_in))
+        if self.t_in == 0 and self.t_ex != 0:
+            ratio = self.t_net / ex_use_time
+            return int(np.floor(ratio + (1 - 1e-12)))
+        elif self.t_ex == 0 and self.t_in != 0:
+            ratio = self.t_net / in_use_time
+            return int(np.floor(ratio + (1 - 1e-12)))
+        elif self.t_in == 0 and self.t_ex == 0:
+            raise ValueError('Residence times cannot all be zero')
 
-        cycle_time = self.t_in + self.t_ex
+        cycle_time = in_use_time + ex_use_time
         n_full = np.floor(self.t_net / cycle_time)
         post_irrad_index = int(2 * n_full)
 
@@ -285,6 +436,30 @@ class BaseClass:
         data_to_write = existing_data
         with open(self.postproc_path, 'w') as f:
             json.dump(data_to_write, f, indent=4)
+        return None
+    
+
+    def _write_processed_data(self, data_type: str, overwrite: bool, data: dict[str, dict[str, float]]) -> None:
+        """
+        Read the processed data for a given fissile nuclide.
+
+        Parameters
+        ----------
+        data_type : str
+            The type of data to read (e.g., "fission_yield", "half_life",
+                "cross_section", "emission_probability").
+        overwrite : bool
+            Whether or not to overwrite existing data
+        data : dict[str: dict[str: float]]
+            The processed data for the fissile nuclide.
+
+        """
+        data_path = os.path.join(self.processed_data_dir, f'{data_type}.csv')
+        csv_handler = CSVHandler(data_path, create=False, overwrite=overwrite)
+        if not csv_handler._file_exists():
+            raise FileNotFoundError(
+                f"Processed data file {data_path} does not exist.")
+        data = csv_handler.write_csv(data)
         return None
 
     def _read_processed_data(self,

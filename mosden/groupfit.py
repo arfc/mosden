@@ -8,8 +8,12 @@ from typing import Callable
 from time import time
 import warnings
 from tqdm import tqdm
-from scipy.linalg import svd
+from scipy.linalg import svd, LinAlgError
 from typing import Callable
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+plt.style.use('mosden.plotting')
 
 
 class Grouper(BaseClass):
@@ -53,7 +57,10 @@ class Grouper(BaseClass):
             parameters: np.ndarray[float],
             times: np.ndarray[float],
             counts: np.ndarray[float],
-            count_err: np.ndarray[float],
+            residual_denom: np.ndarray[float],
+            irrad_counts: np.ndarray[float],
+            irrad_times: np.ndarray[float],
+            irrad_denom: np.ndarray[float],
             fit_func: Callable) -> float:
         """
         Calculate the residual of the current set of parameters
@@ -66,8 +73,16 @@ class Grouper(BaseClass):
             List of times
         counts : np.ndarray[float]
             List of delayed neutron counts
-        count_err : np.ndarray[float]
-            List of count errors
+        residual_denom : np.ndarray[float]
+            List of count errors for chi-square measure or list of counts for
+            relative residual
+        irrad_counts : np.ndarray[float]
+            List of delayed neutron counts during irradiation
+        irrad_times : np.ndarray[float]
+            List of times during irradiation
+        irrad_denom : np.ndarray[float]
+            List of count errors for chi-square measure or list of counts for
+            relative residual during irradiation
         fit_func : Callable
             Function that takes times and parameters to return list of counts
 
@@ -76,8 +91,103 @@ class Grouper(BaseClass):
         residual : float
             Value of the residual
         """
-        residual = (counts - fit_func(times, parameters)) / (counts)
+        irrad_residual = []
+        if len(irrad_times) != 0:
+            irrad_residual = ((irrad_counts - self._get_irrad_counts(irrad_times, parameters)) / (irrad_denom))
+            irrad_residual = np.nan_to_num(irrad_residual)
+        post_residual = (counts - fit_func(times, parameters)) / (residual_denom)
+        residual = np.concatenate((irrad_residual, post_residual))
         return residual
+
+    def _get_irrad_fission_component(self, times: np.ndarray[float],
+                                      lam: np.ndarray[float], exp: Callable,
+                                      expm1: Callable) -> np.ndarray[float]:
+        """
+        Get the fission component as a function of time during irradiation
+
+        Parameters
+        ----------
+        times : np.ndarray[float]
+            Irradiation times
+        lam : np.ndarray[float]
+            Decay constants for each group
+        exp : Callable
+            Exponential function (e.g. `np.exp`)
+        expm1 : Callable
+            Exponential subtraction function (e.g. `np.expm1`)
+
+        Returns
+        -------
+        fission_component : np.ndarray[float]
+            The fission term for each group as a function of time
+        """
+        t = np.asarray(times)
+        t1 = times[:-1]
+        t2 = times[1:]
+        dt = t2 - t1
+
+        lam = lam[:, None, None]
+        t_eval = t[None, :, None]
+        t2 = t2[None, None, :]
+        dt = dt[None, None, :]
+        F = np.asarray(self.full_fission_term[1:])[None, None, :]
+
+        a = -lam * (t_eval - t2)
+        b = -lam * dt
+
+        exponential_term = np.nan_to_num(exp(a) * -expm1(b))
+
+        mask = t_eval >= t2
+        exponential_term *= mask
+
+        scaled = F * exponential_term
+        fission_component = np.sum(scaled, axis=2)
+        return fission_component
+
+    
+    def _get_irrad_counts(self,
+                           times: np.ndarray[float | object],
+                           parameters: np.ndarray[float | object]
+                           ) -> np.ndarray[float | object]:
+        """
+        Fit function during irradiation
+
+        Parameters
+        ----------
+        times : np.ndarray[float|object]
+            Times at which to evaluate the fit function
+        parameters : np.ndarray[float|object]
+            Fit parameters for the model
+
+        Returns
+        -------
+        counts : np.ndarray[float|object]
+            Array of counts for each time point (can be float or ufloat)
+        """
+        parameters = self._restructure_intermediate_yields(parameters)
+        yields = parameters[:self.num_groups]
+        half_lives = parameters[self.num_groups:]
+        try:
+            np.exp(-np.log(2)/half_lives[0])
+            exp = np.exp
+            expm1 = np.expm1
+            lam = np.log(2) / np.asarray(half_lives)
+            nu = np.asarray(yields)
+        except TypeError:
+            counts: np.ndarray[object] = np.zeros(
+                len(times), dtype=object)
+            lams = np.log(2) / half_lives
+            exp = unumpy.exp
+            expm1 = unumpy.expm1
+            lam = unumpy.uarray([lam.n for lam in lams],
+                                [lam.s for lam in lams])
+            nu = unumpy.uarray([v.n for v in yields],
+                               [v.s for v in yields])
+
+        fission_component = self._get_irrad_fission_component(times, lam, exp, expm1)
+        group_counts = nu[:, None] * fission_component
+        counts = np.sum(group_counts, axis=0)
+        return counts
 
     def _pulse_fit_function(self,
                             times: np.ndarray[float | object],
@@ -101,6 +211,9 @@ class Grouper(BaseClass):
         yields = parameters[:self.num_groups]
         half_lives = parameters[self.num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
+        irrad_dt = 1
+        if self.fission_times:
+            irrad_dt = np.diff(self.fission_times)[0]
         for group in range(self.num_groups):
             lam = np.log(2) / half_lives[group]
             a = yields[group]
@@ -111,7 +224,7 @@ class Grouper(BaseClass):
                     counts: np.ndarray[object] = np.zeros(
                         len(times), dtype=object)
                 counts += (a * lam * unumpy.exp(-lam * times))
-        return counts * self.fission_term[0]
+        return counts * self.refined_fission_term * irrad_dt
 
     def _saturation_fit_function(self,
                                  times: np.ndarray[float | object],
@@ -193,8 +306,9 @@ class Grouper(BaseClass):
         counts : np.ndarray[float|object]
             Array of counts for each time point (can be float or ufloat)
         """
-        yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters) / 2)
+        yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
@@ -299,8 +413,9 @@ class Grouper(BaseClass):
         if self.irrad_type != 'intermediate':
             return parameters
 
-        scaled_yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters) / 2)
+        scaled_yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
@@ -319,6 +434,102 @@ class Grouper(BaseClass):
             actual_yields = fission_per_group * np.asarray(scaled_yields)
         actual_parameters = np.concatenate((actual_yields, half_lives))
         return actual_parameters
+    
+    def _get_fit_func(self) -> Callable:
+        """
+        Get the associated function for the irradiation type
+
+        Returns
+        -------
+        fit_function : Callable
+            The function that fits the group parameter data to count rates
+
+        Raises
+        ------
+        NotImplementedError
+            If an irradiation type is not implemented
+        """
+        if self.irrad_type == 'pulse':
+            fit_function = self._pulse_fit_function
+        elif self.irrad_type == 'saturation':
+            fit_function = self._saturation_fit_function
+        elif self.irrad_type == 'intermediate':
+            fit_function = self._intermediate_numerical_fit_function
+        else:
+            raise NotImplementedError(f'{self.irrad_type} not supported')
+        return fit_function
+
+    
+    def _get_modified_counts_and_times(self, times: np.ndarray[float],
+                                       counts: np.ndarray[float],
+                                       count_errs: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
+        """
+        Gets the counts and times during and post irradiation
+
+        Parameters
+        ----------
+        times : np.ndarray[float]
+            Times post-irradiation
+        counts : np.ndarray[float]
+            Counts post-irradiation
+        count_err : np.ndarray[float]
+            The errors in the delayed neutron count rate
+
+        Returns
+        -------
+        times : np.ndarray[float]
+            Post-irradiation times
+        counts : np.ndarray[float]
+            Post-irradiation counts
+        count_errs: np.ndarray[float]
+            Post-irradiation count errors
+        irrad_times : np.ndarray[float]
+            Mid-irradiation times
+        irrad_counts : np.ndarray[float]
+            Mid-irradiation counts
+        irrad_count_errs: np.ndarray[float]
+            Mid-irradiation count errors
+        """
+        post_irrad_index = self.get_irrad_index(False)
+        full_data = self._get_times_and_rates()
+        if self.post_irrad_only:
+            return times, counts, count_errs, np.array([]), np.array([]), np.array([])
+
+        irrad_mask = np.asarray(full_data['irrad_mask'])
+        irrad_times = np.cumsum(full_data['timesteps'][:post_irrad_index]) * irrad_mask
+        irrad_counts = np.asarray(counts[1:post_irrad_index+1]) * irrad_mask
+        irrad_count_errs = np.asarray(count_errs[1:post_irrad_index+1]) * irrad_mask
+
+        if self.no_post_irrad:
+            counts = np.asarray([])
+            count_errs = np.asarray([])
+            times = np.asarray([])
+        else:
+            counts = counts[post_irrad_index+1:]
+            count_errs = count_errs[post_irrad_index+1:]
+            times = np.asarray(times[post_irrad_index+1:]) - times[post_irrad_index]
+
+        return times, counts, count_errs, irrad_times, irrad_counts, irrad_count_errs
+    
+    def _plot_correlation_heatmap(self, correlation_matrix: np.ndarray[float]) -> None:
+        """
+        Plot the correlation matrix from the nominal least squares solve
+
+        Parameters
+        ----------
+        correlation_matrix : np.ndarray[float]
+            Two dimensional correlation matrix
+        """
+        if not os.path.exists(self.img_dir):
+            os.makedirs(self.img_dir)
+        num_groups = int(len(correlation_matrix) / 2)
+        yticklabels = [fr'$\nu_{{d, {i+1}}}$' for i in range(num_groups)] + [fr'$\tau_{i+1}$' for i in range(num_groups)]
+        xticklabels = yticklabels
+
+        ax = sns.heatmap(correlation_matrix, yticklabels=yticklabels, xticklabels=xticklabels, cmap='PuOr', vmin=-1, vmax=1)
+        ax.invert_yaxis()
+        plt.savefig(f'{self.img_dir}correlation_heatmap.png')
+        plt.close()
 
 
     def _nonlinear_least_squares(self,
@@ -350,15 +561,7 @@ class Grouper(BaseClass):
             self._set_refined_fission_term(times)
         counts = np.asarray(count_data['counts'])
         count_err = np.asarray(count_data['sigma counts'])
-        if self.irrad_type == 'pulse':
-            fit_function = self._pulse_fit_function
-        elif self.irrad_type == 'saturation':
-            fit_function = self._saturation_fit_function
-        elif self.irrad_type == 'intermediate':
-            fit_function = self._intermediate_numerical_fit_function
-        else:
-            raise NotImplementedError(
-                f'{self.irrad_type} not supported in nonlinear least squares')
+        fit_function = self._get_fit_func()
 
         min_half_life = 1e-3
         max_half_life = 1e3
@@ -399,27 +602,53 @@ class Grouper(BaseClass):
             if self.irrad_type == 'intermediate':
                 setup_noise = np.random.uniform(1e-2, 1, self.num_groups)
                 y_noise = 0.9 * counts[0] * setup_noise / np.sum(setup_noise)
-            hl_noise = 10 ** np.random.uniform(-2, 1, size=self.num_groups)
+            hl_noise = 10 ** np.random.uniform(-2, 2, size=self.num_groups)
             x0 = np.concatenate((np.ones(self.num_groups) * y_noise, np.ones(self.num_groups) * hl_noise))
             starts.append(x0)
 
+        times_original = times.copy()
+        times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times, counts, count_err)
+
+        if self.MC_samples == 1:
+            self.logger.warning('Existing deterministic uncertainty estimation is inaccurate')
+            residual_denom = count_err
+            irrad_denom = irrad_err
+        else:
+            residual_denom = counts
+            irrad_denom = irrad_counts
+
         best = None
         for x0 in tqdm(starts):
-            result = least_squares(self._residual_function,
-                                x0,
-                                bounds=bounds,
-                                method='trf',
-                                x_scale='jac',
-                                ftol=1e-12,
-                                gtol=1e-12,
-                                xtol=1e-12,
-                                verbose=0,
-                                max_nfev=1e6,
-                                args=(times, counts, count_err, fit_function))
+            try:
+                result = least_squares(self._residual_function,
+                                    x0,
+                                    bounds=bounds,
+                                    method='trf',
+                                    x_scale='jac',
+                                    ftol=1e-12,
+                                    gtol=1e-12,
+                                    xtol=1e-12,
+                                    verbose=0,
+                                    max_nfev=1e6,
+                                    args=(times, counts, residual_denom, irrad_counts, irrad_times, irrad_denom, fit_function))
+            except LinAlgError:
+                continue
             if best is None or result.cost < best.cost:
                 best = result
         result = best
         J = result.jac
+        sampled_params: list[float] = list()
+        tracked_counts: list[float] = list()
+        nominal_x = result.x.copy()
+
+        sorted_params = self._sort_params_by_half_life(result.x)
+        sorted_params = self._restructure_intermediate_yields(sorted_params)
+        sampled_params.append(sorted_params)
+
+        sort_idx = np.array([np.argmin(np.abs(result.x[self.num_groups:] - hl)) for hl in sorted_params[self.num_groups:]])
+        perm = np.concatenate([sort_idx, sort_idx + self.num_groups])
+        J = J[:, perm]
+
         s = svd(J, compute_uv=False)
         self.logger.info(f'{s = }')
         condition_number = s[0] / s[-1]
@@ -428,12 +657,14 @@ class Grouper(BaseClass):
         self.logger.info(f'{np.diag(cov) = }')
         sigma = np.sqrt(np.diag(cov))
         self.logger.info(f'{sigma = }')
+        D_inv = np.diag(1/sigma)
+        corr_matrix = D_inv @ cov @ D_inv
+        residual = np.linalg.norm(self._residual_function(result.x, times, counts, residual_denom, irrad_counts, irrad_times, irrad_denom, fit_function))
+        self.logger.info(f'{residual = }')
         self.logger.info(result)
-        sampled_params: list[float] = list()
-        tracked_counts: list[float] = list()
-        sorted_params = self._sort_params_by_half_life(result.x)
-        sorted_params = self._restructure_intermediate_yields(sorted_params)
-        sampled_params.append(sorted_params)
+
+        if self.plot_correlation:
+            self._plot_correlation_heatmap(corr_matrix)
         countrate = CountRate(self.input_path)
         self.logger.info(f'Currently using {self.sample_func} sampling')
         post_data_save = []
@@ -445,22 +676,28 @@ class Grouper(BaseClass):
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
+                times, counts, count_err, irrad_times, irrad_counts, irrad_err = self._get_modified_counts_and_times(times_original, count_sample, count_sample_err)
+
                 result = least_squares(
                     self._residual_function,
-                    result.x,
+                    nominal_x,
                     bounds=bounds,
                     method='trf',
+                    x_scale='jac',
                     ftol=1e-12,
                     gtol=1e-12,
                     xtol=1e-12,
                     verbose=0,
-                    max_nfev=1e3,
+                    max_nfev=1e6,
                     args=(
                         times,
-                        count_sample,
-                        count_sample_err,
+                        counts,
+                        counts,
+                        irrad_counts,
+                        irrad_times,
+                        irrad_counts,
                         fit_function))
-            tracked_counts.append([i for i in count_sample])
+            tracked_counts.append([i for i in counts])
             sorted_params = self._sort_params_by_half_life(result.x)
             sorted_params = self._restructure_intermediate_yields(sorted_params)
             sampled_params.append(sorted_params)
@@ -479,7 +716,11 @@ class Grouper(BaseClass):
             self.post_data['concMC'] = list()
         for post_data_vals in post_data_save:
             for key in self.post_data.keys():
-                self.post_data[key].append(post_data_vals[key])
+                try:
+                    self.post_data[key].append(post_data_vals[key])
+                except KeyError:
+                    # Running with pre-existing post data
+                    pass
         self.save_postproc()
 
         yields = np.zeros((self.num_groups, self.MC_samples))
@@ -507,9 +748,15 @@ class Grouper(BaseClass):
         for group in range(self.num_groups):
             data[group] = dict()
             data[group]['yield'] = np.mean(yields[group])
-            data[group]['sigma yield'] = np.std(yields[group])
+            if len(sampled_params) == 1:
+                data[group]['sigma yield'] = sigma[:self.num_groups][group]
+            else:
+                data[group]['sigma yield'] = np.std(yields[group])
             data[group]['half_life'] = np.mean(half_lives[group])
-            data[group]['sigma half_life'] = np.std(half_lives[group])
+            if len(sampled_params) == 1:
+                data[group]['sigma half_life'] = sigma[self.num_groups:][group]
+            else:
+                data[group]['sigma half_life'] = np.std(half_lives[group])
         return data
 
     def _sort_params_by_half_life(

@@ -18,6 +18,7 @@ class CountRate(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
+        self.is_warned = False
 
         return None
 
@@ -97,8 +98,15 @@ class CountRate(BaseClass):
         else:
             raise NotImplementedError(msg)
 
-        parameters = np.zeros(grouper.num_groups * 2, dtype=object)
-        for i in range(grouper.num_groups):
+        irrad_index = self.get_irrad_index(False)
+        if self.post_irrad_only:
+            use_times = self.decay_times
+        else:
+            use_times = self.use_times[irrad_index+1:]
+
+        num_groups = len(self.group_params['yield'])
+        parameters = np.zeros(num_groups * 2, dtype=object)
+        for i in range(num_groups):
             yield_val = ufloat(
                 self.group_params['yield'][i],
                 self.group_params['sigma yield'][i])
@@ -106,7 +114,7 @@ class CountRate(BaseClass):
                 self.group_params['half_life'][i],
                 self.group_params['sigma half_life'][i])
             parameters[i] = yield_val
-            parameters[grouper.num_groups + i] = half_life
+            parameters[num_groups + i] = half_life
         grouper._set_refined_fission_term(self.decay_times)
         parameters = grouper._restructure_intermediate_yields(parameters,
                                                               to_yield=False)
@@ -115,7 +123,7 @@ class CountRate(BaseClass):
         sigma_count_rate = np.asarray(unumpy.std_devs(counts), dtype=float)
 
         data = {
-            'times': self.decay_times,
+            'times': use_times,
             'counts': count_rate,
             'sigma counts': sigma_count_rate
         }
@@ -152,12 +160,11 @@ class CountRate(BaseClass):
                 return np.random.normal(val.n, val.s)
             elif dist == 'uniform':
                 return np.random.uniform(val.n - val.s, val.n + val.s)
+            elif dist == 'nominal':
+                return val.n
             else:
                 raise NotImplementedError(f'{dist} sampling not implemented')
-
-        data: dict[str: list[float]] = dict()
-        count_rate: np.ndarray = np.zeros(len(self.decay_times))
-        sigma_count_rate: np.ndarray = np.zeros(len(self.decay_times))
+            
 
         emission_nucs = list(self.emission_prob_data.keys())
         half_life_nucs = list(self.half_life_data.keys())
@@ -177,6 +184,18 @@ class CountRate(BaseClass):
         if len(net_similar_nucs) == 0:
             raise Exception(
                 'Error: no data exists for given data combination')
+
+        data: dict[str: list[float]] = dict()
+        num_data = len(list(self.concentration_data[net_similar_nucs[-1]].keys()))
+        single_time_val = False
+        if num_data == 1:
+            single_time_val = True
+        use_times = self._get_use_times(single_time_val=single_time_val)
+        post_irrad_index = self.get_irrad_index(single_time_val=single_time_val)
+
+        count_rate: np.ndarray = np.zeros(len(use_times))
+        sigma_count_rate: np.ndarray = np.zeros(len(use_times))
+
 
         Pn_post_data = dict()
         lam_post_data = dict()
@@ -205,8 +224,7 @@ class CountRate(BaseClass):
                 vals.append(val)
                 uncertainties.append(uncertainty)
             concentration_array = unumpy.uarray(vals, uncertainties)
-            single_time_val = (len(concentration_array) == 1)
-            post_irrad_index = self.get_irrad_index(single_time_val)
+            nominal_concs = vals
             conc = concentration_array[post_irrad_index]
 
             if conc < 1e-24:
@@ -216,14 +234,26 @@ class CountRate(BaseClass):
             if Pn < 1e-24:
                 continue
 
+
+            if self.post_irrad_only:
+                index_offset = post_irrad_index
+            else:
+                index_offset = 0
+
             if MC_run and sampler_func:
-                if not single_time_val:
+                if not single_time_val and not self.is_warned:
                     msg = 'Concentration not sampled over time; using initial'
                     self.logger.warning(msg)
+                    self.logger.warning('Using nominal concentration')
+                    self.is_warned = True
+
+                if not single_time_val:
+                    conc = concentration_array[post_irrad_index].n
+                else:
+                    conc = sample_parameter(conc, sampler_func)
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
-                conc = sample_parameter(concentration_array[post_irrad_index], sampler_func)
 
                 if conc < 0.0:
                     conc = 1e-12
@@ -232,25 +262,39 @@ class CountRate(BaseClass):
                 if Pn < 0.0:
                     Pn = 1e-12
 
-                counts = Pn * decay_const * conc * \
-                    np.exp(-decay_const * self.decay_times)
+                if self.no_post_irrad:
+                    conc_vals = nominal_concs[:post_irrad_index+1]
+                else:
+                    conc_vals = nominal_concs[index_offset:]
+                
+                if not single_time_val:
+                    assert len(conc_vals) == len(use_times)
+                    counts = Pn * decay_const * np.asarray(conc_vals)
+                else:
+                    counts = (Pn * decay_const * conc * 
+                              np.exp(-decay_const * use_times))
                 count_rate += counts
             else:
                 if single_time_val:
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
-                        unumpy.exp(-decay_const * self.decay_times)
+                        unumpy.exp(-decay_const * use_times)
                 else:
-                    counts = Pn * decay_const * concentration_array[post_irrad_index+1:]
+                    if self.no_post_irrad:
+                        counts = Pn * decay_const * concentration_array[:post_irrad_index+1]
+                    else:
+                        counts = Pn * decay_const * concentration_array[index_offset:]
+
                 try:
                     count_rate += unumpy.nominal_values(counts)
                 except ValueError:
                     self.logger.error('Counts shape does not match count rate')
-                    self.logger.error(f'{np.shape(self.decay_times) = }')
+                    self.logger.error(f'{np.shape(use_times) = }')
                     self.logger.error(f'{np.shape(counts) = }')
                     self.logger.error(f'{np.shape(count_rate) = }')
                     self.logger.error(f'{np.shape(concentration_array) = }')
                     self.logger.error(f'{np.shape(concentration_array[post_irrad_index:]) = }')
                     self.logger.error(f'{np.shape(concentration_array[post_irrad_index+1:]) = }')
+                    self.logger.error(f'{use_times = }')
                     self.logger.error(f'{MC_run = }')
                     self.logger.error(f'{sampler_func = }')
                     self.logger.error(f'{single_time_val = }')
@@ -267,7 +311,7 @@ class CountRate(BaseClass):
             conc_post_data[nuc] = conc
 
         data = {
-            'times': self.decay_times,
+            'times': use_times,
             'counts': count_rate,
             'sigma counts': sigma_count_rate
         }

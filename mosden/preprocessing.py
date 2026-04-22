@@ -40,13 +40,15 @@ class Preprocess(BaseClass):
             self.omc_data_words,
             self.endf_data_words,
             self.iaea_data_words,
-            self.jeff_data_words
+            self.jeff_data_words,
+            self.jendl_data_words
         ]
         func_list: list = [
             self.openmc_preprocess,
             self.endf_preprocess,
             self.iaea_preprocess,
-            self.jeff_preprocess
+            self.jeff_preprocess,
+            self.jendl_preprocess
         ]
 
         func_selector: list[zip] = list(zip(datasource_list,
@@ -56,7 +58,54 @@ class Preprocess(BaseClass):
                 if any(word in path for word in ids):
                     func(data_val, path)
         self.save_postproc()
+        self._add_debug_dnps()
         self.time_track(start, 'Preprocessing')
+        return None
+
+    def _add_debug_dnps(self) -> None:
+        """
+        Writes debug DNPs to all data files (if applicable)
+        """
+        if not self.debug_dnp_data:
+            return None
+        
+        data_types = ['emission_probability', 'half_life', 'fission_yield']
+        
+        for data_type in data_types:
+            if data_type == 'emission_probability':
+                key = 'pn'
+                target_key = 'emission probability'
+                possible_old_val = {'emission probability': 0.0,
+                           'sigma emission probability': 1e-12}
+            elif data_type == 'half_life':
+                key = 'half_life_s'
+                target_key = 'half_life'
+                possible_old_val = {'half_life': 10,
+                           'sigma half_life': 1e-12}
+            elif data_type == 'fission_yield':
+                key = 'yield'
+                target_key = 'CFY'
+                possible_old_val = {'CFY': 1,
+                           'sigma CFY': 1e-12}
+            else:
+                raise KeyError('Data type does not have a valid key')
+
+            data = self._read_processed_data(data_type)
+            for nuc, nuc_data in self.debug_dnp_data.items():
+                debug_data = nuc_data[key]
+                try:
+                    _, old_val = list(data.items())[0]
+                except IndexError:
+                    old_val = possible_old_val
+
+                data[nuc] = dict()
+                
+                for keys_needed, vals_used in old_val.items():
+                    if keys_needed == target_key:
+                        data[nuc][keys_needed] = debug_data
+                    else:
+                        data[nuc][keys_needed] = vals_used
+            self._write_processed_data(data_type, True, data)
         return None
 
     def openmc_preprocess(self, data_val: str, unprocessed_path: str) -> None:
@@ -94,6 +143,25 @@ class Preprocess(BaseClass):
         else:
             self.logger.error(f'{data_val} not available in ENDF')
         return None
+
+    def jendl_preprocess(self, data_val: str, unprocessed_path: str) -> None:
+        """
+        Processes JENDL data
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        unprocessed_path : str
+            Path to the unprocessed data
+        """
+        if data_val == 'fission_yield':
+            self._jendl_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in ENDF')
+        return None
     
     def jeff_preprocess(self, data_val: str, unprocessed_path: str) -> None:
         """
@@ -108,6 +176,8 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._jeff_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in JEFF')
         return None
@@ -186,6 +256,37 @@ class Preprocess(BaseClass):
                 fissile_endf: str = self._endf_fissile_name(fissile)
                 fissile_jeff = fissile_endf[1:].replace('_', '-')
                 if not fissile_jeff in file:
+                    continue
+                full_path: str = os.path.join(data_dir, file)
+                file_data: dict[str: dict[str: float]
+                                ] = self._process_jeff_nfy_file(full_path)
+            pre_treated_data[fissile] = file_data
+        treated_data: dict[str: dict[str: float]
+                           ] = self._treat_endf_data(pre_treated_data)
+        csv_path: str = os.path.join(out_path)
+        CSVHandler(csv_path, self.preprocess_overwrite).write_csv(treated_data)
+        return None
+    
+
+    def _jendl_nfy_preprocess(self, data_val: str, path: str) -> None:
+        """
+        Processes JENDL fission yield data for the specified fissile target.
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        path : str
+            Path to the unprocessed data
+        """
+        data_dir: str = os.path.join(self.data_dir, path)
+        out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
+        pre_treated_data: dict[str: dict[str: dict[str: float]]] = dict()
+        for fissile in self.fissile_targets:
+            for file in os.listdir(data_dir):
+                fissile_endf: str = self._endf_fissile_name(fissile)
+                fissile_jendl = fissile_endf.replace('_', '-')
+                if not fissile_jendl in file:
                     continue
                 full_path: str = os.path.join(data_dir, file)
                 file_data: dict[str: dict[str: float]
@@ -410,10 +511,12 @@ class Preprocess(BaseClass):
         """
         import openmc.data
         data = dict()
+        valid_endings = ('.dat', '.endf')
         for file in os.listdir(dir):
             Pn = ufloat(0, 1e-12)
             half_life = ufloat(0, 1e-12)
-            if not file.startswith(f'dec-'):
+            is_valid = (file.startswith('dec') and file.endswith(valid_endings))
+            if not is_valid:
                 continue
             decay = openmc.data.Decay.from_endf(dir+file)
             half_life = decay.half_life
@@ -505,14 +608,14 @@ class Preprocess(BaseClass):
             Dictionary containing the fitted fission yield data.
         """
         fit_FY_endf: dict[str: float] = {}
-        endf_nucs: list[str] = list(fys[0].keys())
+        endf_nucs: list[str] = list(set().union(*[e.keys() for e in fys]))
         energy_index: int = np.argmin(
             np.abs(
                 np.array(energies) -
                 self.energy_MeV *
                 1e6))
         for i, nuc in enumerate(endf_nucs):
-            fission_yield = fys[energy_index][nuc]
+            fission_yield = fys[energy_index].get(nuc, ufloat(0.0, 0.0))
             uncert = fission_yield.s
             if fission_yield.s == 0.0:
                 uncert = 1e-12
