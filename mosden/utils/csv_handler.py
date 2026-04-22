@@ -35,6 +35,23 @@ class CSVHandler:
             os.makedirs(directory)
         return None
     
+    def write_spectra_group_params(self, data: np.ndarray[np.ndarray[float]],
+                                   column_names: list[float]) -> None:
+        """
+        Writes the group spectra to file
+
+        Parameters
+        ----------
+        data: np.ndarray[np.ndarray[float]]
+            The probabilities for each group `k` and each energy `j` (K, J)
+        column_names : list[float]
+            The name for each column (generally given as the midpoint of the 
+            energy bin for that probability)
+        """
+        df = pd.DataFrame(data, columns=column_names)
+        df.to_csv(self.file_path, index=False)
+        return None
+    
     def _file_exists(self) -> bool:
         """
         Check if the file exists at the specified path.

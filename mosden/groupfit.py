@@ -583,7 +583,7 @@ class Grouper(BaseClass):
         group_spectra : np.ndarray[np.ndarray[float]]
             The spectra for each group as an array, where each array is by energy
         """
-        x0 = np.ones_like(self.eV_midpoints)
+        x0 = np.ones(self.num_groups)
         times = np.asarray(spectral_counts['times'])
         group_spectra = np.zeros((self.num_groups, len(self.eV_midpoints)))
         lower_bounds = np.zeros_like(x0)
@@ -600,9 +600,9 @@ class Grouper(BaseClass):
                         method='trf',
                         x_scale='jac',
                         bounds=bounds,
-                        ftol=1e-6,
-                        gtol=1e-6,
-                        xtol=1e-6,
+                        ftol=1e-12,
+                        gtol=1e-12,
+                        xtol=1e-12,
                         verbose=0,
                         max_nfev=1e6,
                         args=(times, e_counts, e_counts, [], [], [], spectra_function, True))
@@ -725,8 +725,9 @@ class Grouper(BaseClass):
             spectral_counts = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
             spectra_params = self._spectra_group_solve(spectral_counts, sorted_params,
                                                        spectral_counts, fit_function)
+            CSVHandler(self.spectra_group_path).write_spectra_group_params(spectra_params,
+                                                                        self.eV_midpoints)
         sampled_params.append(sorted_params)
-        input(spectra_params)
 
         sort_idx = np.array([np.argmin(np.abs(result.x[self.num_groups:] - hl)) for hl in sorted_params[self.num_groups:]])
         perm = np.concatenate([sort_idx, sort_idx + self.num_groups])
