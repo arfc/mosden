@@ -146,6 +146,8 @@ class BaseClass:
             file_options['output_dir'], 'spectra.csv')
         self.spectra_count_path: str = os.path.join(
             file_options['output_dir'], 'spectra_counts.csv')
+        self.spectra_group_path: str = os.path.join(
+            file_options['output_dir'], 'group_spectra.csv')
         self.group_path: str = os.path.join(
             file_options['output_dir'], 'group_parameters.csv')
         self.postproc_path: str = os.path.join(

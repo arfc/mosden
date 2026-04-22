@@ -5,6 +5,7 @@ import numpy as np
 import re
 from uncertainties import ufloat
 from time import time
+from typing import Callable
 
 
 class Preprocess(BaseClass):
@@ -495,6 +496,38 @@ class Preprocess(BaseClass):
             data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
         return data
     
+    def _spectral_application(self, spectra_continuum: Callable) -> dict[float, float]:
+        """
+        Calculate the spectra for a given nuclide properly normalized
+
+        Parameters
+        ----------
+        spectra_continuum : Callable
+            Function that takes in energy and returns the probability at that
+            energy.
+
+        Returns
+        -------
+        data_dict : dict[float, float]
+            Dictionary of energy midpoints to probabilities
+        """
+        from scipy.integrate import quad
+        data_dict = dict()
+        a = np.asarray(self.energy_groups_MeV[:-1]) * 1e6
+        b = np.asarray(self.energy_groups_MeV[1:]) * 1e6
+        normalization = 0
+        region_integrals = list()
+        for i, e in enumerate(self.eV_midpoints):
+            region_integral, err = quad(spectra_continuum, a[i], b[i])
+            normalization += region_integral
+            region_integrals.append(region_integral)
+        if normalization == 0:
+            normalization = 1
+        for i, e in enumerate(self.eV_midpoints):
+            data_dict[e] = region_integrals[i] / normalization
+        return data_dict
+
+    
     
     def _process_endf_decay_file(self, dir: str, data_val: str) -> dict[str, dict[str: float]]:
         """
@@ -526,7 +559,6 @@ class Preprocess(BaseClass):
             half_life = decay.half_life
             nuc_name = decay.nuclide['name']
             spectra_exists = False
-            # TODO - continuous normalization? Contains unceratinty?
             try:
                 if 'beta-' in spectra['n']['continuous']['from_mode']:
                     spectra_continuum = spectra['n']['continuous']['probability'] 
@@ -544,14 +576,8 @@ class Preprocess(BaseClass):
             if data_val == 'spectra':
                 if not spectra_exists:
                     continue
-                xs = self.eV_midpoints
-                sum_normalization = list()
-                for x in xs:
-                    sum_normalization.append(spectra_continuum(x))
-                sum_normalization.sort()
-                sum_normalization = np.sum(sum_normalization)
-                for x in xs:
-                    data[nuc_name][x] = spectra_continuum(x) / sum_normalization
+
+                data[nuc_name] = self._spectral_application(spectra_continuum)
 
             else:
                 if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:

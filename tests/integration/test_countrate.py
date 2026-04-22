@@ -76,6 +76,7 @@ def test_spectra_counts():
     
 
     preproc = Preprocess(input_path)
+    preproc.energy_groups_MeV = countrate.energy_groups_MeV
     preproc.eV_midpoints = countrate.eV_midpoints
     preproc.run()
     countrate.calculate_count_rate()
