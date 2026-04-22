@@ -991,12 +991,13 @@ class PostProcess(BaseClass):
             group_data = countrate._count_rate_from_groups(group_spectra=each)
             group_counts[str(self.eV_midpoints[ei])] = group_data['counts']
         
+        colors = self.get_colors(2)
+        single_color = self.get_colors(1)[0]
         for ti, t in enumerate(tqdm(group_data['times'], desc="Plotting spectra")):
             use_actual_spectra = [spectra_data[str(e)][0] for e in self.eV_midpoints]
             use_actual_spectra += [spectra_data[str(self.eV_midpoints[-1])][ti]]
             use_group_spectra  = [group_counts[str(e)][0] for e in self.eV_midpoints]
             use_group_spectra += [group_counts[str(self.eV_midpoints[-1])][ti]]
-            colors = self.get_colors(2)
             plt.step(self.energy_groups_MeV, use_actual_spectra, label='Data',
                     color=colors[0], linestyle='--')
             plt.step(self.energy_groups_MeV, use_group_spectra, label='Group Fit',
@@ -1009,6 +1010,15 @@ class PostProcess(BaseClass):
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/spectra_counts_{t:.5f}.png')
             plt.close()
+
+            difference = 100 * ((np.asarray(use_actual_spectra) - np.asarray(use_group_spectra)) / np.asarray(use_actual_spectra))
+            plt.step(self.energy_groups_MeV, difference, color=single_color)
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.xscale('log')
+            plt.ylabel(r'Count Rate Difference $[\%]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/diff_spectra_counts_{t:.5f}.png')
+            plt.close() 
 
         return None
     
