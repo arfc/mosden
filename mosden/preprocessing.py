@@ -87,7 +87,6 @@ class Preprocess(BaseClass):
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
                      np.asarray(spectrum)[mask])
             plt.xlabel(r'Energy $[MeV]$')
-            plt.xscale('log')
             plt.ylabel(r'Normalized Probability $[eV^{-1}]$')
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/spectra_{nuc}.png')

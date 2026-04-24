@@ -143,8 +143,8 @@ class PostProcess(BaseClass):
         """
         Runs functions that evaluate spectral fits
         """
-        self._compare_spectral_counts()
         self._plot_group_spectra()
+        self._compare_spectral_counts()
         if self.MC_samples > 2:
             self._plot_MC_spectra()
         return None
@@ -1001,10 +1001,11 @@ class PostProcess(BaseClass):
         colors = self.get_colors(2)
         single_color = self.get_colors(1)[0]
         mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+
         for ti, t in enumerate(tqdm(times, desc="Plotting spectra")):
-            use_actual_spectra = [spectra_data[str(e)][0] for e in self.eV_midpoints]
+            use_actual_spectra = [spectra_data[str(e)][ti] for e in self.eV_midpoints]
             use_actual_spectra += [spectra_data[str(self.eV_midpoints[-1])][ti]]
-            use_group_spectra  = [group_counts[str(e)][0] for e in self.eV_midpoints]
+            use_group_spectra  = [group_counts[str(e)][ti] for e in self.eV_midpoints]
             use_group_spectra += [group_counts[str(self.eV_midpoints[-1])][ti]]
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
                      np.asarray(use_actual_spectra)[mask], label='Data',
