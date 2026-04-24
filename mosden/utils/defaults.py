@@ -92,7 +92,7 @@ DEFAULTS = {
         "sensitivity_subplots": True,
         "self_relative_counts": False,
         "plot_correlation": False,
-        "plot_nuc_spectra": False,
+        "plot_nuc_spectra": [],
         "spectra_plot_MeV_cutoff": 10,
         "top_num_nuclides": {
             'yield_top': 20,
