@@ -41,7 +41,7 @@
         "count_rate_handling": "data",
         "residual_handling": ["post-irrad"],
         "reprocessing_locations": ["excore"],
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 0.0
         },
         "irrad_type": "intermediate",

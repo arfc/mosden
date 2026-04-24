@@ -38,7 +38,7 @@
             "flux": true,
             "reprocessing": false
         },
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 1.0
         },
         "irrad_type": "saturation",
