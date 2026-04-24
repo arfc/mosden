@@ -32,7 +32,7 @@ chemical_long_analysis = {
         'run_post': False,
         'overwrite': True
     },
-    'reprocessing': [Reprocessing(base_input_file).removal_scheme(),
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme(),
                      Reprocessing(base_input_file).removal_scheme(include_long=False)],
     'incore_s': [10],
     'excore_s': [10],
@@ -48,7 +48,7 @@ chemical_bool_analysis = {
         'run_post': False,
         'overwrite': True
     },
-    'reprocessing': [Reprocessing(base_input_file).removal_scheme(),
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme(),
                      Reprocessing(base_input_file).removal_scheme(rate_scaling=0.0)],
     'incore_s': [10],
     'excore_s': [10],
