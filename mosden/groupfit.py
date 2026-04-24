@@ -589,6 +589,9 @@ class Grouper(BaseClass):
         lower_bounds = np.zeros_like(x0)
         upper_bounds = np.ones_like(x0)
         bounds = (lower_bounds, upper_bounds)
+
+        sorted_params = self._restructure_intermediate_yields(sorted_params, to_yield=False)
+        
         spectra_function = lambda a, b, x: fit_function(times, sorted_params, x)
         for ei, e in enumerate(tqdm(self.eV_midpoints, desc='Solving spectra')):
             e_counts = np.zeros(len(times))
