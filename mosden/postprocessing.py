@@ -1000,28 +1000,29 @@ class PostProcess(BaseClass):
         
         colors = self.get_colors(2)
         single_color = self.get_colors(1)[0]
+        mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
         for ti, t in enumerate(tqdm(times, desc="Plotting spectra")):
             use_actual_spectra = [spectra_data[str(e)][0] for e in self.eV_midpoints]
             use_actual_spectra += [spectra_data[str(self.eV_midpoints[-1])][ti]]
             use_group_spectra  = [group_counts[str(e)][0] for e in self.eV_midpoints]
             use_group_spectra += [group_counts[str(self.eV_midpoints[-1])][ti]]
-            plt.step(self.energy_groups_MeV, use_actual_spectra, label='Data',
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(use_actual_spectra)[mask], label='Data',
                     color=colors[0], linestyle='--')
-            plt.step(self.energy_groups_MeV, use_group_spectra, label='Group Fit',
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(use_group_spectra)[mask], label='Group Fit',
                     color=colors[1], linestyle='-.')
             plt.xlabel(r'Energy $[MeV]$')
-            plt.xscale('log')
-            plt.yscale('log')
             plt.legend()
             plt.ylabel(r'Delayed Neutron Count Rate $[\# \cdot s^{-1}]$')
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/spectra_counts_{t:.5f}.png')
             plt.close()
 
-            difference = 100 * ((np.asarray(use_actual_spectra) - np.asarray(use_group_spectra)) / np.asarray(use_actual_spectra))
-            plt.step(self.energy_groups_MeV, difference, color=single_color)
+            difference = 100 * ((np.asarray(use_actual_spectra)[mask] - np.asarray(use_group_spectra)[mask]) / np.asarray(use_actual_spectra)[mask])
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     difference, color=single_color)
             plt.xlabel(r'Energy $[MeV]$')
-            plt.xscale('log')
             plt.ylabel(r'Count Rate Difference $[\%]$')
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/diff_spectra_counts_{t:.5f}.png')

@@ -76,6 +76,7 @@ class Preprocess(BaseClass):
 
         """
         nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
+        mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
         for nuc in nuc_spectra.keys():
             if (nuc not in self.plot_spectra_dnps) and ('all' not in self.plot_spectra_dnps):
                 continue
@@ -83,7 +84,8 @@ class Preprocess(BaseClass):
             spectrum = [nuc_spectra[nuc][str(e)] for e in self.eV_midpoints]
             spectrum += [spectrum[-1]]
 
-            plt.step(self.energy_groups_MeV, spectrum)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(spectrum)[mask])
             plt.xlabel(r'Energy $[MeV]$')
             plt.xscale('log')
             plt.ylabel(r'Normalized Probability $[eV^{-1}]$')
