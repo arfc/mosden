@@ -19,7 +19,7 @@ residence_time_analysis = {
         'run_post': True,
         'overwrite': True,
     },
-    'net_irrad_s': 100,
+    'net_irrad_s': [100],
     'incore_s': [0.5, 1, 1.5, 2, 2.5, 3, 3.5],
     'excore_s': [0, 0.5, 1, 1.5, 2, 2.5, 3],
     'multi_id': [name]
@@ -73,9 +73,9 @@ flux_analysis = {
         'run_post': True,
         'overwrite': True
     },
-    'incore_s': 9,
-    'excore_s': 16,
-    'net_irrad_s': 100,
+    'incore_s': [9],
+    'excore_s': [16],
+    'net_irrad_s': [100],
     'flux': [True, False],
     'multi_id': [name]
 }
@@ -89,10 +89,10 @@ chem_analysis = {
         'run_post': True,
         'overwrite': True
     },
-    'incore_s': 9,
-    'excore_s': 16,
-    'net_irrad_s': 100,
-    'reprocessing_scheme': Reprocessing(base_input_file).removal_scheme(),
+    'incore_s':[9],
+    'excore_s': [16],
+    'net_irrad_s': [100],
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme()],
     'reprocessing': [True, False],
     'multi_id': [name]
 }
@@ -106,9 +106,9 @@ vf_analysis = {
         'run_post': True,
         'overwrite': True
     },
-    'incore_s': 9,
-    'excore_s': 16,
-    'net_irrad_s': 100,
+    'incore_s': [9],
+    'excore_s': [16],
+    'net_irrad_s': [100],
     'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme(vf_scaling=0.9),
                             Reprocessing(base_input_file).removal_scheme(vf_scaling=1.0),
                             Reprocessing(base_input_file).removal_scheme(vf_scaling=1.1)],
