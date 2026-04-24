@@ -93,7 +93,7 @@ class BaseClass:
             self.omc = True
         self.conc_overwrite: bool = overwrite_options.get('concentrations', False)
         self.reprocessing: dict[str: float] = modeling_options.get(
-            'reprocessing', {})
+            'reprocessing_scheme', {})
         self.reprocess: bool = (sum(self.reprocessing.values()) > 0)
         self.reprocess_locations: list[str] = modeling_options.get(
             'reprocessing_locations', [])

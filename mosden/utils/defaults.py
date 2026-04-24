@@ -51,7 +51,7 @@ DEFAULTS = {
             "reprocessing": True
         },
         "base_removal_scaling": 0.5,
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 0.0
         },
         "irrad_type": "saturation",

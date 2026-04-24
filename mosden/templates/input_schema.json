@@ -225,7 +225,7 @@
                     "type": "number",
                     "description": "The chemical reprocessing terms given to MoSDeN are assumed to be scaled terms (applied to the entire volume). This term indicates the scaling applied to those terms (1.0 if unscaled terms are provided instead)."
                 },
-                "reprocessing": {
+                "reprocessing_scheme": {
                     "type": "object",
                     "description": "The reprocessing scheme to apply. Given in the form of elements (e.g. Xe) and their removal rates per second (e.g. 0.1).",
                     "additionalProperties": {
