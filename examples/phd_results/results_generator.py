@@ -6,6 +6,7 @@ import shutil
 from copy import deepcopy
 import subprocess
 from mosden.utils.chemical_schemes import Reprocessing
+import numpy as np
 
 base_input_file = './input.json'
 analysis_list = list()
@@ -18,11 +19,102 @@ residence_time_analysis = {
         'run_post': True,
         'overwrite': True,
     },
-    'incore_s': [100, 50],
-    'excore_s': [0, 50],
+    'net_irrad_s': [100],
+    'incore_s': [0.5, 1, 1.5, 2, 2.5, 3, 3.5],
+    'excore_s': [0, 0.5, 1, 1.5, 2, 2.5, 3],
     'multi_id': [name]
 }
 analysis_list.append(residence_time_analysis)
+
+name = 'decay_time_nodes'
+decay_times_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'num_decay_times': [50, 100, 150, 200, 250, 400, 800],
+    'multi_id': [name]
+}
+analysis_list.append(decay_times_analysis)
+
+name = 'omc_timestep'
+omc_timestep_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'max_timestep': [0.1, 0.05, 0.01, 0.005, 0.001],
+    'multi_id': [name]
+}
+analysis_list.append(omc_timestep_analysis)
+
+name = 'total_decay_time'
+total_decay_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'decay_time': [150, 300, 600, 1200, 2400, 4800],
+    'multi_id': [name]
+}
+analysis_list.append(total_decay_analysis)
+
+name = 'flux_scaling'
+flux_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'incore_s': [9],
+    'excore_s': [16],
+    'net_irrad_s': [100],
+    'flux': [True, False],
+    'multi_id': [name]
+}
+analysis_list.append(flux_analysis)
+
+name = 'chem_scaling'
+chem_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'incore_s':[9],
+    'excore_s': [16],
+    'net_irrad_s': [100],
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme()],
+    'reprocessing': [True, False],
+    'multi_id': [name]
+}
+analysis_list.append(chem_analysis)
+
+name = 'vf_scaling'
+vf_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'incore_s': [9],
+    'excore_s': [16],
+    'net_irrad_s': [100],
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme(vf_scaling=0.9),
+                            Reprocessing(base_input_file).removal_scheme(vf_scaling=1.0),
+                            Reprocessing(base_input_file).removal_scheme(vf_scaling=1.1)],
+    'multi_id': [name]
+}
+analysis_list.append(vf_analysis)
 
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:
@@ -89,7 +181,7 @@ def set_data(new_data: dict, dir_path: str, idx: int, combination: tuple) -> tup
     filename = 'input.json'
     file_dir = dir_path / str(idx)
     file_path = file_dir / filename
-    new_data['file_options']['processed_data_dir'] = str(file_dir)
+    new_data['file_options']['processed_data_dir'] = str(file_dir) + '/'
     new_data['file_options']['output_dir'] = str(file_dir) + '/'
     new_data['file_options']['log_file'] = str(file_dir) + '/log.log'
     new_data['modeling_options']['openmc_settings']['omc_dir'] = str(file_dir) + '/omc'
