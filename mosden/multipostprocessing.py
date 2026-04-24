@@ -99,7 +99,7 @@ class MultiPostProcess():
                     post.name = 'Unscaled Flux'
         elif self._is_name('chem_scaling'):
             for post in self.posts:
-                if post.flux_scaling:
+                if post.chem_scaling:
                     post.name = rf'Scaled Reprocessing'
                 else:
                     post.name = 'Unscaled Reprocessing'
