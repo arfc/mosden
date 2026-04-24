@@ -168,6 +168,7 @@ class BaseClass:
         self.plot_means = post_options.get('plot_means', False)
         self.pcc_cutoff = post_options.get('pcc_cutoff', 0.2)
         self.plot_correlation = post_options.get('plot_correlation', False)
+        self.plot_spectra_dnps = post_options.get('plot_nuc_spectra', [])
 
         self.post_irrad_only: bool = (len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks)
         self.no_post_irrad: bool = ('post-irrad' not in self.residual_masks and 'all' not in self.residual_masks)

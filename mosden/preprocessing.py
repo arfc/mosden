@@ -6,6 +6,7 @@ import re
 from uncertainties import ufloat
 from time import time
 from typing import Callable
+import matplotlib.pyplot as plt
 
 
 class Preprocess(BaseClass):
@@ -30,6 +31,9 @@ class Preprocess(BaseClass):
         self.data_to_proc: dict[str: str] = {
             key: self.input_data['data_options'][key] for key in data_keys
         }
+
+        if not os.path.exists(self.spectra_img_dir):
+            os.makedirs(self.spectra_img_dir)
 
         return None
 
@@ -61,8 +65,34 @@ class Preprocess(BaseClass):
                     func(data_val, path)
         self.save_postproc()
         self._add_debug_dnps()
+        if len(self.plot_spectra_dnps) > 0:
+            self._plot_dnp_spectra()
         self.time_track(start, 'Preprocessing')
         return None
+
+    def _plot_dnp_spectra(self) -> None:
+        """
+        Plots the delayed neutron energy spectrum for each DNP
+
+        """
+        nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
+        for nuc in nuc_spectra.keys():
+            if nuc not in self.plot_spectra_dnps:
+                continue
+
+            spectrum = [nuc_spectra[nuc][str(e)] for e in self.eV_midpoints]
+            spectrum += [spectrum[-1]]
+
+            plt.step(self.energy_groups_MeV, spectrum)
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.xscale('log')
+            plt.ylabel(r'Normalized Probability $[eV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_{nuc}.png')
+            plt.close() 
+        return
+
+
 
     def _add_debug_dnps(self) -> None:
         """
@@ -504,7 +534,7 @@ class Preprocess(BaseClass):
         ----------
         spectra_continuum : Callable
             Function that takes in energy and returns the probability at that
-            energy.
+            energy (per energy, since dividing by bin width).
 
         Returns
         -------
@@ -515,15 +545,16 @@ class Preprocess(BaseClass):
         data_dict = dict()
         a = np.asarray(self.energy_groups_MeV[:-1]) * 1e6
         b = np.asarray(self.energy_groups_MeV[1:]) * 1e6
+        bin_widths = b - a
         region_integrals = list()
         for i, e in enumerate(self.eV_midpoints):
-            region_integral, err = quad(spectra_continuum, a[i], b[i])
+            region_integral, err = (quad(spectra_continuum, a[i], b[i]) / bin_widths[i])
             region_integrals.append(region_integral)
         normalization = np.sum(sorted(region_integrals))
         if normalization == 0:
             normalization = 1
         for i, e in enumerate(self.eV_midpoints):
-            data_dict[e] = region_integrals[i] / normalization
+            data_dict[e] = region_integrals[i] / (normalization)
         return data_dict
 
     
