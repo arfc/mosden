@@ -126,7 +126,6 @@ class PostProcess(BaseClass):
             self.compare_counts()
         if self.is_spectral_calculation:
             self.evaluate_spectra()
-        input('pause')
         if not self.no_post_irrad:
             self.compare_group_to_data()
         self.MC_NLLS_analysis()
