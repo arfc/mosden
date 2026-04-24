@@ -77,7 +77,7 @@ class Preprocess(BaseClass):
         """
         nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
         for nuc in nuc_spectra.keys():
-            if nuc not in self.plot_spectra_dnps:
+            if (nuc not in self.plot_spectra_dnps) and ('all' not in self.plot_spectra_dnps):
                 continue
 
             spectrum = [nuc_spectra[nuc][str(e)] for e in self.eV_midpoints]

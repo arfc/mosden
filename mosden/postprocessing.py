@@ -1036,19 +1036,24 @@ class PostProcess(BaseClass):
 
         group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
 
+        colors = self.get_colors(6)
         for group, spectrum in enumerate(group_spectra):
             spectrum = np.concatenate((spectrum, [spectrum[-1]]))
-            plt.step(self.energy_groups_MeV, spectrum, label=f'Group {group+1}')
+            mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(spectrum)[mask], label=f'Group {group+1}',
+                     color=colors[group])
             if group == 0:
-                plt.step(self.energy_groups_MeV, br87_spectrum,
-                         label=r'$^{87}$Br')
+                plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                         np.asarray(br87_spectrum)[mask],
+                         label=r'$^{87}$Br',
+                         linestyle=':',
+                         color='black')
                 plt.legend()
             plt.xlabel(r'Energy $[MeV]$')
-            plt.xscale('log')
-            plt.legend()
             plt.ylabel(r'Delayed Neutron Count Rate $[\# \cdot s^{-1}]$')
             plt.tight_layout()
-            plt.savefig(f'{self.spectra_img_dir}/spectra_group_{group}.png')
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_{group+1}.png')
             plt.close() 
         return None
     

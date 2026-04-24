@@ -394,6 +394,17 @@
                     "type": "boolean",
                     "description": "Whether to plot the correlation matrices or not"
                 },
+                "plot_nuc_spectra": {
+                    "type": "array",
+                    "description": "Which DNPs to plot the spectra of. Can specify `all`",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "spectra_plot_MeV_cutoff": {
+                    "type": "number",
+                    "description": "The cutoff energy beyond which the spectra is not displayed"
+                },
                 "top_num_nuclides": {
                     "type": "object",
                     "properties": {

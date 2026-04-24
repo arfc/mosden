@@ -167,6 +167,7 @@ class BaseClass:
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
         self.plot_means = post_options.get('plot_means', False)
         self.pcc_cutoff = post_options.get('pcc_cutoff', 0.2)
+        self.spectra_cutoff_MeV = post_options.get('spectra_plot_MeV_cutoff', np.inf)
         self.plot_correlation = post_options.get('plot_correlation', False)
         self.plot_spectra_dnps = post_options.get('plot_nuc_spectra', [])
 
