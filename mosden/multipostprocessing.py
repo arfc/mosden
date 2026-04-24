@@ -34,13 +34,13 @@ class MultiPostProcess():
         self._post_heatmap_setup()
         self._initialize_posts()
         self.hm_z_names: dict[str, str] = {
-            'summed_yield': r'$\bar{\nu}_d$',
-            'group_yield': r'$\bar{\nu}_d$',
+            'summed_yield': r'${\nu}_d$',
+            'group_yield': r'${\nu}_d$',
             'summed_avg_halflife': r'$\bar{T} [s]$',
             'group_avg_halflife': r'$\bar{T} [s]$'
         }
         for i in range(1, self.posts[0].num_groups + 1):
-            self.hm_z_names[f'group_{i}_yield'] = rf'$\bar{{\nu}}_{{d,{i}}}$'
+            self.hm_z_names[f'group_{i}_yield'] = rf'${{\nu}}_{{d,{i}}}$'
             self.hm_z_names[f'group_{i}_halflife'] = rf'$T_{i} [s]$'
         self._set_post_names()
         return None
@@ -97,6 +97,12 @@ class MultiPostProcess():
                     post.name = rf'Scaled Flux'
                 else:
                     post.name = 'Unscaled Flux'
+        elif self._is_name('chem_scaling'):
+            for post in self.posts:
+                if post.flux_scaling:
+                    post.name = rf'Scaled Reprocessing'
+                else:
+                    post.name = 'Unscaled Reprocessing'
         return None
 
     def _post_heatmap_setup(self) -> None:
@@ -308,7 +314,7 @@ class MultiPostProcess():
             else:
                 ax.bar(label_locations + offset(post_i), data[post.name]['Yield'], width, label=post.name,
                        color=colors[post_i])
-        ax.set_ylabel(r'$\bar{\nu}_{d, k}$')
+        ax.set_ylabel(r'${\nu}_{d, k}$')
         ax.set_xticks(label_locations)
         ax.set_xlabel('Groups')
         ax.set_xticklabels(group_labels)
