@@ -103,6 +103,10 @@ class MultiPostProcess():
                     post.name = rf'Scaled Reprocessing'
                 else:
                     post.name = 'Unscaled Reprocessing'
+        elif self._is_name('vf_scaling'):
+            self.posts[0].name = r'$VF = 0.9 VF_0$'
+            self.posts[1].name = r'$VF = 1.0 VF_0$'
+            self.posts[2].name = r'$VF = 1.1 VF_0$'
         return None
 
     def _post_heatmap_setup(self) -> None:

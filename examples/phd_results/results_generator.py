@@ -12,8 +12,6 @@ base_input_file = './input.json'
 analysis_list = list()
 
 name = 'tintex'
-dt = 5
-tf = 30
 residence_time_analysis = {
     'meta': {
         'name': name,
@@ -21,8 +19,9 @@ residence_time_analysis = {
         'run_post': True,
         'overwrite': True,
     },
-    'incore_s': [10, 20, 30],
-    'excore_s': [float(i) for i in np.arange(0, tf+dt, dt)],
+    'net_irrad_s': 100,
+    'incore_s': [0.5, 1, 1.5, 2, 2.5, 3, 3.5],
+    'excore_s': [0, 0.5, 1, 1.5, 2, 2.5, 3],
     'multi_id': [name]
 }
 analysis_list.append(residence_time_analysis)
@@ -40,21 +39,8 @@ decay_times_analysis = {
 }
 analysis_list.append(decay_times_analysis)
 
-name = 'irrad_time'
-decay_times_analysis = {
-    'meta': {
-        'name': name,
-        'run_full': True,
-        'run_post': True,
-        'overwrite': True
-    },
-    'net_irrad_s': [1, 10, 100],
-    'multi_id': [name]
-}
-analysis_list.append(decay_times_analysis)
-
 name = 'omc_timestep'
-decay_times_analysis = {
+omc_timestep_analysis = {
     'meta': {
         'name': name,
         'run_full': True,
@@ -64,7 +50,7 @@ decay_times_analysis = {
     'max_timestep': [0.1, 0.05, 0.01, 0.005, 0.001],
     'multi_id': [name]
 }
-analysis_list.append(decay_times_analysis)
+analysis_list.append(omc_timestep_analysis)
 
 name = 'total_decay_time'
 total_decay_analysis = {
@@ -87,10 +73,48 @@ flux_analysis = {
         'run_post': True,
         'overwrite': True
     },
+    'incore_s': 9,
+    'excore_s': 16,
+    'net_irrad_s': 100,
     'flux': [True, False],
     'multi_id': [name]
 }
 analysis_list.append(flux_analysis)
+
+name = 'chem_scaling'
+chem_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'incore_s': 9,
+    'excore_s': 16,
+    'net_irrad_s': 100,
+    'reprocessing_scheme': Reprocessing(base_input_file).removal_scheme(),
+    'reprocessing': [True, False],
+    'multi_id': [name]
+}
+analysis_list.append(chem_analysis)
+
+name = 'vf_scaling'
+vf_analysis = {
+    'meta': {
+        'name': name,
+        'run_full': True,
+        'run_post': True,
+        'overwrite': True
+    },
+    'incore_s': 9,
+    'excore_s': 16,
+    'net_irrad_s': 100,
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme(vf_scaling=0.9),
+                            Reprocessing(base_input_file).removal_scheme(vf_scaling=1.0),
+                            Reprocessing(base_input_file).removal_scheme(vf_scaling=1.1)],
+    'multi_id': [name]
+}
+analysis_list.append(vf_analysis)
 
 
 def replace_value(input_data: dict, key: str, new_val: str|float|int) -> bool:
