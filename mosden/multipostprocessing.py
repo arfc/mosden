@@ -139,6 +139,8 @@ class MultiPostProcess():
                 self.hm_y_vals.append(post.hm_y)
             except AttributeError:
                 self.do_heatmap = False
+            if post.post_data is not None and post.names['groupfitMC'] in post.post_data:
+                post._MC_group_params = post.post_data[post.names['groupfitMC']]
             # Memory limitation for large datasets (~70 sims with 5k samples)
             post.post_data = None
         return None

@@ -1172,7 +1172,12 @@ class PostProcess(BaseClass):
         yields, half_lives : tuple[np.ndarray[float], np.ndarray[float]]
             Tuple containing the yields and half-lives as numpy arrays
         """
-        parameters = self.post_data[self.names['groupfitMC']]
+        if self.post_data is not None:
+            parameters = self.post_data[self.names['groupfitMC']]
+        elif hasattr(self, '_MC_group_params'):
+            parameters = self._MC_group_params
+        else:
+            raise ValueError("No MC group parameters available")
         yields = np.zeros((self.num_groups, self.MC_samples))
         half_lives = np.zeros((self.num_groups, self.MC_samples))
         for MC_i, params in enumerate(parameters):
