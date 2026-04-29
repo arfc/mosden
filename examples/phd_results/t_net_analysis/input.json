@@ -16,7 +16,7 @@
         "half_life": "iaea/eval.csv",
         "cross_section": "",
         "emission_probability": "iaea/eval.csv",
-        "fission_yield": "jeff311/nfpy/",
+        "fission_yield": "jeff40/nfpy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
@@ -53,6 +53,7 @@
             "batches": 10,
             "source": 1000.0,
             "run_omc": true,
+            "chain": "jeff40/omcchain/chain_jeff40_pwr.xml",
             "write_fission_json": true,
             "write_nuyield_json": true,
             "max_timestep": 10000000000.0
