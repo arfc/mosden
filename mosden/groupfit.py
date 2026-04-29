@@ -403,7 +403,7 @@ class Grouper(BaseClass):
         self.fission_term, self.fission_times = concs._calculate_fission_term()
         self.full_fission_term, _ = concs._calculate_fission_term(False)
         if not self.omc:
-            self.refined_fission_term = np.mean(self.fission_term)
+            self.refined_fission_term = np.mean(self.full_fission_term)
             return self.refined_fission_term
 
         refined_term = list()
@@ -413,7 +413,7 @@ class Grouper(BaseClass):
                     refined_term.append(self.fission_term[i])
                     break
         self.refined_fission_term = np.asarray(refined_term)
-        self.refined_fission_term = np.mean(self.fission_term)
+        self.refined_fission_term = np.mean(self.full_fission_term)
         return self.refined_fission_term
     
     def _restructure_intermediate_yields(self, parameters: np.ndarray[float|object],
