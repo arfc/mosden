@@ -1,9 +1,8 @@
 {
-    "name": "IAEA HF",
-    "multi_id": null,
+    "name": "Four DNPs",
     "file_options": {
         "overwrite": {
-            "preprocessing": true,
+            "preprocessing": false,
             "concentrations": true,
             "count_rate": true,
             "group_fitting": true,
@@ -13,10 +12,10 @@
         "log_level": 20
     },
     "data_options": {
-        "half_life": "iaea/eval.csv",
+        "half_life": "endfb71/decay/",
         "cross_section": "",
-        "emission_probability": "iaea/eval.csv",
-        "fission_yield": "jeff311/nfpy/",
+        "emission_probability": "endfb71/decay/",
+        "fission_yield": "endfb71/nfy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
@@ -28,6 +27,7 @@
     "modeling_options": {
         "concentration_handling": "OMC",
         "count_rate_handling": "data",
+        "residual_handling": ["post-irrad"],
         "reprocessing_locations": ["excore"],
         "reprocessing": {
             "Xe": 0.0
@@ -38,11 +38,11 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 0.1,
+        "incore_s": 0.000001,
         "excore_s": 0,
-        "net_irrad_s": 10,
+        "net_irrad_s": 0.00001,
         "decay_time": 600,
-        "num_decay_times": 100,
+        "num_decay_times": 10,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
@@ -54,9 +54,11 @@
         }
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 4,
         "method": "nlls",
+        "parameter_guesses": 10,
         "samples": 1,
-        "sample_func": "normal"
+        "sample_func": "normal",
+        "seed": 1
     }
 }

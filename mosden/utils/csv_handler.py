@@ -160,6 +160,7 @@ class CSVHandler:
         """
         if not self.overwrite and self._file_exists():
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
+            return None
         df = pd.DataFrame.from_dict(data, orient='index')
         df.index.name = 'Nuclide'
         df.to_csv(self.file_path, index=True)

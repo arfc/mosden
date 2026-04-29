@@ -1,0 +1,70 @@
+{
+    "p_selections": ["pulse (12 Group)", "pulse (6 Group)"],
+    "s_selections": ["saturation (12 Group)", "saturation (6 Group)"],
+    "12_selections": ["saturation (12 Group)", "pulse (12 Group)"],
+    "selections": ["saturation (6 Group)", "pulse (6 Group)"],
+    "o_selections": ["pulse", "intermediate", "intermediate [all]", "saturation", "saturation [all]"],
+    "problem": "step_relative",
+    "euler_mode": "backward",
+    "time_steps": [1e-3],
+    "tf": 60,
+    "step_relative_insertion": 0.2,
+    "rho_max_dollars": 0.5,
+    "neutrons_per_fission": 2.4,
+    "gen_time": 2e-5,
+    "p0": 1,
+    "rho_amplitude": 750e-5,
+    "rho_relative_amplitude": 0.25,
+    "rho_frequency": 2,
+    "equilibrium_dnps": true,
+    "keepin": {
+      "yields": [0.00052, 0.00346, 0.00310, 0.00624, 0.00182, 0.00066],
+      "hls": [55.89897, 22.72614, 6.24457, 2.30281, 0.60802, 0.23028]
+    },
+    "saturation (12 Group)": {
+      "description": "Calculated using ENDFB71 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005656472215,0.002198207066,0.001338003382,0.001114144677,0.00179710018,0.003603305635,0.002678179231,0.001702561476,0.002182161502,0.0005623352814,0.0007872725729,0.0001679907224],
+      "hls": [55.6500063,24.49692111,16.44366392,6.276748628,4.514150811,2.46927962,1.670333697,0.8350727044,0.4320683266,0.2024997748,0.1033482276,0.05331534079]
+    },
+    "pulse (12 Group)": {
+      "description": "Calculated using ENDFB71 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005656706143,0.002202477958,0.001337748909,0.001606337851,0.001828872942,0.004722277575,0.00168008456,0.001554452503,0.001816418866,0.0005476500869,0.0006872078538,0.0001477146368],
+      "hls": [55.6496383,24.49045138,16.41335757,5.972034253,3.90605527,2.173831207,1.235484705,0.6680106567,0.3927728687,0.1715945748,0.09783430498,0.05206679763]
+    },
+    "pulse (6 Group)": {
+      "description": "Calculated using ENDFB71 data, post-irrad, (0.00001,0) 0.00001 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0006011, 0.00325654, 0.00324718397, 0.0067798565, 0.0036530347, 0.001158503],
+      "hls": [55.04571, 22.12906, 5.588844, 1.95615, 0.46736, 0.094685]
+    },
+    "intermediate (10s) (Six Group)": {
+      "description": "Calculated using ENDFB71 data, post-irrad, (1,0) 30 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005870577906,0.003091138473,0.00196693276,0.006436218583,0.004439662967,0.002133811102],
+      "hls": [55.29033369,22.66557932,7.593278713,2.643128317,0.801288212,0.1582260609]
+    },
+    "intermediate (10s) [all]": {
+      "description": "Calculated using ENDFB71 data, all, (1,0) 30 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.000591267, 0.00316419, 0.002834526, 0.007079536, 0.00482916, 0.00073507],
+      "hls": [55.222525, 22.459077, 6.3348598, 2.0843, 0.349625, 0.006170445]
+    },
+    "intermediate (30s) (Six Group)": {
+      "description": "Calculated using ENDFB71 data, post-irrad, (1,0) 30 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005810767, 0.002995618, 0.00165845, 0.0065752589, 0.004701, 0.00214555],
+      "hls": [55.395699, 22.939397, 8.79516, 2.8361, 0.82819, 0.15777]
+    },
+    "intermediate (30s) [all]": {
+      "description": "Calculated using ENDFB71 data, all, (1,0) 30 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.000591267, 0.00316419, 0.002834526, 0.007079536, 0.00482916, 0.00073507],
+      "hls": [55.222525, 22.459077, 6.3348598, 2.0843, 0.349625, 0.006170445]
+    },
+    "saturation (6 Group)": {
+      "description": "Calculated using ENDFB71 data, post-irrad, (60,0) 1200 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.000576267, 0.002988244, 0.0018862306, 0.0069244077, 0.0044298534, 0.001862336],
+      "hls": [55.4938, 23.030678, 8.43461, 2.63272, 0.7163197, 0.139332515]
+    },
+    "saturation [all]": {
+      "description": "Calculated using ENDFB71 data, all, (60,0) 1200 second irradiation, 100 decay times, 600 decay seconds",
+      "yields": [0.0005771185, 0.0030126616, 0.0020301955, 0.007109, 0.0043759, 0.0016164],
+      "hls": [55.4809, 22.969864, 8.044375, 2.5102436, 0.637035, 0.1137935]
+    }
+  }
+  
