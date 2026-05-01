@@ -113,6 +113,11 @@ class MultiPostProcess():
             self.posts[0].name = 'No Removal'
             self.posts[1].name = 'Full MSBR'
             self.is_spectra = True
+        elif self._is_name('group_compare'):
+            self.posts[0].name = r'K=6'
+            self.posts[1].name = r'K=8'
+            self.posts[2].name = r'K=10'
+            self.posts[3].name = r'K=12'
         return None
 
     def _post_heatmap_setup(self) -> None:
