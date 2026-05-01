@@ -591,9 +591,7 @@ class Concentrations(BaseClass):
             if not self.omc:
                 self.logger.error('Pulse irradiation fission term not treated')
         elif self.irrad_type == 'saturation' or self.irrad_type == 'intermediate':
-            if self.flux_scaling == 'scaled' and not self.omc:
-                fission_term = [self.f_in * f for f in fission_term]
-            elif not self.omc and not only_incore:
+            if self.flux_scaling or not only_incore:
                 fission_term = [self.f_in * f for f in fission_term]
         else:
             raise NameError(f'{self.irrad_type = } not available')

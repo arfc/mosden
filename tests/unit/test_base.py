@@ -202,3 +202,13 @@ def test_openmc_time_setting():
     base.openmc_settings['max_timestep'] = 1/3
     in_vals = base._set_cycle_times(base.t_in)
     assert np.allclose(in_vals, [1/3, 1/3, 1/3])
+
+
+def test_average_energy_calc():
+    input_path = './tests/unit/input/input.json'
+    base = BaseClass(input_path)
+    energy_groups_MeV = [0, 1, 2, 3]
+    probabilities = [1/3, 1/3, 1/3]
+    avg_e = base.calculate_avg_MeV(energy_groups_MeV,
+                                   probabilities)
+    assert avg_e == 1.5

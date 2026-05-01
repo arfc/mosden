@@ -20,6 +20,7 @@ class MultiPostProcess():
         """
         self.posts: list[PostProcess] = [PostProcess(p) for p in input_paths]
         self.output_dir = self.posts[0].output_dir
+        self.is_spectra = False
         self.fig_post_name = ''
         if len(self.posts) > 1:
             self.output_dir = f'./{self.posts[0].multi_id}/images/'
@@ -104,9 +105,13 @@ class MultiPostProcess():
                 else:
                     post.name = 'Unscaled Reprocessing'
         elif self._is_name('vf_scaling'):
-            self.posts[0].name = r'$VF = 0.9 VF_0$'
+            self.posts[0].name = r'$VF = 0.1 VF_0$'
             self.posts[1].name = r'$VF = 1.0 VF_0$'
-            self.posts[2].name = r'$VF = 1.1 VF_0$'
+            self.posts[2].name = r'$VF = 10 VF_0$'
+        elif self._is_name('spectra_compare'):
+            self.posts[0].name = 'No Removal'
+            self.posts[1].name = 'Full MSBR'
+            self.is_spectra = True
         return None
 
     def _post_heatmap_setup(self) -> None:
@@ -192,6 +197,8 @@ class MultiPostProcess():
             self.heatmap_gen()
         self.group_param_histogram()
         self.group_fit_counts()
+        if self.is_spectra:
+            self.group_fit_spectra()
         return None
 
     def _collect_post_data(self) -> dict[str: list[float]]:
@@ -347,6 +354,49 @@ class MultiPostProcess():
         plt.savefig(f'{self.output_dir}halflives_{self.fig_post_name}.png')
         plt.close()
         return None
+    
+    def group_fit_spectra(self) -> None:
+        """
+        Generate group spectra plots for each PostProcess object
+        """
+        colors = self.posts[0].get_colors(len(self.posts))
+        for group in range(self.posts[0].num_groups):
+            for pi, post in enumerate(self.posts):
+                group_spectra = pd.read_csv(post.spectra_group_path).to_numpy()
+                spectrum = group_spectra[group, :]
+                spectrum = np.concatenate((spectrum, [spectrum[-1]]))
+                mask = (np.asarray(post.energy_groups_MeV) < post.spectra_cutoff_MeV)
+                if pi == 0:
+                    base_spectrum = np.asarray(spectrum)[mask]
+                plt.step(np.asarray(post.energy_groups_MeV)[mask],
+                        np.asarray(spectrum)[mask], label=post.name,
+                        color=colors[pi],
+                        linestyle=post.linestyles[pi%len(post.linestyles)])
+            plt.legend()
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability per bin')
+            plt.tight_layout()
+            plt.savefig(f'{self.output_dir}/compare_spectra_group_{group+1}.png')
+            plt.close() 
+
+
+            for pi, post in enumerate(self.posts):
+                if pi == 0:
+                    continue
+                group_spectra = pd.read_csv(post.spectra_group_path).to_numpy()
+                spectrum = group_spectra[group, :]
+                spectrum = np.concatenate((spectrum, [spectrum[-1]]))
+                mask = (np.asarray(post.energy_groups_MeV) < post.spectra_cutoff_MeV)
+                diff = (base_spectrum - np.asarray(spectrum)[mask])
+                plt.step(np.asarray(post.energy_groups_MeV)[mask],
+                        diff)
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(fr'$\Delta$ Probability from {self.posts[0].name}')
+            plt.tight_layout()
+            plt.savefig(f'{self.output_dir}/diff_spectra_group_{group+1}.png')
+            plt.close() 
+        return None
+
 
     def group_fit_counts(self) -> None:
         """

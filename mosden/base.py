@@ -196,7 +196,7 @@ class BaseClass:
         return None
     
     def _get_midpoint_eVs(self, energy_groups_MeV: list[float]) -> list[float]:
-        return ([1e6 * (self.energy_groups_MeV[i] + self.energy_groups_MeV[i+1]) / 2 for i in range(len(self.energy_groups_MeV) - 1)])
+        return ([1e6 * (energy_groups_MeV[i] + energy_groups_MeV[i+1]) / 2 for i in range(len(energy_groups_MeV) - 1)])
      
     def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
         """
@@ -503,6 +503,30 @@ class BaseClass:
                 f"Processed data file {data_path} does not exist.")
         data = csv_handler.read_csv()
         return data
+    
+    def calculate_avg_MeV(self, MeV_bins: list[float],
+                           probabilities: list[float]) -> float:
+        """
+        Calculate the average energy from `self.energy_groups_MeV` and the 
+        given probabilities for each bin
+
+        Parameters
+        ----------
+        MeV_bins : list[float]
+            The energy bins
+
+        probabilities : list[float]
+            Probability for each bin
+
+        Returns
+        -------
+        avg_e : float
+            Average energy (MeV)
+        """
+        midpoints_MeV = np.asarray(self._get_midpoint_eVs(MeV_bins)) * 1e-6
+        energies = [midpoints_MeV[i]*probabilities[i] for i in range(len(probabilities))]
+        avg_e = sum(sorted(energies))
+        return avg_e
 
     def _get_element_from_nuclide(self, nuclide: str) -> str:
         """
