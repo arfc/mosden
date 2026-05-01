@@ -398,10 +398,10 @@ class MultiPostProcess():
                 avg_MeV = post.calculate_avg_MeV(post.energy_groups_MeV,
                                                  use_actual_spectra)
                 average_energies.append(avg_MeV)
-            diff = np.asarray(base_avg) - np.asarray(average_energies)
+            diff = (np.asarray(base_avg) - np.asarray(average_energies)) * 1000
             plt.plot(times, diff, color='black')
         plt.xlabel(r'Time $[s]$')
-        plt.ylabel(r'$\Delta \bar{E}$ $[MeV]$')
+        plt.ylabel(r'$\Delta \bar{E}$ $[keV]$')
         plt.tight_layout()
         plt.savefig(f'{self.output_dir}/average_energy_diff.png')
         plt.close()
