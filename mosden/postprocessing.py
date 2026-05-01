@@ -1000,12 +1000,19 @@ class PostProcess(BaseClass):
         colors = self.get_colors(2)
         single_color = self.get_colors(1)[0]
         mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+        average_energies = list()
+        bin_widths = np.diff(self.energy_groups_MeV)
 
         for ti, t in enumerate(tqdm(times, desc="Plotting spectra")):
-            use_actual_spectra = [spectra_data[str(e)][ti] for e in self.eV_midpoints]
-            use_actual_spectra += [spectra_data[str(self.eV_midpoints[-1])][ti]]
-            use_group_spectra  = [group_counts[str(e)][ti] for e in self.eV_midpoints]
-            use_group_spectra += [group_counts[str(self.eV_midpoints[-1])][ti]]
+            use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in self.eV_midpoints])
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV,
+                                             use_actual_spectra/sum(use_actual_spectra))
+            average_energies.append(avg_MeV)
+            use_actual_spectra = use_actual_spectra / bin_widths
+            use_actual_spectra = np.concatenate((use_actual_spectra, [use_actual_spectra[-1]]))
+            use_group_spectra  = np.asarray([group_counts[str(e)][ti] for e in self.eV_midpoints])
+            use_group_spectra = use_group_spectra / bin_widths
+            use_group_spectra  = np.concatenate((use_group_spectra, [use_group_spectra[-1]]))
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
                      np.asarray(use_actual_spectra)[mask], label='Data',
                     color=colors[0], linestyle='--')
@@ -1014,8 +1021,9 @@ class PostProcess(BaseClass):
                     color=colors[1], linestyle='-.')
             plt.xlabel(r'Energy $[MeV]$')
             plt.legend()
+            plt.xscale('log')
             plt.yscale('log')
-            plt.ylabel(r'Delayed Neutron Count Rate $[\# \cdot s^{-1}]$')
+            plt.ylabel(r'$\dot{n}_d$ $[\# \cdot s^{-1} \cdot MeV^{-1}]$')
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/spectra_counts_{t:.5f}.png')
             plt.close()
@@ -1024,30 +1032,43 @@ class PostProcess(BaseClass):
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
                      difference, color=single_color)
             plt.xlabel(r'Energy $[MeV]$')
-            plt.ylabel(r'Count Rate Difference $[\%]$')
+            plt.ylabel(r'$\Delta \dot{n}_d$ $[\%]$')
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/diff_spectra_counts_{t:.5f}.png')
-            plt.close() 
+            plt.close()
+        
+        plt.plot(times, average_energies, color='black')
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\bar{E}$ $[MeV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.spectra_img_dir}/average_energy.png')
+        plt.close()
 
         return None
     
     def _plot_group_spectra(self) -> None:
         nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
-        br87_spectrum = [nuc_spectra['Br87'][str(e)] for e in self.eV_midpoints]
-        br87_spectrum += [br87_spectrum[-1]]
+        bin_widths = np.diff(self.energy_groups_MeV)
+        br87_spectrum = np.asarray([nuc_spectra['Br87'][str(e)] for e in self.eV_midpoints])
+        br87_dens = br87_spectrum #/ bin_widths
+        br87_dens = np.concatenate((br87_dens, [br87_dens[-1]]))
 
         group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
 
         colors = self.get_colors(6)
         for group, spectrum in enumerate(group_spectra):
-            spectrum = np.concatenate((spectrum, [spectrum[-1]]))
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV, spectrum)
+            self.logger.info(f'Group {group+1} Average Energy: {avg_MeV:.3f} MeV')
+            spectrum_density = spectrum #/ bin_widths
+
+            spectrum_density = np.concatenate((spectrum_density, [spectrum_density[-1]]))
             mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
-                     np.asarray(spectrum)[mask], label=f'Group {group+1}',
-                     color=colors[group])
+                     np.asarray(spectrum_density)[mask],#/sum(np.asarray(spectrum_density)[mask]),
+                      label=f'Group {group+1}', color=colors[group])
             if group == 0:
                 plt.step(np.asarray(self.energy_groups_MeV)[mask],
-                         np.asarray(br87_spectrum)[mask],
+                         np.asarray(br87_dens)[mask],#/sum(br87_dens),
                          label=r'$^{87}$Br',
                          linestyle=':',
                          color='black')

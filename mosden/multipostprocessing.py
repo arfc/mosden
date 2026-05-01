@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from mosden.countrate import CountRate
+from mosden.utils.csv_handler import CSVHandler
 import os
 
 
@@ -199,6 +200,7 @@ class MultiPostProcess():
         self.group_fit_counts()
         if self.is_spectra:
             self.group_fit_spectra()
+            self.avg_energy_spectra()
         return None
 
     def _collect_post_data(self) -> dict[str: list[float]]:
@@ -355,6 +357,62 @@ class MultiPostProcess():
         plt.close()
         return None
     
+    def avg_energy_spectra(self) -> None:
+        """
+        Generate average energy comparison plots over time for each 
+        PostProcess object
+        """
+        colors = self.posts[0].get_colors(len(self.posts))
+        for pi, post in enumerate(self.posts):
+            times = post.decay_times
+            spectra_data = CSVHandler(post.spectra_count_path, create=False).read_vector_csv()
+            average_energies = list()
+
+            for ti, t in enumerate(times):
+                use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in post.eV_midpoints])
+                avg_MeV = post.calculate_avg_MeV(post.energy_groups_MeV,
+                                                 use_actual_spectra)
+                average_energies.append(avg_MeV)
+            if pi == 0:
+                base_avg = average_energies
+            plt.plot(times, average_energies, label=post.name,
+                     color=colors[pi],
+                     linestyle=post.linestyles[pi%len(post.linestyles)])
+        plt.legend()
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\bar{E}$ $[MeV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.output_dir}/average_energy.png')
+        plt.close()
+
+
+        for pi, post in enumerate(self.posts):
+            if pi == 0:
+                continue
+            times = post.decay_times
+            spectra_data = CSVHandler(post.spectra_count_path, create=False).read_vector_csv()
+            average_energies = list()
+
+            for ti, t in enumerate(times):
+                use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in post.eV_midpoints])
+                avg_MeV = post.calculate_avg_MeV(post.energy_groups_MeV,
+                                                 use_actual_spectra)
+                average_energies.append(avg_MeV)
+            diff = np.asarray(base_avg) - np.asarray(average_energies)
+            plt.plot(times, diff, color='black')
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\Delta \bar{E}$ $[MeV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.output_dir}/average_energy_diff.png')
+        plt.close()
+
+
+        return None
+
+
+
+
+    
     def group_fit_spectra(self) -> None:
         """
         Generate group spectra plots for each PostProcess object
@@ -389,7 +447,7 @@ class MultiPostProcess():
                 mask = (np.asarray(post.energy_groups_MeV) < post.spectra_cutoff_MeV)
                 diff = (base_spectrum - np.asarray(spectrum)[mask])
                 plt.step(np.asarray(post.energy_groups_MeV)[mask],
-                        diff)
+                        diff, color='black')
             plt.xlabel(r'Energy $[MeV]$')
             plt.ylabel(fr'$\Delta$ Probability from {self.posts[0].name}')
             plt.tight_layout()
