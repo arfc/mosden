@@ -145,7 +145,9 @@ class PostProcess(BaseClass):
         self._plot_group_spectra()
         self._compare_spectral_counts()
         if self.MC_samples > 2:
-            self._plot_MC_spectra()
+            spectra_params = self._get_group_spectra_sigma()
+            self._log_average_energies(spectra_params)
+            self._plot_MC_group_spectra(spectra_params)
         return None
     
     def compare_counts(self) -> None:
@@ -1121,7 +1123,39 @@ class PostProcess(BaseClass):
                 group_spectra[group, ei] = ufloat(mean, std)
         return group_spectra
 
-    def _plot_MC_spectra(self) -> None:
+    def _plot_MC_group_spectra(self, spectra_params: np.ndarray[np.ndarray[object]]) -> None:
+        """
+        Create plots of the group spectra with std. dev. plotted using
+        fill between
+
+        Parameters
+        ----------
+        spectra_params : np.ndarray[np.ndarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        colors = self.get_colors(self.num_groups)
+        for group in range(self.num_groups):
+            mean_spectrum = unumpy.nominal_values(spectra_params[group])
+            mean_spectrum = mean_spectrum / sum(mean_spectrum)
+            mean_spectrum = np.concatenate((mean_spectrum, [mean_spectrum[-1]]))
+            std_spectrum = unumpy.std_devs(spectra_params[group])
+            std_spectrum = std_spectrum / sum(mean_spectrum)
+            std_spectrum = np.concatenate((std_spectrum, [std_spectrum[-1]]))
+            upper = mean_spectrum + std_spectrum
+            lower = mean_spectrum - std_spectrum
+            mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(mean_spectrum)[mask], label=f'Group {group+1}', color=colors[group])
+            plt.fill_between(np.asarray(self.energy_groups_MeV)[mask],
+                             np.asarray(lower)[mask], np.asarray(upper)[mask], color=colors[group], alpha=0.5)
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability $[MeV^{-1}]$')
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_MC_{group+1}.png')
+            plt.close()
+
         return None
 
     def _group_param_helper(self,
