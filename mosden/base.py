@@ -182,7 +182,8 @@ class BaseClass:
 
         self.names: dict[str: str] = {
             'countsMC': 'countsMC',
-            'groupfitMC': 'groupfitMC'
+            'groupfitMC': 'groupfitMC',
+            'spectraMC': 'spectraMC'
         }
 
         if BaseClass._INITIALIZED:

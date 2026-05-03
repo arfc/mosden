@@ -720,6 +720,7 @@ class Grouper(BaseClass):
         J = result.jac
         sampled_params: list[float] = list()
         tracked_counts: list[float] = list()
+        sampled_spectral_params: list[np.ndarray[np.ndarray[float]]] = list()
         nominal_x = result.x.copy()
 
         sorted_params = self._sort_params_by_half_life(result.x)
@@ -728,6 +729,7 @@ class Grouper(BaseClass):
             spectral_counts = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
             spectra_params = self._spectra_group_solve(spectral_counts, sorted_params,
                                                        spectral_counts, fit_function)
+            sampled_spectral_params.append(spectra_params)
             CSVHandler(self.spectra_group_path).write_spectra_group_params(spectra_params,
                                                                         self.eV_midpoints)
         sampled_params.append(sorted_params)
@@ -758,9 +760,12 @@ class Grouper(BaseClass):
         for _ in tqdm(range(1, self.MC_samples), desc='Solving least-squares'):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                # TODO - This is also returning spectral data now
-                data, post_data = countrate.calculate_count_rate(
-                    MC_run=True, sampler_func=self.sample_func)
+                if self.is_spectral_calculation:
+                    data, post_data, spectral_data = countrate.calculate_count_rate(
+                        MC_run=True, sampler_func=self.sample_func)
+                else:
+                    data, post_data = countrate.calculate_count_rate(
+                        MC_run=True, sampler_func=self.sample_func)
                 post_data_save.append(post_data)
                 count_sample = data['counts']
                 count_sample_err = data['sigma counts']
@@ -789,7 +794,13 @@ class Grouper(BaseClass):
             sorted_params = self._sort_params_by_half_life(result.x)
             sorted_params = self._restructure_intermediate_yields(sorted_params)
             sampled_params.append(sorted_params)
+            if self.is_spectral_calculation:
+                spectral_counts = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
+                spectra_params = self._spectra_group_solve(spectral_counts, sorted_params,
+                                                        spectral_counts, fit_function)
+                sampled_spectral_params.append(spectra_params)
         sampled_params: np.ndarray[float] = np.asarray(sampled_params)
+        sampled_spectral_params: np.ndarray[np.ndarray[np.ndarray[float]]] = np.asarray(sampled_spectral_params)
 
         try:
             self.post_data
@@ -809,7 +820,6 @@ class Grouper(BaseClass):
                 except KeyError:
                     # Running with pre-existing post data
                     pass
-        self.save_postproc()
 
         yields = np.zeros((self.num_groups, self.MC_samples))
         half_lives = np.zeros((self.num_groups, self.MC_samples))
@@ -822,15 +832,20 @@ class Grouper(BaseClass):
             half_lives[:, MC_i] = np.asarray(half_life_val)[sort_idx]
 
         groupMCdata = list()
+        groupMCspectra = list()
         for iterval in range(self.MC_samples):
             groupMCdata.append([i for i in sampled_params[iterval]])
+            groupMCspectra.append([i for i in sampled_spectral_params[iterval].tolist()])
         try:
             self.post_data['groupfitMC'] = groupMCdata
             self.post_data['countsMC'] = tracked_counts
+            self.post_data['spectraMC'] = groupMCspectra
         except AttributeError:
             self.load_post_data()
             self.post_data['groupfitMC'] = groupMCdata
             self.post_data['countsMC'] = tracked_counts
+            self.post_data['spectraMC'] = groupMCspectra
+        self.save_postproc()
 
         data: dict[str: dict[str: float]] = dict()
         for group in range(self.num_groups):
