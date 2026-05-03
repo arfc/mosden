@@ -505,26 +505,27 @@ class BaseClass:
         data = csv_handler.read_csv()
         return data
     
-    def calculate_avg_MeV(self, MeV_bins: list[float],
-                           probabilities: list[float]) -> float:
+    def calculate_avg_MeV(self, MeV_bins: list[float|object],
+                           probabilities: list[float|object]) -> float|object:
         """
         Calculate the average energy from `self.energy_groups_MeV` and the 
-        given probabilities for each bin
+        given probabilities for each bin.
+        Useable with both floats and unumpy arrays of ufloats.
 
         Parameters
         ----------
-        MeV_bins : list[float]
+        MeV_bins : list[float|object]
             The energy bins
 
-        probabilities : list[float]
+        probabilities : list[float|object]
             Probability for each bin
 
         Returns
         -------
-        avg_e : float
+        avg_e : float|object
             Average energy (MeV)
         """
-        normalized_probs = probabilities / np.sum(probabilities)
+        normalized_probs = probabilities / sum(probabilities)
         midpoints_MeV = np.asarray(self._get_midpoint_eVs(MeV_bins)) * 1e-6
         energies = [midpoints_MeV[i]*normalized_probs[i] for i in range(len(normalized_probs))]
         avg_e = sum(sorted(energies))

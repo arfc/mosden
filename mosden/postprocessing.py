@@ -1078,6 +1078,21 @@ class PostProcess(BaseClass):
             plt.close() 
         return None
     
+    def _log_average_energies(self, spectra_params: np.ndarray[np.ndarray[object]]) -> None:
+        """
+        Use `self.logger.info` to record the average energy of each group from
+        the calcualted spectra_params that include uncertainties
+
+        Parameters
+        ----------
+        spectra_params : np.ndarray[np.ndarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        for group in range(self.num_groups):
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV, spectra_params[group])
+            self.logger.info(f'Group {group+1} Average Energy: {avg_MeV*1000:.3f} keV')
+        return None
 
     def _get_group_spectra_sigma(self) -> np.ndarray[np.ndarray[object]]:
         """
@@ -1088,7 +1103,7 @@ class PostProcess(BaseClass):
 
         Returns
         -------
-        np.ndarray[unumpy.uarray[object]]
+        group_spectra : np.ndarray[unumpy.uarray[object]]
             Array for each group containing unumpy array of ufloats for each
             energy bin, providing params with uncertainties
         """
@@ -1097,7 +1112,7 @@ class PostProcess(BaseClass):
         else:
             raise ValueError("No MC spectra data available")
         group_spectra = np.zeros((self.num_groups,
-                                  len(self.energy_groups_MeV)), dtype=object)
+                                  len(self.energy_groups_MeV[:-1])), dtype=object)
         for group in range(self.num_groups):
             for ei in range(len(self.energy_groups_MeV[:-1])):
                 bin_samples = [spectra[MC_i][group][ei] for MC_i in range(self.MC_samples)]
