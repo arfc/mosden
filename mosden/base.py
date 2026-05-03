@@ -21,9 +21,11 @@ class BaseClass:
             Path to the input file
         """
         self.omc_data_words: list[str] = ['omcchain']
-        self.endf_data_words: list[str] = ['nfy', 'decay']
+        self.endf_data_words: list[str] = ['endf']
         self.iaea_data_words: list[str] = ['iaea']
         self.jeff_data_words: list[str] = ['jeff']
+        self.jendl_data_words: list[str] = ['jendl']
+
 
         self.input_path: str = input_path
         self.input_handler: InputHandler = InputHandler(input_path)
@@ -59,6 +61,8 @@ class BaseClass:
 
         self.name: str = self.input_data['name']
         self.output_dir: str = self.input_data['file_options'].get('output_dir', '')
+        if len(self.output_dir) > 1 and not self.output_dir.endswith('/'):
+            self.output_dir = self.output_dir + '/'
         self.logger.debug(f'{self.name = }')
 
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
@@ -89,21 +93,19 @@ class BaseClass:
             self.omc = True
         self.conc_overwrite: bool = overwrite_options.get('concentrations', False)
         self.reprocessing: dict[str: float] = modeling_options.get(
-            'reprocessing', {})
+            'reprocessing_scheme', {})
         self.reprocess: bool = (sum(self.reprocessing.values()) > 0)
         self.reprocess_locations: list[str] = modeling_options.get(
             'reprocessing_locations', [])
         self.t_in: float = modeling_options.get('incore_s', 0.0)
         self.t_ex: float = modeling_options.get('excore_s', 0.0)
         self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
-        if self.t_in/self.t_net >= 0.9:
-            self.logger.warning('It is suggested to use a smaller in-core residence time or a longer total time')
         self.t_net = self._update_t_net()
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: dict[str: str] = modeling_options.get(
             'spatial_scaling', {})
-        self.flux_scaling = self.spatial_scaling['flux']
-        self.chem_scaling = self.spatial_scaling['reprocessing']
+        self.flux_scaling: bool = self.spatial_scaling['flux']
+        self.chem_scaling: bool = self.spatial_scaling['reprocessing']
         self.base_repr_scale: float = modeling_options.get('base_removal_scaling', 0.5)
         self.temperature_K: float = data_options.get('temperature_K', 920)
         self.density_g_cc: float = data_options.get('density_g_cm3', 2.3275)
@@ -127,6 +129,12 @@ class BaseClass:
         self.sample_func: str = group_options.get('sample_func', 'normal')
         self.initial_params: dict = group_options.get('initial_params', {'yields': [],
                                                                          "half_lives": []})
+        self.energy_groups_MeV: list[float] = group_options.get('energy_groups_MeV', [0, 6.25e-7, 1e3])
+        self.eV_midpoints: list[float] = self._get_midpoint_eVs(self.energy_groups_MeV)
+        if len(self.energy_groups_MeV) >= 3:
+            self.is_spectral_calculation = True
+        else:
+            self.is_spectral_calculation = False
 
         self.processed_data_dir: str = file_options['processed_data_dir']
         self.unprocessed_data_dir: str = file_options['unprocessed_data_dir']
@@ -134,12 +142,19 @@ class BaseClass:
             file_options['output_dir'], 'concentrations.csv')
         self.countrate_path: str = os.path.join(
             file_options['output_dir'], 'count_rate.csv')
+        self.spectra_path: str = os.path.join(
+            file_options['output_dir'], 'spectra.csv')
+        self.spectra_count_path: str = os.path.join(
+            file_options['output_dir'], 'spectra_counts.csv')
+        self.spectra_group_path: str = os.path.join(
+            file_options['output_dir'], 'group_spectra.csv')
         self.group_path: str = os.path.join(
             file_options['output_dir'], 'group_parameters.csv')
         self.postproc_path: str = os.path.join(
             file_options['output_dir'], 'postproc.json')
 
         self.img_dir: str = self.output_dir + 'images/'
+        self.spectra_img_dir: str = self.img_dir + 'spectra/'
         self.post_overwrite: bool = overwrite_options.get('postprocessing', False)
         self.sens_subplot: bool = post_options.get('sensitivity_subplots', True)
         self.lit_data: list[str] = post_options.get('lit_data', ['keepin'])
@@ -150,6 +165,11 @@ class BaseClass:
         self.num_over_time = self.num_top.get('conc_over_time_top', 3)
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
+        self.plot_means = post_options.get('plot_means', False)
+        self.pcc_cutoff = post_options.get('pcc_cutoff', 0.2)
+        self.spectra_cutoff_MeV = post_options.get('spectra_plot_MeV_cutoff', np.inf)
+        self.plot_correlation = post_options.get('plot_correlation', False)
+        self.plot_spectra_dnps = post_options.get('plot_nuc_spectra', [])
 
         self.post_irrad_only: bool = (len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks)
         self.no_post_irrad: bool = ('post-irrad' not in self.residual_masks and 'all' not in self.residual_masks)
@@ -162,7 +182,8 @@ class BaseClass:
 
         self.names: dict[str: str] = {
             'countsMC': 'countsMC',
-            'groupfitMC': 'groupfitMC'
+            'groupfitMC': 'groupfitMC',
+            'spectraMC': 'spectraMC'
         }
 
         if BaseClass._INITIALIZED:
@@ -174,6 +195,9 @@ class BaseClass:
     def time_track(self, starttime: float, modulename: str = '') -> None:
         self.logger.info(f'{modulename} took {round(time() - starttime, 3)}s')
         return None
+    
+    def _get_midpoint_eVs(self, energy_groups_MeV: list[float]) -> list[float]:
+        return ([1e6 * (energy_groups_MeV[i] + energy_groups_MeV[i+1]) / 2 for i in range(len(energy_groups_MeV) - 1)])
      
     def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
         """
@@ -480,6 +504,32 @@ class BaseClass:
                 f"Processed data file {data_path} does not exist.")
         data = csv_handler.read_csv()
         return data
+    
+    def calculate_avg_MeV(self, MeV_bins: list[float|object],
+                           probabilities: list[float|object]) -> float|object:
+        """
+        Calculate the average energy from `self.energy_groups_MeV` and the 
+        given probabilities for each bin.
+        Useable with both floats and unumpy arrays of ufloats.
+
+        Parameters
+        ----------
+        MeV_bins : list[float|object]
+            The energy bins
+
+        probabilities : list[float|object]
+            Probability for each bin
+
+        Returns
+        -------
+        avg_e : float|object
+            Average energy (MeV)
+        """
+        normalized_probs = probabilities / sum(probabilities)
+        midpoints_MeV = np.asarray(self._get_midpoint_eVs(MeV_bins)) * 1e-6
+        energies = [midpoints_MeV[i]*normalized_probs[i] for i in range(len(normalized_probs))]
+        avg_e = sum(sorted(energies))
+        return avg_e
 
     def _get_element_from_nuclide(self, nuclide: str) -> str:
         """

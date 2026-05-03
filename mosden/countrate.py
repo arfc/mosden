@@ -18,6 +18,7 @@ class CountRate(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
+        self.is_warned = False
 
         return None
 
@@ -57,7 +58,9 @@ class CountRate(BaseClass):
                 half_life_path, create=False).read_csv()
             self.concentration_data = CSVHandler(
                 self.concentration_path, create=False).read_csv_with_time()
-            data = self._count_rate_from_data(MC_run, sampler_func)
+            if self.is_spectral_calculation:
+                self.spectral_data = CSVHandler(self.spectra_path, create=False).read_csv()
+            data = self._count_rate_from_data(MC_run, sampler_func, self.is_spectral_calculation, write_data)
         elif self.count_method == 'groupfit':
             self.group_params = CSVHandler(
                 self.group_path, create=False).read_vector_csv()
@@ -73,9 +76,15 @@ class CountRate(BaseClass):
             self.time_track(start, 'Countrate')
         return data
 
-    def _count_rate_from_groups(self) -> dict[str: list[float]]:
+    def _count_rate_from_groups(self,
+                                group_spectra: np.ndarray[np.ndarray[float]] = None) -> dict[str: list[float]]:
         """
         Calculate the delayed neutron count rate from group parameters
+
+        Parameters
+        ----------
+        group_spectra : np.ndarray[np.ndarray[float]] (optional)
+            The group spectra (None if not modeling spectra)
 
         Returns
         -------
@@ -117,7 +126,10 @@ class CountRate(BaseClass):
         grouper._set_refined_fission_term(self.decay_times)
         parameters = grouper._restructure_intermediate_yields(parameters,
                                                               to_yield=False)
-        counts = fit_function(self.decay_times, parameters)
+        if group_spectra is None:
+            counts = fit_function(self.decay_times, parameters)
+        else:
+            counts = fit_function(self.decay_times, parameters, group_spectra)
         count_rate = np.asarray(unumpy.nominal_values(counts), dtype=float)
         sigma_count_rate = np.asarray(unumpy.std_devs(counts), dtype=float)
 
@@ -128,9 +140,40 @@ class CountRate(BaseClass):
         }
         return data
     
+    def _calculate_spectral_count_rate(self,
+                                       counts_per_nuc: dict[str, np.ndarray[float]],
+                                       use_times: np.ndarray[float]) -> dict[str, np.ndarray[float]]:
+        """
+        Calculates the count rate distributed amongst the energy groups
+
+        Parameters
+        ----------
+        counts_per_nuc : dict[str, np.ndarray[float]]
+            The delayed neutron count rate over time for each nuclide
+        use_times : np.ndarray[float]
+            The time values at which the count rate is evaluated
+        
+        Returns
+        -------
+        spectral_counts : dict[float, np.ndarray[float]]
+            The spectrum evaluated at each point in time
+        """
+        available_nucs = list(set(self.spectral_data.keys()) & set(counts_per_nuc.keys()))
+        spectral_counts = dict()
+        for ti, t in enumerate(use_times):
+            spectral_counts[t] = np.zeros(len(self.eV_midpoints))
+            for nuc in available_nucs:
+                counts = counts_per_nuc[nuc]
+                spectral_counts[t] += counts[ti] * np.asarray(list(self.spectral_data[nuc].values()))
+        return spectral_counts
+
+
+    
     def _count_rate_from_data(self,
                               MC_run: bool = False,
-                              sampler_func: str = None
+                              sampler_func: str = None,
+                              spectra_calc: bool = False,
+                              write_s_data: bool = False
                               ) -> dict[str: list[float]]:
         """
         Calculate the delayed neutron count rate from existing data
@@ -141,6 +184,11 @@ class CountRate(BaseClass):
             Whether to run in Monte Carlo mode, by default False
         sampler_func : str, optional
             The sampling function to use for Monte Carlo, by default None
+        spectra_calc : bool, optional
+            If true, calculates the energy spectra and returns an additional
+            dictionary
+        write_s_data : bool, optional
+            If true, writes the spectral data
 
         Returns
         -------
@@ -149,6 +197,8 @@ class CountRate(BaseClass):
         post_data : dict[str, list[float]] (optional)
             Sensitivity parameters, specifying the specific sample's values
             Returned only if `MC_run` is True
+        spectral_data : dict[str, list[float]] (optional)
+            Energy spectrum as a function of time
         """
         def sample_parameter(val: ufloat, dist: str) -> float:
             if isinstance(val, float):
@@ -159,6 +209,8 @@ class CountRate(BaseClass):
                 return np.random.normal(val.n, val.s)
             elif dist == 'uniform':
                 return np.random.uniform(val.n - val.s, val.n + val.s)
+            elif dist == 'nominal':
+                return val.n
             else:
                 raise NotImplementedError(f'{dist} sampling not implemented')
             
@@ -198,6 +250,8 @@ class CountRate(BaseClass):
         lam_post_data = dict()
         conc_post_data = dict()
 
+        per_nuc_counts = dict()
+
         for nuc in net_similar_nucs:
             Pn_data = self.emission_prob_data[nuc]
             Pn = ufloat(
@@ -221,6 +275,7 @@ class CountRate(BaseClass):
                 vals.append(val)
                 uncertainties.append(uncertainty)
             concentration_array = unumpy.uarray(vals, uncertainties)
+            nominal_concs = vals
             conc = concentration_array[post_irrad_index]
 
             if conc < 1e-24:
@@ -230,14 +285,26 @@ class CountRate(BaseClass):
             if Pn < 1e-24:
                 continue
 
+
+            if self.post_irrad_only:
+                index_offset = post_irrad_index
+            else:
+                index_offset = 0
+
             if MC_run and sampler_func:
-                if not single_time_val:
+                if not single_time_val and not self.is_warned:
                     msg = 'Concentration not sampled over time; using initial'
                     self.logger.warning(msg)
+                    self.logger.warning('Using nominal concentration')
+                    self.is_warned = True
+
+                if not single_time_val:
+                    conc = concentration_array[post_irrad_index].n
+                else:
+                    conc = sample_parameter(conc, sampler_func)
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
-                conc = sample_parameter(concentration_array[post_irrad_index], sampler_func)
 
                 if conc < 0.0:
                     conc = 1e-12
@@ -246,18 +313,24 @@ class CountRate(BaseClass):
                 if Pn < 0.0:
                     Pn = 1e-12
 
-                counts = Pn * decay_const * conc * \
-                    np.exp(-decay_const * use_times)
+                if self.no_post_irrad:
+                    conc_vals = nominal_concs[:post_irrad_index+1]
+                else:
+                    conc_vals = nominal_concs[index_offset:]
+                
+                if not single_time_val:
+                    assert len(conc_vals) == len(use_times)
+                    counts = Pn * decay_const * np.asarray(conc_vals)
+                else:
+                    counts = (Pn * decay_const * conc * 
+                              np.exp(-decay_const * use_times))
+                per_nuc_counts[nuc] = counts
                 count_rate += counts
             else:
                 if single_time_val:
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * use_times)
                 else:
-                    if self.post_irrad_only:
-                        index_offset = post_irrad_index
-                    else:
-                        index_offset = 0
                     if self.no_post_irrad:
                         counts = Pn * decay_const * concentration_array[:post_irrad_index+1]
                     else:
@@ -265,6 +338,7 @@ class CountRate(BaseClass):
 
                 try:
                     count_rate += unumpy.nominal_values(counts)
+                    per_nuc_counts[nuc] = unumpy.nominal_values(counts)
                 except ValueError:
                     self.logger.error('Counts shape does not match count rate')
                     self.logger.error(f'{np.shape(use_times) = }')
@@ -289,6 +363,15 @@ class CountRate(BaseClass):
             lam_post_data[nuc] = np.log(2) / decay_const
             conc_post_data[nuc] = conc
 
+        if spectra_calc:
+            spectral_data = self._calculate_spectral_count_rate(per_nuc_counts,
+                                                                use_times)
+            if not MC_run and write_s_data:
+                CSVHandler(
+                    self.spectra_count_path,
+                    self.count_overwrite).write_spectral_count_csv(spectral_data,
+                                                                   col_names=self.eV_midpoints)
+
         data = {
             'times': use_times,
             'counts': count_rate,
@@ -303,7 +386,10 @@ class CountRate(BaseClass):
         post_data['hlMC'] = lam_post_data
         post_data['concMC'] = conc_post_data
 
-        return data, post_data
+        if not spectra_calc:
+            return data, post_data
+
+        return data, post_data, spectral_data
 
 
 if __name__ == '__main__':

@@ -18,6 +18,7 @@ from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
 from matplotlib.colors import LogNorm
+from tqdm import tqdm
 plt.style.use('mosden.plotting')
 
 
@@ -34,22 +35,36 @@ class PostProcess(BaseClass):
         super().__init__(input_path)
         self.markers: list[str] = ['v', 'o', 'x', '^', 's', 'D']
         self.linestyles: list[str] = ['-', '--', ':', '-.']
-        self.load_post_data()
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
         if not os.path.exists(self.img_dir):
             os.makedirs(self.img_dir)
+        if self.is_spectral_calculation:
+            if not os.path.exists(self.spectra_img_dir):
+                os.makedirs(self.spectra_img_dir)
         self.group_data = None
+        self.post_data = None
+        self.MC_half_lives = None
+        self.MC_yields = None
 
+        grouper = Grouper(input_path)
+        self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
+        np.set_printoptions(legacy='1.25')
+        self.load_post_data()
+
+        return None
+    
+    def get_MC_data_post(self) -> None:
+        """
+        Load post data and get the MC yield and half-lives
+        """
         try:
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
             self.logger.warning('Postdata does not exist')
         except IndexError:
             self.logger.warning('Could not access data at target index')
-        grouper = Grouper(input_path)
-        self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
-
         return None
+
 
     def get_colors(self, num_colors: int, colormap: str = None,
                    min_val: float = 0.0, max_val: float = 1.0) -> list[tuple[float]]:
@@ -109,6 +124,8 @@ class PostProcess(BaseClass):
         self.compare_yields()
         if not self.post_irrad_only:
             self.compare_counts()
+        if self.is_spectral_calculation:
+            self.evaluate_spectra()
         if not self.no_post_irrad:
             self.compare_group_to_data()
         self.MC_NLLS_analysis()
@@ -119,6 +136,18 @@ class PostProcess(BaseClass):
         Runs functions that compare the group parameters to the data
         """
         self._plot_group_vs_counts()
+        return None
+    
+    def evaluate_spectra(self) -> None:
+        """
+        Runs functions that evaluate spectral fits
+        """
+        self._plot_group_spectra()
+        self._compare_spectral_counts()
+        if self.MC_samples > 2:
+            spectra_params = self._get_group_spectra_sigma()
+            self._log_average_energies(spectra_params)
+            self._plot_MC_group_spectra(spectra_params)
         return None
     
     def compare_counts(self) -> None:
@@ -137,7 +166,7 @@ class PostProcess(BaseClass):
         parameters = group_data['yield'] + group_data['half_life']
         parameters = grouper._restructure_intermediate_yields(parameters, False)
         fit_func = grouper._get_fit_func()
-        times, counts, irrad_times, irrad_counts = grouper._get_modified_counts_and_times(times, counts)        
+        times, counts, _, irrad_times, irrad_counts, _ = grouper._get_modified_counts_and_times(times, counts, count_errs)        
         irrad_fit_counts = grouper._get_irrad_counts(irrad_times, parameters)
 
         post_irrad_fit_counts = fit_func(times, parameters)
@@ -241,13 +270,19 @@ class PostProcess(BaseClass):
                 continue
         vmin_use = 10 ** np.floor(np.log10(vmin))
         vmax_use = 10 ** np.ceil(np.log10(vmax))
+        if vmin_use == vmax_use:
+            if vmin_use == 0.0:
+                vmin_use = 0.1
+                vmax_use = 1.0
+            vmin_use = 0.1 * vmin_use
+            vmax_use = 10 * vmax_use
         norm = LogNorm(vmin=vmin_use, vmax=vmax_use)
         plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
-        plt.xlabel("Number of neutrons (N)")
-        plt.ylabel("Number of protons (Z)")
+        plt.xlabel("Neutrons (N)")
+        plt.ylabel("Protons (Z)")
         plt.savefig(f'{self.img_dir}chart_{name}.png')
         plt.close()
         return None 
@@ -256,6 +291,7 @@ class PostProcess(BaseClass):
         """
         Analyze Monte Carlo Non-linear Least Squares results
         """
+        self.get_MC_data_post()
         if not self.no_post_irrad:
             self._plot_counts()
         if self.MC_samples > 2:
@@ -299,7 +335,7 @@ class PostProcess(BaseClass):
         group_names = ['Yield',
                        'Half-life']
         nucs_with_pcc = list()
-        pcc_cutoff = 0.2
+        pcc_cutoff = self.pcc_cutoff
         summed_pcc_data = dict()
         scaled_uncert_pcc = dict()
         pcc_data = dict()
@@ -358,21 +394,35 @@ class PostProcess(BaseClass):
         if write:
             self.logger.info(f'\n{pcc_latex}')
             self.logger.info('Completed writing nuclides \n')
-            chart_min_data = np.min((np.min(list(summed_pcc_data.values())), np.min(list(scaled_uncert_pcc.values()))))
+            chart_min_data = np.min((np.mean(list(summed_pcc_data.values())), np.mean(list(scaled_uncert_pcc.values()))))
             chart_max_data = np.max((np.max(list(summed_pcc_data.values())), np.max(list(scaled_uncert_pcc.values()))))
-            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label='Sum of Pearson Correlation Coefficient Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
-            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label='Sum of Relative Uncertainties Scaled by PCC Magnitudes', vmin=chart_min_data, vmax=chart_max_data)
+            self._chart_form(name='PCC', data=summed_pcc_data, cbar_label=r'$PCC_i$', vmin=chart_min_data, vmax=chart_max_data)
+            self._chart_form(name='PCC_uncertainty', data=scaled_uncert_pcc, cbar_label=r'$U_i$', vmin=chart_min_data, vmax=chart_max_data)
             sorted_summed_pccs = sorted(summed_pcc_data.items(), key=lambda item: item[1], reverse=True)
             top = 10
             self.logger.info(f'Writing {top = } summed |PCC| nuclides')
+            PCC_table = dict()
+            PCC_table['Nuclide'] = list()
+            PCC_table[r'$PCC_{i}$'] = list()
             for nuc,sum_PCC in sorted_summed_pccs[:top]:
-                self.logger.info(f'{nuc = }    {sum_PCC = }')
+                nuc_name = self._convert_nuc_to_latex(nuc)
+                PCC_table['Nuclide'].append(nuc_name)
+                PCC_table[r'$PCC_{i}$'].append(sum_PCC)
+            PCC_table = pd.DataFrame(PCC_table).to_latex(index=False)
+            self.logger.info(f'\n{PCC_table}')
             sorted_uncert_pccs = sorted(scaled_uncert_pcc.items(), key=lambda item: item[1], reverse=True)
             self.logger.info(f'Writing {top = } summed uncertainty times |PCC| nuclides')
             nucs = list()
+            Ui_table = dict()
+            Ui_table['Nuclide'] = list()
+            Ui_table[r'$U_{i}$'] = list()
             for nuc,sum_PCC in sorted_uncert_pccs[:top]:
-                self.logger.info(f'{nuc = }    {sum_PCC = }')
+                nuc_name = self._convert_nuc_to_latex(nuc)
+                Ui_table['Nuclide'].append(nuc_name)
+                Ui_table[r'$U_{i}$'].append(sum_PCC)
                 nucs.append(nuc)
+            Ui_table = pd.DataFrame(Ui_table).to_latex(index=False)
+            self.logger.info(f'\n{Ui_table}')
             table_data = dict()
             for nuc in nucs:
                 nuc_name = self._convert_nuc_to_latex(nuc)
@@ -386,10 +436,10 @@ class PostProcess(BaseClass):
                                                                     False)
                     table_data.setdefault('Nuclide', []).append(nuc_name)
                     table_data.setdefault('DNP Value', []).append(nuc_lab)
-                    table_data.setdefault(r'$U_{i}$', []).append(scaled_uncert)
+                    table_data.setdefault(r'$U_{i,v}$', []).append(scaled_uncert)
             table_df_data: pd.DataFrame = pd.DataFrame.from_dict(
                 table_data, orient='columns')
-            df_sorted = table_df_data.nlargest(top, r"$U_{i}$").sort_values(r'$U_{i}$', ascending=True)
+            df_sorted = table_df_data.nlargest(top, r"$U_{i,v}$").sort_values(r'$U_{i,v}$', ascending=True)
             dnp_vals = df_sorted["DNP Value"].unique()
             colors = self.get_colors(len(dnp_vals))
             color_map = dict(zip(dnp_vals, colors))
@@ -400,21 +450,27 @@ class PostProcess(BaseClass):
                     dup_count = labels.count(label)
                     label = label + invisible_char * dup_count
                     labels.append(label)
-                    plt.barh(label, row[r"$U_{i}$"], color=color_map[row["DNP Value"]],
+                    plt.barh(label, row[r"$U_{i,v}$"], color=color_map[row["DNP Value"]],
                             edgecolor='black')
             handles = [plt.Rectangle((0,0),1,1, color=color_map[val]) for val in dnp_vals]
             plt.legend(handles, dnp_vals, title="DNP Value")
-            plt.xlabel(r"$U_{i}$")
+            plt.xlabel(r"$U_{i,v}$")
             plt.tight_layout()
             plt.savefig(f'{self.img_dir}pcc-bar.png')
             plt.close()
             table_latex = table_df_data.to_latex(index=False)
             self.logger.info(f'\n{table_latex}')
-            plt.hist(list(summed_pcc_data.values()), bins=int(np.sqrt(len(list(summed_pcc_data.values())))))
+            plt.hist(list(summed_pcc_data.values()), bins=int(2*np.sqrt(len(list(summed_pcc_data.values())))))
             plt.yscale('log')
-            plt.xlabel(r'$\Sigma\left|PCC\right|$')
+            plt.xlabel(r'$PCC_i$')
             plt.ylabel(r'Frequency')
             plt.savefig(f'{self.img_dir}pcc-frequency.png')
+            plt.close()
+            plt.hist(list(scaled_uncert_pcc.values()), bins=int(2*np.sqrt(len(list(scaled_uncert_pcc.values())))))
+            plt.yscale('log')
+            plt.xlabel(r'$U_i$')
+            plt.ylabel(r'Frequency')
+            plt.savefig(f'{self.img_dir}u-frequency.png')
             plt.close()
 
             
@@ -454,17 +510,17 @@ class PostProcess(BaseClass):
         ylabel_replace = {
             "Half-life": fr"$\tau_{group_val}$ $[s]$",
             "Decay Constant": fr"$\lambda_{group_val}$ $[s^{{-1}}]$",
-            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
+            "Yield": fr"${{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         offnom_ylabel_replace = {
             "Half-life": fr"$\Delta \tau_{group_val}$ $[s]$",
             "Decay Constant": fr"$\Delta \lambda_{group_val}$ $[s^{{-1}}]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
+            "Yield": fr"$\Delta {{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         pcnt_ylabel_replace = {
             "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val}$ $[\%]$",
             "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val}$ $[\%]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}}$ $[\%]$",
+            "Yield": fr"$\Delta {{\nu}}_{{d, {group_val}}} / {{\nu}}_{{d, {group_val}}}$ $[\%]$",
         }
         pcnt_xlabel_replace = {
             "Half-life": fr"$\Delta \tau_i / \tau_i$ $[\%]$",
@@ -782,12 +838,16 @@ class PostProcess(BaseClass):
         self.summed_avg_halflife = summed_avg_halflife
         self.group_yield = group_yield
         self.group_avg_halflife = group_avg_halflife
+        yield_diff = 1e5*(summed_yield - group_yield)
+        avg_hl_diff = (summed_avg_halflife - group_avg_halflife)
 
         self._plot_nuclide_count_rates(self.num_stack)
         self.logger.info(f'{summed_yield = }')
         self.logger.info(f'{summed_avg_halflife = } s')
         self.logger.info(f'{group_yield = }')
         self.logger.info(f'{group_avg_halflife = } s')
+        self.logger.info(f'{yield_diff = } pcm')
+        self.logger.info(f'{avg_hl_diff = } s')
         if self.omc:
             yields = Concentrations(self.input_path).read_omc_nuyield_json()
             try:
@@ -918,6 +978,185 @@ class PostProcess(BaseClass):
         plt.close()
 
         return None
+    
+    def _load_group_spectral_counts(self):
+        group_data = CSVHandler(self.group_path,
+                                create=False).read_vector_csv()
+        countrate = CountRate(self.input_path)
+        countrate.group_params = group_data
+        group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
+        group_counts = dict()
+        for ei, each in enumerate(group_spectra.T):
+            group_data = countrate._count_rate_from_groups(group_spectra=each)
+            group_counts[str(self.eV_midpoints[ei])] = group_data['counts']
+        
+        times = group_data['times']
+        return times, group_counts
+
+    
+    def _compare_spectral_counts(self) -> None:
+        spectra_data = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
+
+        times, group_counts = self._load_group_spectral_counts()
+        
+        colors = self.get_colors(2)
+        single_color = self.get_colors(1)[0]
+        mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+        average_energies = list()
+        bin_widths = np.diff(self.energy_groups_MeV)
+
+        for ti, t in enumerate(tqdm(times, desc="Plotting spectra")):
+            use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in self.eV_midpoints])
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV,
+                                             use_actual_spectra/sum(use_actual_spectra))
+            average_energies.append(avg_MeV)
+            use_actual_spectra = use_actual_spectra / bin_widths
+            use_actual_spectra = np.concatenate((use_actual_spectra, [use_actual_spectra[-1]]))
+            use_group_spectra  = np.asarray([group_counts[str(e)][ti] for e in self.eV_midpoints])
+            use_group_spectra = use_group_spectra / bin_widths
+            use_group_spectra  = np.concatenate((use_group_spectra, [use_group_spectra[-1]]))
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(use_actual_spectra)[mask], label='Data',
+                    color=colors[0], linestyle='--')
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(use_group_spectra)[mask], label='Group Fit',
+                    color=colors[1], linestyle='-.')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.legend()
+            plt.ylabel(r'$\dot{n}_d$ $[\# \cdot s^{-1} \cdot MeV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_counts_{t:.5f}.png')
+            plt.close()
+
+            difference = 100 * ((np.asarray(use_actual_spectra)[mask] - np.asarray(use_group_spectra)[mask]) / np.asarray(use_actual_spectra)[mask])
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     difference, color='black')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'$\Delta \dot{n}_d$ $[\%]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/diff_spectra_counts_{t:.5f}.png')
+            plt.close()
+        
+        plt.plot(times, average_energies, color='black')
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\bar{E}$ $[MeV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.spectra_img_dir}/average_energy.png')
+        plt.close()
+
+        return None
+    
+    def _plot_group_spectra(self) -> None:
+        nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
+        bin_widths = np.diff(self.energy_groups_MeV)
+        br87_spectrum = np.asarray([nuc_spectra['Br87'][str(e)] for e in self.eV_midpoints])
+        br87_dens = br87_spectrum / bin_widths
+        br87_dens = np.concatenate((br87_dens, [br87_dens[-1]]))
+
+        group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
+
+        colors = self.get_colors(self.num_groups)
+        for group, spectrum in enumerate(group_spectra):
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV, spectrum)
+            self.logger.info(f'Group {group+1} Average Energy: {avg_MeV:.3f} MeV')
+            spectrum_density = spectrum / bin_widths
+
+            spectrum_density = np.concatenate((spectrum_density, [spectrum_density[-1]]))
+            mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(spectrum_density)[mask]/sum(np.asarray(spectrum_density)[mask]),
+                      label=f'Group {group+1}', color=colors[group])
+            if group == 0:
+                plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                         np.asarray(br87_dens)[mask]/sum(br87_dens),
+                         label=r'$^{87}$Br',
+                         linestyle=':',
+                         color='black')
+                plt.legend()
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability $[MeV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_{group+1}.png')
+            plt.close() 
+        return None
+    
+    def _log_average_energies(self, spectra_params: np.ndarray[np.ndarray[object]]) -> None:
+        """
+        Use `self.logger.info` to record the average energy of each group from
+        the calcualted spectra_params that include uncertainties
+
+        Parameters
+        ----------
+        spectra_params : np.ndarray[np.ndarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        for group in range(self.num_groups):
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV, spectra_params[group])
+            self.logger.info(f'Group {group+1} Average Energy: {avg_MeV*1000:.3f} keV')
+        return None
+
+    def _get_group_spectra_sigma(self) -> np.ndarray[np.ndarray[object]]:
+        """
+        Collects the various sampled group spectra from post_data.
+        The data is given as list(list(list(float))) for each sample, group, 
+        and energy bin, respectively. Uncertainties are calculated using np.std.
+
+
+        Returns
+        -------
+        group_spectra : np.ndarray[unumpy.uarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        if self.post_data is not None:
+            spectra = self.post_data[self.names['spectraMC']]
+        else:
+            raise ValueError("No MC spectra data available")
+        group_spectra = np.zeros((self.num_groups,
+                                  len(self.energy_groups_MeV[:-1])), dtype=object)
+        for group in range(self.num_groups):
+            for ei in range(len(self.energy_groups_MeV[:-1])):
+                bin_samples = [spectra[MC_i][group][ei] for MC_i in range(self.MC_samples)]
+                mean = np.mean(bin_samples)
+                std = np.std(bin_samples)
+                group_spectra[group, ei] = ufloat(mean, std)
+        return group_spectra
+
+    def _plot_MC_group_spectra(self, spectra_params: np.ndarray[np.ndarray[object]]) -> None:
+        """
+        Create plots of the group spectra with std. dev. plotted using
+        fill between
+
+        Parameters
+        ----------
+        spectra_params : np.ndarray[np.ndarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        colors = self.get_colors(self.num_groups)
+        for group in range(self.num_groups):
+            mean_spectrum = unumpy.nominal_values(spectra_params[group])
+            mean_spectrum = mean_spectrum / sum(mean_spectrum)
+            mean_spectrum = np.concatenate((mean_spectrum, [mean_spectrum[-1]]))
+            std_spectrum = unumpy.std_devs(spectra_params[group])
+            std_spectrum = std_spectrum / sum(mean_spectrum)
+            std_spectrum = np.concatenate((std_spectrum, [std_spectrum[-1]]))
+            upper = mean_spectrum + std_spectrum
+            lower = mean_spectrum - std_spectrum
+            mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(mean_spectrum)[mask], label=f'Group {group+1}', color=colors[group])
+            plt.fill_between(np.asarray(self.energy_groups_MeV)[mask],
+                             np.asarray(lower)[mask], np.asarray(upper)[mask], color=colors[group], alpha=0.5)
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability $[MeV^{-1}]$')
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_MC_{group+1}.png')
+            plt.close()
+
+        return None
 
     def _group_param_helper(self,
                             name: str,
@@ -1029,7 +1268,12 @@ class PostProcess(BaseClass):
         yields, half_lives : tuple[np.ndarray[float], np.ndarray[float]]
             Tuple containing the yields and half-lives as numpy arrays
         """
-        parameters = self.post_data[self.names['groupfitMC']]
+        if self.post_data is not None:
+            parameters = self.post_data[self.names['groupfitMC']]
+        elif hasattr(self, '_MC_group_params'):
+            parameters = self._MC_group_params
+        else:
+            raise ValueError("No MC group parameters available")
         yields = np.zeros((self.num_groups, self.MC_samples))
         half_lives = np.zeros((self.num_groups, self.MC_samples))
         for MC_i, params in enumerate(parameters):
@@ -1054,6 +1298,7 @@ class PostProcess(BaseClass):
         countrate = CountRate(self.input_path)
         irrad_index = self.get_irrad_index(False) + 1
         times = countrate.use_times
+        tenth = int(len(times)/10)
         alpha_MC: float = 1 / np.sqrt(self.MC_samples)
         for MC_iterm, count_val in enumerate(counts):
             label = mc_label if MC_iterm == 0 else None
@@ -1073,7 +1318,8 @@ class PostProcess(BaseClass):
             marker='x',
             label='Mean, This Work',
             markersize=5,
-            markevery=5)
+            markevery=tenth,
+            errorevery=tenth)
         countrate.count_method = 'groupfit'
         if self.self_relative_data:
             base_name = mc_label
@@ -1139,6 +1385,7 @@ class PostProcess(BaseClass):
         plt.xlabel('Time [s]')
         plt.ylabel(r'Count Rate $[n \cdot s^{-1}]$')
         plt.yscale('log')
+        plt.xscale('log')
         leg = plt.legend()
         for line in leg.legend_handles:
             if line.get_label() == mc_label:
@@ -1166,16 +1413,18 @@ class PostProcess(BaseClass):
         if len(counts_this_work) > len(times):
             counts_this_work = counts_this_work[irrad_index:]
         this_over_base = counts_this_work / counts_base
-        plt.errorbar(
-            times,
-            unumpy.nominal_values(this_over_base),
-            unumpy.std_devs(this_over_base),
-            color=mean_color,
-            linestyle='',
-            marker='x',
-            label='Mean, This Work',
-            markersize=5,
-            markevery=5)
+        if self.plot_means:
+            plt.errorbar(
+                times,
+                unumpy.nominal_values(this_over_base),
+                unumpy.std_devs(this_over_base),
+                color=mean_color,
+                linestyle='',
+                marker='x',
+                label='Mean, This Work',
+                markersize=5,
+                markevery=tenth,
+                errorevery=tenth)
 
         counts_group = unumpy.uarray(group_counts['counts'],
                                      group_counts['sigma counts'])

@@ -1,5 +1,6 @@
 {
-    "name": "OMC test",
+    "name": "Data Investigation",
+    "multi_id": null,
     "file_options": {
         "overwrite": {
             "preprocessing": true,
@@ -9,10 +10,7 @@
             "postprocessing": true,
             "logger": true
         },
-        "processed_data_dir": "./tests/integration/output_omc",
-        "output_dir": "./tests/integration/output_omc/",
-        "log_level": 15,
-        "log_file": "./tests/integration/output_omc/log.log"
+        "log_level": 20
     },
     "data_options": {
         "half_life": "endfb71/decay/",
@@ -28,23 +26,23 @@
         }
     },
     "modeling_options": {
-        "concentration_handling": "OMC",
+        "concentration_handling": "CFY",
         "count_rate_handling": "data",
-        "reprocessing_locations": ["incore", "excore"],
-        "reprocessing_scheme": {
+        "reprocessing_locations": [],
+        "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "intermediate",
+        "irrad_type": "saturation",
         "spatial_scaling": {
             "flux": false,
             "reprocessing": false
         },
-        "base_removal_scaling": 1.0,
-        "incore_s": 5,
-        "excore_s": 2,
-        "net_irrad_s": 33,
+        "base_removal_scaling": 0.5,
+        "incore_s": 4200,
+        "excore_s": 0,
+        "net_irrad_s": 4200,
         "decay_time": 600,
-        "num_decay_times": 100,
+        "num_decay_times": 800,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
@@ -57,7 +55,15 @@
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
-        "samples": 1,
+        "samples": 5000,
         "sample_func": "normal"
+    },
+    "post_options": {
+        "top_num_nuclides": {
+            "yield_top": 5,
+            "conc_top": 5,
+            "conc_over_time_top": 5
+        }
     }
+
 }

@@ -5,6 +5,8 @@ import numpy as np
 import re
 from uncertainties import ufloat
 from time import time
+from typing import Callable
+import matplotlib.pyplot as plt
 
 
 class Preprocess(BaseClass):
@@ -23,11 +25,15 @@ class Preprocess(BaseClass):
             'half_life',
             'cross_section',
             'emission_probability',
-            'fission_yield'
+            'fission_yield',
+            'spectra'
         ]
         self.data_to_proc: dict[str: str] = {
             key: self.input_data['data_options'][key] for key in data_keys
         }
+
+        if not os.path.exists(self.spectra_img_dir):
+            os.makedirs(self.spectra_img_dir)
 
         return None
 
@@ -40,13 +46,15 @@ class Preprocess(BaseClass):
             self.omc_data_words,
             self.endf_data_words,
             self.iaea_data_words,
-            self.jeff_data_words
+            self.jeff_data_words,
+            self.jendl_data_words
         ]
         func_list: list = [
             self.openmc_preprocess,
             self.endf_preprocess,
             self.iaea_preprocess,
-            self.jeff_preprocess
+            self.jeff_preprocess,
+            self.jendl_preprocess
         ]
 
         func_selector: list[zip] = list(zip(datasource_list,
@@ -57,8 +65,35 @@ class Preprocess(BaseClass):
                     func(data_val, path)
         self.save_postproc()
         self._add_debug_dnps()
+        if len(self.plot_spectra_dnps) > 0:
+            self._plot_dnp_spectra()
         self.time_track(start, 'Preprocessing')
         return None
+
+    def _plot_dnp_spectra(self) -> None:
+        """
+        Plots the delayed neutron energy spectrum for each DNP
+
+        """
+        nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
+        mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+        for nuc in nuc_spectra.keys():
+            if (nuc not in self.plot_spectra_dnps) and ('all' not in self.plot_spectra_dnps):
+                continue
+
+            spectrum = [nuc_spectra[nuc][str(e)] for e in self.eV_midpoints]
+            spectrum += [spectrum[-1]]
+
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(spectrum)[mask])
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Normalized Probability $[eV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_{nuc}.png')
+            plt.close() 
+        return
+
+
 
     def _add_debug_dnps(self) -> None:
         """
@@ -136,7 +171,26 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._endf_nfy_preprocess(data_val, unprocessed_path)
-        elif data_val == 'half_life' or data_val == 'emission_probability':
+        elif data_val == 'half_life' or data_val == 'emission_probability' or data_val == 'spectra':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
+        else:
+            self.logger.error(f'{data_val} not available in ENDF')
+        return None
+
+    def jendl_preprocess(self, data_val: str, unprocessed_path: str) -> None:
+        """
+        Processes JENDL data
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        unprocessed_path : str
+            Path to the unprocessed data
+        """
+        if data_val == 'fission_yield':
+            self._jendl_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability' or data_val == 'spectra':
             self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in ENDF')
@@ -155,6 +209,8 @@ class Preprocess(BaseClass):
         """
         if data_val == 'fission_yield':
             self._jeff_nfy_preprocess(data_val, unprocessed_path)
+        elif data_val == 'half_life' or data_val == 'emission_probability' or data_val == 'spectra':
+            self._endf_decay_preprocess(data_val, unprocessed_path)
         else:
             self.logger.error(f'{data_val} not available in JEFF')
         return None
@@ -243,6 +299,37 @@ class Preprocess(BaseClass):
         csv_path: str = os.path.join(out_path)
         CSVHandler(csv_path, self.preprocess_overwrite).write_csv(treated_data)
         return None
+    
+
+    def _jendl_nfy_preprocess(self, data_val: str, path: str) -> None:
+        """
+        Processes JENDL fission yield data for the specified fissile target.
+
+        Parameters
+        ----------
+        data_val : str
+            Type of data to process
+        path : str
+            Path to the unprocessed data
+        """
+        data_dir: str = os.path.join(self.data_dir, path)
+        out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
+        pre_treated_data: dict[str: dict[str: dict[str: float]]] = dict()
+        for fissile in self.fissile_targets:
+            for file in os.listdir(data_dir):
+                fissile_endf: str = self._endf_fissile_name(fissile)
+                fissile_jendl = fissile_endf.replace('_', '-')
+                if not fissile_jendl in file:
+                    continue
+                full_path: str = os.path.join(data_dir, file)
+                file_data: dict[str: dict[str: float]
+                                ] = self._process_jeff_nfy_file(full_path)
+            pre_treated_data[fissile] = file_data
+        treated_data: dict[str: dict[str: float]
+                           ] = self._treat_endf_data(pre_treated_data)
+        csv_path: str = os.path.join(out_path)
+        CSVHandler(csv_path, self.preprocess_overwrite).write_csv(treated_data)
+        return None
 
     def _endf_nfy_preprocess(self, data_val: str, path: str) -> None:
         """
@@ -287,7 +374,7 @@ class Preprocess(BaseClass):
         data_dir: str = os.path.join(self.data_dir, path)
         out_path: str = os.path.join(self.processed_data_dir, f'{data_val}.csv')
         file_data: dict[str: dict[str: float]
-                        ] = self._process_endf_decay_file(data_dir)
+                        ] = self._process_endf_decay_file(data_dir, data_val)
         csv_path: str = os.path.join(out_path)
         CSVHandler(csv_path, self.preprocess_overwrite).write_csv(file_data)
         return None
@@ -440,8 +527,40 @@ class Preprocess(BaseClass):
             data[nuc]['sigma CFY'] = fit_FY_nfy[nuc].s
         return data
     
+    def _spectral_application(self, spectra_continuum: Callable) -> dict[float, float]:
+        """
+        Calculate the spectra for a given nuclide properly normalized
+
+        Parameters
+        ----------
+        spectra_continuum : Callable
+            Function that takes in energy and returns the probability at that
+            energy (per energy, since dividing by bin width).
+
+        Returns
+        -------
+        data_dict : dict[float, float]
+            Dictionary of energy midpoints to probabilities
+        """
+        from scipy.integrate import quad
+        data_dict = dict()
+        a = np.asarray(self.energy_groups_MeV[:-1]) * 1e6
+        b = np.asarray(self.energy_groups_MeV[1:]) * 1e6
+        bin_widths = b - a
+        region_integrals = list()
+        for i, e in enumerate(self.eV_midpoints):
+            region_integral, err = (quad(spectra_continuum, a[i], b[i]) / bin_widths[i])
+            region_integrals.append(region_integral)
+        normalization = np.sum(sorted(region_integrals))
+        if normalization == 0:
+            normalization = 1
+        for i, e in enumerate(self.eV_midpoints):
+            data_dict[e] = region_integrals[i] / (normalization)
+        return data_dict
+
     
-    def _process_endf_decay_file(self, dir: str) -> dict[str, dict[str: float]]:
+    
+    def _process_endf_decay_file(self, dir: str, data_val: str) -> dict[str, dict[str: float]]:
         """
         Processes all ENDF decay files and returns the data as a dictionary.
 
@@ -449,6 +568,8 @@ class Preprocess(BaseClass):
         ----------
         file : str
             Name of the ENDF decay directory to process.
+        data_val : str
+            The name of the data value to evaluate
 
         Returns
         -------
@@ -457,14 +578,24 @@ class Preprocess(BaseClass):
         """
         import openmc.data
         data = dict()
+        valid_endings = ('.dat', '.endf')
         for file in os.listdir(dir):
             Pn = ufloat(0, 1e-12)
             half_life = ufloat(0, 1e-12)
-            if not file.startswith(f'dec-'):
+            is_valid = (file.startswith('dec') and file.endswith(valid_endings))
+            if not is_valid:
                 continue
             decay = openmc.data.Decay.from_endf(dir+file)
+            spectra = decay.spectra
             half_life = decay.half_life
             nuc_name = decay.nuclide['name']
+            spectra_exists = False
+            try:
+                if 'beta-' in spectra['n']['continuous']['from_mode']:
+                    spectra_continuum = spectra['n']['continuous']['probability'] 
+                    spectra_exists = True
+            except KeyError:
+                pass
             data[nuc_name] = dict()
             modes = decay.modes
             for mode in modes:
@@ -472,11 +603,19 @@ class Preprocess(BaseClass):
                 if 'n' in products:
                     multiplier = products.count('n')
                     Pn += mode.branching_ratio * multiplier
-            if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:
-                data[nuc_name]['emission probability'] = Pn.n
-                data[nuc_name]['sigma emission probability'] = Pn.s
-                data[nuc_name]['half_life'] = half_life.n
-                data[nuc_name]['sigma half_life'] = half_life.s
+             
+            if data_val == 'spectra':
+                if not spectra_exists:
+                    continue
+
+                data[nuc_name] = self._spectral_application(spectra_continuum)
+
+            else:
+                if Pn.n > 0 and half_life.n > 0 and half_life.n != np.inf:
+                    data[nuc_name]['emission probability'] = Pn.n
+                    data[nuc_name]['sigma emission probability'] = Pn.s
+                    data[nuc_name]['half_life'] = half_life.n
+                    data[nuc_name]['sigma half_life'] = half_life.s
         return data
 
     def _process_chain_file(self, file: str) -> dict[str, dict[str: float]]:

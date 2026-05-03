@@ -6,7 +6,7 @@ import os
 
 
 if __name__ == "__main__":
-    num_groups = [4, 6, 8, 10, 12]
+    num_groups = [4, 5, 6, 7, 8, 9, 12, 20, 40, 80, 100]
     irrad_times = [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4]
     for group in num_groups:
         output_dir = f'./dataNet_{group}'
