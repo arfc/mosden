@@ -49,6 +49,7 @@ class PostProcess(BaseClass):
         grouper = Grouper(input_path)
         self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
         np.set_printoptions(legacy='1.25')
+        self.load_post_data()
 
         return None
     
@@ -56,7 +57,6 @@ class PostProcess(BaseClass):
         """
         Load post data and get the MC yield and half-lives
         """
-        self.load_post_data()
         try:
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
