@@ -171,8 +171,9 @@ class Grouper(BaseClass):
             Array of counts for each time point (can be float or ufloat)
         """
         parameters = self._restructure_intermediate_yields(parameters)
-        yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters)/2)
+        yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         try:
             np.exp(-np.log(2)/half_lives[0])
             exp = np.exp
@@ -217,15 +218,16 @@ class Grouper(BaseClass):
         counts : np.ndarray[float|object]
             Array of counts for each time point (can be float or ufloat)
         """
-        yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters)/2)
+        yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
         if spectral_vector is None:
             spectral_vector = np.ones_like(yields)
         irrad_dt = 1
         if self.fission_times:
             irrad_dt = np.diff(self.fission_times)[0]
-        for group in range(self.num_groups):
+        for group in range(num_groups):
             lam = np.log(2) / half_lives[group]
             a = yields[group]
             try:
@@ -259,8 +261,9 @@ class Grouper(BaseClass):
         counts : np.ndarray[float|object]
             Array of counts for each time point (can be float or ufloat)
         """
-        yields = parameters[:self.num_groups]
-        half_lives = parameters[self.num_groups:]
+        num_groups = int(len(parameters)/2)
+        yields = parameters[:num_groups]
+        half_lives = parameters[num_groups:]
         counts: np.ndarray[float] = np.zeros(len(times))
         if spectral_vector is None:
             spectral_vector = np.ones_like(yields)
@@ -273,7 +276,7 @@ class Grouper(BaseClass):
             counts: np.ndarray[object] = np.zeros(
                 len(times), dtype=object)
 
-        for group in range(self.num_groups):
+        for group in range(num_groups):
             lam = np.log(2) / half_lives[group]
             nu = yields[group]
             fiss_term = self._get_saturation_fission_term(lam, exp)
@@ -835,7 +838,8 @@ class Grouper(BaseClass):
         groupMCspectra = list()
         for iterval in range(self.MC_samples):
             groupMCdata.append([i for i in sampled_params[iterval]])
-            groupMCspectra.append([i for i in sampled_spectral_params[iterval].tolist()])
+            if self.is_spectral_calculation:
+                groupMCspectra.append([i for i in sampled_spectral_params[iterval].tolist()])
         try:
             self.post_data['groupfitMC'] = groupMCdata
             self.post_data['countsMC'] = tracked_counts
