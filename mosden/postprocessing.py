@@ -1078,6 +1078,34 @@ class PostProcess(BaseClass):
             plt.close() 
         return None
     
+
+    def _get_group_spectra_sigma(self) -> np.ndarray[np.ndarray[object]]:
+        """
+        Collects the various sampled group spectra from post_data.
+        The data is given as list(list(list(float))) for each sample, group, 
+        and energy bin, respectively. Uncertainties are calculated using np.std.
+
+
+        Returns
+        -------
+        np.ndarray[unumpy.uarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        if self.post_data is not None:
+            spectra = self.post_data[self.names['spectraMC']]
+        else:
+            raise ValueError("No MC spectra data available")
+        group_spectra = np.zeros((self.num_groups,
+                                  len(self.energy_groups_MeV)), dtype=object)
+        for group in range(self.num_groups):
+            for ei in range(len(self.energy_groups_MeV[:-1])):
+                bin_samples = [spectra[MC_i][group][ei] for MC_i in range(self.MC_samples)]
+                mean = np.mean(bin_samples)
+                std = np.std(bin_samples)
+                group_spectra[group, ei] = ufloat(mean, std)
+        return group_spectra
+
     def _plot_MC_spectra(self) -> None:
         return None
 
