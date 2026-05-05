@@ -525,6 +525,7 @@ class BaseClass:
         avg_e : float|object
             Average energy (MeV)
         """
+        probabilities = np.asarray(probabilities)
         normalized_probs = probabilities / sum(probabilities)
         midpoints_MeV = np.asarray(self._get_midpoint_eVs(MeV_bins)) * 1e-6
         energies = [midpoints_MeV[i]*normalized_probs[i] for i in range(len(normalized_probs))]
