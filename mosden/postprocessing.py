@@ -1000,7 +1000,6 @@ class PostProcess(BaseClass):
         times, group_counts = self._load_group_spectral_counts()
         
         colors = self.get_colors(2)
-        single_color = self.get_colors(1)[0]
         mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
         average_energies = list()
         bin_widths = np.diff(self.energy_groups_MeV)
@@ -1032,7 +1031,7 @@ class PostProcess(BaseClass):
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
                      difference, color='black')
             plt.xlabel(r'Energy $[MeV]$')
-            plt.ylabel(r'$\Delta \dot{n}_d$ $[\%]$')
+            plt.ylabel(r'$\Delta \dot{n}_d$ $[\% \cdot MeV^{-1}]$')
             plt.tight_layout()
             plt.savefig(f'{self.spectra_img_dir}/diff_spectra_counts_{t:.5f}.png')
             plt.close()
