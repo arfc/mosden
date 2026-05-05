@@ -1,0 +1,67 @@
+{
+    "name": "Excore CFY",
+    "file_options": {
+        "overwrite": {
+            "preprocessing": true,
+            "concentrations": true,
+            "count_rate": true,
+            "group_fitting": true,
+            "postprocessing": true,
+            "logger": true
+        },
+        "processed_data_dir": "./tests/integration/output_cfy_ex",
+        "output_dir": "./tests/integration/output_cfy_ex",
+        "log_file": "./tests/integration/output_cfy_ex/log.log",
+        "log_level": 20
+    },
+    "data_options": {
+        "half_life": "jendl5/decay/",
+        "cross_section": "",
+        "emission_probability": "jendl5/decay/",
+        "fission_yield": "jendl5/fpy/",
+        "spectra": "jendl5/decay/",
+        "decay_time_spacing": "log",
+        "temperature_K": 920,
+        "density_g_cm3": 2.3275,
+        "energy_MeV": 0.0253e-6,
+        "fissile_fractions": {
+            "U235": 1.0
+        }
+    },
+    "modeling_options": {
+        "parent_feeding": false,
+        "concentration_handling": "CFY",
+        "count_rate_handling": "data",
+        "base_removal_scaling": 0.64,
+        "reprocessing_locations": ["excore"],
+        "reprocessing_scheme": {
+            "Xe": 0.0
+        },
+        "irrad_type": "saturation",
+        "incore_s": 10,
+        "excore_s": 10,
+        "net_irrad_s": 630,
+        "decay_time": 600,
+        "num_decay_times": 400
+    },
+    "group_options": {
+        "num_groups": 6,
+        "method": "nlls",
+        "samples": 1,
+        "parameter_guesses": 50,
+        "sample_func": "normal"
+    },
+    "post_options": {
+        "self_relative_counts": false,
+        "sensitivity_subplots": true,
+        "plot_nuc_spectra": ["Br87", "Ga81"],
+        "spectra_plot_MeV_cutoff": 2,
+        "top_num_nuclides": {
+            "yield_top": 5,
+            "conc_top": 5,
+            "conc_over_time_top": 5
+        },
+        "pcc_cutoff": 0.2,
+        "lit_data": ["keepin", "brady", "synetos"]
+    }
+}
