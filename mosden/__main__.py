@@ -114,7 +114,7 @@ def main():
         for file in args.preprocess:
             _run_pre(file)
     elif args.concentrations:
-        for file in args.concs:
+        for file in args.concentrations:
             _run_concs(file)
     elif args.counts:
         for file in args.counts:
