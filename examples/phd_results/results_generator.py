@@ -15,11 +15,12 @@ name = 'tintex'
 residence_time_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True,
     },
     'net_irrad_s': [100],
+    'reprocessing_scheme': [Reprocessing(base_input_file).removal_scheme(rate_scaling=0.0)],
     'incore_s': [0.5, 1, 1.5, 2, 2.5, 3, 3.5],
     'excore_s': [0, 0.5, 1, 1.5, 2, 2.5, 3],
     'multi_id': [name]
@@ -30,8 +31,8 @@ name = 'decay_time_nodes'
 decay_times_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True
     },
     'num_decay_times': [50, 100, 150, 200, 250, 400, 800],
@@ -43,8 +44,8 @@ name = 'omc_timestep'
 omc_timestep_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True
     },
     'max_timestep': [0.1, 0.05, 0.01, 0.005, 0.001],
@@ -56,8 +57,8 @@ name = 'total_decay_time'
 total_decay_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True
     },
     'decay_time': [150, 300, 600, 1200, 2400, 4800],
@@ -69,8 +70,8 @@ name = 'flux_scaling'
 flux_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True
     },
     'incore_s': [9],
@@ -85,8 +86,8 @@ name = 'chem_scaling'
 chem_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True
     },
     'incore_s':[9],
@@ -102,8 +103,8 @@ name = 'vf_scaling'
 vf_analysis = {
     'meta': {
         'name': name,
-        'run_full': True,
-        'run_post': True,
+        'run_full': False,
+        'run_post': False,
         'overwrite': True
     },
     'incore_s': [9],
@@ -140,8 +141,8 @@ name = 'group_compare'
 group_analysis = {
     'meta': {
         'name': name,
-        'run_full': False,
-        'run_post': True,
+        'run_full': True,
+        'run_post': False,
         'overwrite': True
     },
     'incore_s': [9],
