@@ -162,6 +162,7 @@ cython_debug/
 #.idea/
 
 /mosden/data/
+!/mosden/data/chemical_rates/*
 /tests/integration/output*
 /tests/integration/data_output
 /mosden/results*
