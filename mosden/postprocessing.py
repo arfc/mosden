@@ -1596,7 +1596,9 @@ class PostProcess(BaseClass):
 
         if self.omc:
             concs = Concentrations(self.input_path)
+            group = Grouper(self.input_path)
             fission_term, fission_times = concs._calculate_fission_term(only_incore=False)
+            group._set_refined_fission_term(fission_times)
             dx = np.diff(fission_times)
             concentration_data = CSVHandler(
                 self.concentration_path,
@@ -1627,6 +1629,10 @@ class PostProcess(BaseClass):
                 decay_delnus = simpson(delnus_over_time[irrad_index:], times[irrad_index:])
                 total_delnus = irrad_delnus + decay_delnus
                 yield_val = total_delnus / total_fissions
+                effective_fission_term = group._get_effective_fission(np.asarray([lam_val.n]),
+                                                                      np.exp,
+                                                                      np.expm1)[0]
+                yield_val = delnus_over_time[irrad_index] / effective_fission_term
 
             nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n

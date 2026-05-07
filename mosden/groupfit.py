@@ -303,7 +303,7 @@ class Grouper(BaseClass):
             for j in range(irrad_circs+1, recircs+1):
                 fiss_term += 1 - exp(-lam*(self.t_net-j*t_sum))
 
-        return fiss_term * self.refined_fission_term
+        return fiss_term #* self.refined_fission_term
 
             
     def _intermediate_numerical_fit_function(self,
@@ -406,7 +406,7 @@ class Grouper(BaseClass):
         self.fission_term, self.fission_times = concs._calculate_fission_term()
         self.full_fission_term, _ = concs._calculate_fission_term(False)
         if not self.omc:
-            self.refined_fission_term = np.mean(self.fission_term)
+            self.refined_fission_term = 1.0 #np.mean(self.fission_term)
             return self.refined_fission_term
 
         refined_term = list()
