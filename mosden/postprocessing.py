@@ -801,7 +801,7 @@ class PostProcess(BaseClass):
                                 label=f'Group {group_i + 1}',
                                 alpha=0.5,
                                 s=4,
-                                marker=self.markers[group_i],
+                                marker=self.markers[group_i%len(self.markers)],
                                 color=colors[group_i])
                             xlab, ylab = self._configure_x_y_labels(
                                 name_dnp, gname, off_nominal, relative_diff)
@@ -1147,7 +1147,11 @@ class PostProcess(BaseClass):
             plt.step(np.asarray(self.energy_groups_MeV)[mask],
                      np.asarray(mean_spectrum)[mask], label=f'Group {group+1}', color=colors[group])
             plt.fill_between(np.asarray(self.energy_groups_MeV)[mask],
-                             np.asarray(lower)[mask], np.asarray(upper)[mask], color=colors[group], alpha=0.5)
+                             np.asarray(lower)[mask],
+                             np.asarray(upper)[mask],
+                             color=colors[group], 
+                             alpha=0.5,
+                             step='pre')
             plt.xlabel(r'Energy $[MeV]$')
             plt.ylabel(r'Probability $[MeV^{-1}]$')
             plt.legend()
@@ -1629,10 +1633,10 @@ class PostProcess(BaseClass):
                 decay_delnus = simpson(delnus_over_time[irrad_index:], times[irrad_index:])
                 total_delnus = irrad_delnus + decay_delnus
                 yield_val = total_delnus / total_fissions
-                effective_fission_term = group._get_effective_fission(np.asarray([lam_val.n]),
-                                                                      np.exp,
-                                                                      np.expm1)[0]
-                yield_val = delnus_over_time[irrad_index] / effective_fission_term
+                #effective_fission_term = group._get_effective_fission(np.asarray([lam_val.n]),
+                #                                                      np.exp,
+                #                                                      np.expm1)[0]
+                #yield_val = delnus_over_time[irrad_index] / effective_fission_term
 
             nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n
