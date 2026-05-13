@@ -1,4 +1,5 @@
 flow_velocity=21.7 # cm/s. See MSRE-properties.ods
+ini_temp=922
 
 [GlobalParams]
   num_groups = 2
@@ -8,7 +9,7 @@ flow_velocity=21.7 # cm/s. See MSRE-properties.ods
   sss2_input = false
   # pre_concs = 'pre1 pre2 pre3 pre4 pre5 pre6'
   # account_delayed = true
-  base_file = 'xsdata_mod.json'
+  base_file = 'xsdata.json'
 []
 
 [Mesh]
@@ -21,7 +22,7 @@ flow_velocity=21.7 # cm/s. See MSRE-properties.ods
 
 [Variables]
   [temp]
-    initial_condition = 930
+    initial_condition = ${ini_temp}
     scaling = 1e-4
     family = MONOMIAL
     order = CONSTANT

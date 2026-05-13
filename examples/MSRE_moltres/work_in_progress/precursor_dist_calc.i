@@ -11,7 +11,7 @@ ini_temp=922
   sss2_input = false
   pre_concs = 'pre1 pre2 pre3 pre4 pre5 pre6'
   account_delayed = true
-  base_file = 'xsdata_mod.json'
+  base_file = 'xsdata.json'
 []
 
 [Mesh]
@@ -228,7 +228,7 @@ ini_temp=922
   #print_linear_residuals = true
   [./exodus]
     type = Exodus
-    file_base = 'auto_diff_rho'
+    file_base = 'precursor_dist_calc'
     execute_on = 'timestep_end'
   [../]
 []
