@@ -7,6 +7,7 @@
   sss2_input = false
   pre_concs = 'pre1 pre2 pre3 pre4 pre5 pre6'
   account_delayed = true
+  base_file = 'xsdata.json'
 []
 
 [Problem]
@@ -28,42 +29,42 @@
     order = CONSTANT
     initial_from_file_var = pre1
     initial_from_file_timestep = LATEST
-    block = 'fuel'
+    block = '0'
   []
   [pre2]
     family = MONOMIAL
     order = CONSTANT
     initial_from_file_var = pre2
     initial_from_file_timestep = LATEST
-    block = 'fuel'
+    block = '0'
   []
   [pre3]
     family = MONOMIAL
     order = CONSTANT
     initial_from_file_var = pre3
     initial_from_file_timestep = LATEST
-    block = 'fuel'
+    block = '0'
   []
   [pre4]
     family = MONOMIAL
     order = CONSTANT
     initial_from_file_var = pre4
     initial_from_file_timestep = LATEST
-    block = 'fuel'
+    block = '0'
   []
   [pre5]
     family = MONOMIAL
     order = CONSTANT
     initial_from_file_var = pre5
     initial_from_file_timestep = LATEST
-    block = 'fuel'
+    block = '0'
   []
   [pre6]
     family = MONOMIAL
     order = CONSTANT
     initial_from_file_var = pre6
     initial_from_file_timestep = LATEST
-    block = 'fuel'
+    block = '0'
   []
 []
 
@@ -87,20 +88,19 @@
 
 [Nt]
   var_name_base = group
-  vacuum_boundaries = 'fuel_bottoms fuel_tops moder_bottoms moder_tops outer_wall'
-  pre_blocks = 'fuel'
+  vacuum_boundaries = 'fuel_bottom fuel_top mod_bottom mod_top right'
+  pre_blocks = '0'
   create_temperature_var = false
   eigen = true
 []
 
 
-
 [Materials]
   [./fuel]
-    type = GenericMoltresMaterial
-    property_tables_root = '../../../property_file_dir/newt_msre_fuel_'
-    interp_type = 'spline'
-    block = 'fuel'
+    type = MoltresJsonMaterial
+    interp_type = LINEAR
+    block = '0'
+    material_key = 'fuel'
     prop_names = 'k cp'
     prop_values = '.0553 1967' # Robertson MSRE technical report @ 922 K
   [../]
@@ -110,15 +110,15 @@
     function = '2.146e-3 * exp(-1.8 * 1.18e-4 * (temp - 922))'
     coupled_variables = 'temp'
     derivative_order = 1
-    block = 'fuel'
+    block = '0'
   [../]
   [./moder]
-    type = GenericMoltresMaterial
-    property_tables_root = '../../../property_file_dir/newt_msre_mod_'
-    interp_type = 'spline'
+    type = MoltresJsonMaterial
+    interp_type = LINEAR
+    material_key = 'graphite'
     prop_names = 'k cp'
     prop_values = '.312 1760' # Cammi 2011 at 908 K
-    block = 'moder'
+    block = '1'
   [../]
   [./rho_moder]
     type = DerivativeParsedMaterial
@@ -126,7 +126,7 @@
     function = '1.86e-3 * exp(-1.8 * 1.0e-5 * (temp - 922))'
     coupled_variables = 'temp'
     derivative_order = 1
-    block = 'moder'
+    block = '1'
   [../]
 []
 
@@ -154,7 +154,7 @@
     type = ElementIntegralVariablePostprocessor
     variable = pre1
     execute_on = linear
-    block = 'fuel'
+    block = '0'
   []
   [k_eff]
     type = VectorPostprocessorComponent
@@ -164,7 +164,7 @@
   []
   [bnorm]
     type = ElmIntegTotFissNtsPostprocessor
-    block = 'fuel'
+    block = '0'
     execute_on = linear
   []
   [tot_fissions]
@@ -243,12 +243,7 @@
 []
 
 [Outputs]
-  perf_graph = true
-  print_linear_residuals = true
   [exodus]
     type = Exodus
-  []
-  [csv]
-    type = CSV
   []
 []
