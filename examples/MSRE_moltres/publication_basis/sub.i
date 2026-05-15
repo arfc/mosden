@@ -1,4 +1,5 @@
 flow_velocity=18.06 # cm/s. See MSRE-properties.ods
+ini_temp = 922
 
 [GlobalParams]
   num_groups = 4
@@ -20,7 +21,7 @@ flow_velocity=18.06 # cm/s. See MSRE-properties.ods
 
 [Variables]
   [./temp]
-    initial_condition = 930 #approx steady outlet of other problem
+    initial_condition = ${ini_temp}
     scaling = 1e-4
     family = MONOMIAL
     order = CONSTANT
@@ -111,7 +112,7 @@ flow_velocity=18.06 # cm/s. See MSRE-properties.ods
     type = GenericMoltresMaterial
     property_tables_root = './data/msre_gentry_4g_fuel_rod0_'
     interp_type = 'spline'
-    block = 'fuel'
+    block = '0'
     prop_names = 'k cp'
     prop_values = '.0553 1967' # Robertson MSRE technical report @ 922 K
     controller_gain = 0
@@ -122,7 +123,7 @@ flow_velocity=18.06 # cm/s. See MSRE-properties.ods
     expression = '2.146e-3 * exp(-1.8 * 1.18e-4 * (temp - 922))'
     coupled_variables = 'temp'
     derivative_order = 1
-    block = 'fuel'
+    block = '0'
   []
 []
 
@@ -145,11 +146,13 @@ flow_velocity=18.06 # cm/s. See MSRE-properties.ods
   dtmin = 1e-5
   # dtmax = 1
   # dt = 1e-3
-  [TimeStepper]
-    type = PostprocessorDT
-    postprocessor = limit_k
+  [./TimeStepper]
+    type = IterationAdaptiveDT
     dt = 1e-3
-  []
+    cutback_factor = 0.4
+    growth_factor = 1.2
+    optimal_iterations = 20
+  [../]
 []
 
 [Preconditioning]
