@@ -23,38 +23,38 @@ H = 162.56
   allow_initial_conditions_with_restart = true
 []
 
-#[ICs]
-#  [pre1_zero]
-#    type = ConstantIC
-#    variable = pre1
-#    value = 0
-#  []
-#  [pre2_zero]
-#    type = ConstantIC
-#    variable = pre2
-#    value = 0
-#  []
-#  [pre3_zero]
-#    type = ConstantIC
-#    variable = pre3
-#    value = 0
-#  []
-#  [pre4_zero]
-#    type = ConstantIC
-#    variable = pre4
-#    value = 0
-#  []
-#  [pre5_zero]
-#    type = ConstantIC
-#    variable = pre5
-#    value = 0
-#  []
-#  [pre6_zero]
-#    type = ConstantIC
-#    variable = pre6
-#    value = 0
-#  []
-#[]
+[ICs]
+  [pre1_zero]
+    type = ConstantIC
+    variable = pre1
+    value = 0
+  []
+  [pre2_zero]
+    type = ConstantIC
+    variable = pre2
+    value = 0
+  []
+  [pre3_zero]
+    type = ConstantIC
+    variable = pre3
+    value = 0
+  []
+  [pre4_zero]
+    type = ConstantIC
+    variable = pre4
+    value = 0
+  []
+  [pre5_zero]
+    type = ConstantIC
+    variable = pre5
+    value = 0
+  []
+  [pre6_zero]
+    type = ConstantIC
+    variable = pre6
+    value = 0
+  []
+[]
 
 [Mesh]
   coord_type = RZ
