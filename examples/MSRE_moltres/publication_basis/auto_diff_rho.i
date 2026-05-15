@@ -1,4 +1,4 @@
-flow_velocity = 21.7 # cm/s. See MSRE-properties.ods
+flow_velocity = 18.06 # cm/s
 nt_scale = 1e13
 ini_temp = 922
 diri_temp = 922
@@ -46,7 +46,10 @@ H = 162.56
     v_def = ${flow_velocity}
     w_def = 0
     nt_exp_form = false
-    loop_precursors = false
+    loop_precursors = true
+    multi_app = loopApp
+    is_loopapp = false
+    inlet_boundaries = 'fuel_bottoms'
     family = MONOMIAL
     order = CONSTANT
     # jac_test = true
@@ -139,6 +142,7 @@ H = 162.56
     expression = '${gamma_frac} * pi^2 / 4 * cos(pi * x / (2. * ${R})) * sin(pi * y / ${H})'
   []
 []
+
 
 [Materials]
   [fuel]
@@ -265,8 +269,19 @@ H = 162.56
   print_linear_residuals = true
   csv = true
   exodus = true
+  checkpoint = true
 []
 
 [Debug]
   show_var_residual_norms = true
+[]
+
+[MultiApps]
+  [./loopApp]
+    type = TransientMultiApp
+    app_type = MoltresApp
+    execute_on = timestep_begin
+    positions = '100.0 100.0 0.0'
+   input_files = 'sub.i'
+ [../]
 []
