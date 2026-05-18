@@ -256,13 +256,15 @@ class PostProcess(BaseClass):
             The maximum value of the colorbar
         """
         configure(permissive=True)
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(6.4*1.10, 4.8))
         N = list()
         Z = list()
         C = list()
         for nuc, base in nuclideBases.byName.items():
             try:
                 value = data[nuc.capitalize()]
+                if (base.a - base.z) < 30:
+                    continue
                 N.append(base.a - base.z)
                 Z.append(base.z)
                 C.append(value)
@@ -277,7 +279,7 @@ class PostProcess(BaseClass):
             vmin_use = 0.1 * vmin_use
             vmax_use = 10 * vmax_use
         norm = LogNorm(vmin=vmin_use, vmax=vmax_use)
-        plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
+        plt.scatter(N, Z, c=C, norm=norm, marker="s", s=10)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
