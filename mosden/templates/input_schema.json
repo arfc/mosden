@@ -84,7 +84,7 @@
                     "description": "Path to the half-life unprocessed data",
                     "oneOf": [
                     {
-                        "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv"]
+                        "enum": ["iaea/eval.csv", "iaea/single_nuc.csv", "endfb80/decay/", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv", "jendl5/decay/", "jeff311/decay/"]
                     },
                     {
                         "pattern": "^([A-Za-z0-9]+/)?omcchain/.+\\.xml"
@@ -98,12 +98,17 @@
                 "emission_probability": {
                     "type": "string",
                     "description": "Path to the emission probability data",
-                    "enum": ["iaea/eval.csv", "endfb71/decay/", "iaea/eval_test.csv", "iaea/four_dnp_test.csv"]
+                    "pattern": "^(?:.*/)?(iaea/eval.csv|iaea/single_nuc.csv|iaea/eval_test.csv|iaea/four_dnp_test.csv|jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/)$"
+                },
+                "spectra": {
+                    "type": "string",
+                    "description": "Path to the spectral data",
+                    "pattern": "^(?:.*/)?(jeff40/decay/|jendl5/decay/|endfb80/decay/|endfb71/decay/|jeff311/decay/|)$"
                 },
                 "fission_yield": {
                     "type": "string",
                     "description": "Path to the fission yield data",
-                    "pattern": "^(?:.*/)?(endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml|omcchain/four_dnp_test.xml)$"
+                    "pattern": "^(?:.*/)?(jeff40/nfpy/|jendl5/fpy/|endfb80/nfy/|endfb71/nfy/|jeff311/nfpy/|omcchain/chain_test.xml|omcchain/four_dnp_test.xml)$"
                 },
                 "decay_time_spacing": {
                     "type": "string",
@@ -220,7 +225,7 @@
                     "type": "number",
                     "description": "The chemical reprocessing terms given to MoSDeN are assumed to be scaled terms (applied to the entire volume). This term indicates the scaling applied to those terms (1.0 if unscaled terms are provided instead)."
                 },
-                "reprocessing": {
+                "reprocessing_scheme": {
                     "type": "object",
                     "description": "The reprocessing scheme to apply. Given in the form of elements (e.g. Xe) and their removal rates per second (e.g. 0.1).",
                     "additionalProperties": {
@@ -327,14 +332,23 @@
                     "type": "integer",
                     "description": "The number of guesses to use to calculate the optimal group parameters to avoid local minima"
                 },
+                "energy_groups_MeV": {
+                    "type": "array",
+                    "description": "The energy group bounds (inclusive). Sampling occurs at midpoints.",
+                    "items": 
+                    {
+                        "type": "number"
+                    }
+                },
                 "samples": {
                     "type": "integer",
-                    "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)"
+                    "description": "The number of group parameter evaluations with sampled data (for unceratinties and sensitivities)",
+                    "minimum": 1
                 },
                 "sample_func": {
                     "type": "string",
                     "description": "The function type to use for randomly sampling data",
-                    "enum": ["normal", "uniform"]
+                    "enum": ["normal", "uniform", "nominal"]
                 },
                 "initial_params": {
                     "type": "object",
@@ -376,6 +390,21 @@
                     "type": "boolean",
                     "description": "Whether to plot delayed neutron counts normalized to self or first item in `lit_data` for the literature comparison figure"
                 },
+                "plot_correlation": {
+                    "type": "boolean",
+                    "description": "Whether to plot the correlation matrices or not"
+                },
+                "plot_nuc_spectra": {
+                    "type": "array",
+                    "description": "Which DNPs to plot the spectra of. Can specify `all`",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "spectra_plot_MeV_cutoff": {
+                    "type": "number",
+                    "description": "The cutoff energy beyond which the spectra is not displayed"
+                },
                 "top_num_nuclides": {
                     "type": "object",
                     "properties": {
@@ -396,6 +425,15 @@
                 "num_stacked_nuclides": {
                     "type": "integer",
                     "description": "Plots the top X nuclides at each time step, where X is this value"
+                },
+                "plot_means": {
+                    "type": "boolean",
+                    "description": "Whether to plot the nominal values in count rate figures"
+                },
+                "pcc_cutoff": {
+                    "type": "number",
+                    "description": "This is the cutoff value for logging PCCs",
+                    "minimum": 0.0
                 },
                 "lit_data": {
                     "type": "array",

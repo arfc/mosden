@@ -32,6 +32,7 @@ DEFAULTS = {
         "cross_section": "",
         "emission_probability": "iaea/eval.csv",
         "fission_yield": "endfb71/nfy/",
+        "spectra": "",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
@@ -50,7 +51,7 @@ DEFAULTS = {
             "reprocessing": True
         },
         "base_removal_scaling": 0.5,
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 0.0
         },
         "irrad_type": "saturation",
@@ -77,7 +78,8 @@ DEFAULTS = {
     "group_options": {
         "num_groups": 6,
         "method": "nlls",
-        "parameter_guesses": 10,
+        "energy_groups_MeV": [],
+        "parameter_guesses": 50,
         "initial_params": {
             "yields": [],
             "half_lives": []
@@ -89,15 +91,20 @@ DEFAULTS = {
     "post_options": {
         "sensitivity_subplots": True,
         "self_relative_counts": False,
+        "plot_correlation": False,
+        "plot_nuc_spectra": [],
+        "spectra_plot_MeV_cutoff": 10,
         "top_num_nuclides": {
             'yield_top': 20,
             'conc_top': 15,
             'conc_over_time_top': 5
         },
+        "plot_means": False,
         "num_stacked_nuclides": 2,
+        "pcc_cutoff": 0.2,
         "lit_data": ['keepin', 'brady', 'synetos'],
         "nuc_colors": {
-            'Br87': '#FF474C'
+            #'Br87': '#FF474C'
         }
     }
 }

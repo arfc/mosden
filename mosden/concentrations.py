@@ -48,8 +48,8 @@ class Concentrations(BaseClass):
         
         if self.repr_scale <= 0.0:
             self.logger.info(f'{self.repr_scale = }')
-            self.logger.error('No valid chemical removal region provided')
-            self.logger.warning('Setting reprocessing scale to 1.0')
+            msg = 'No valid chemical removal region provided (scale set to 1.0)'
+            self.logger.warning(msg)
             self.repr_scale = 1.0
 
         return None
@@ -140,6 +140,12 @@ class Concentrations(BaseClass):
         exp_p = np.exp(-lam_p * dt[ti])
         exp_c = np.exp(-lam * dt[ti])
 
+        if self.conc_method == 'CFY':
+            cfy = y_p + y
+            cur_conc = cfy / lam
+            cur_p_conc = y_p / lam
+            return cur_conc, cur_p_conc
+
         if lam_p > 0:
             cur_p_conc = p_concs[ti] * exp_p + (fission_rates[ti] * y_p / lam_p) * (1 - exp_p)
         else:
@@ -186,8 +192,6 @@ class Concentrations(BaseClass):
             fission_rates, _ = self._calculate_fission_term(False)
             len_diff = len(times) - len(fission_rates)
             fission_rates = np.append(fission_rates, [0]*len_diff)
-            concs = [0]
-            p_concs = [0]
             lam = np.log(2) / nuc_vals['half_life_s']
             y = nuc_vals['yield']
             dt = np.diff(times)
@@ -199,6 +203,17 @@ class Concentrations(BaseClass):
             except NameError:
                 y_p = 0
                 lam_p = 1
+            except KeyError:
+                y_p = 0
+                lam_p = 1
+            initial_conc = 0
+            initial_p_conc = 0
+
+            if self.conc_method == 'CFY':
+                initial_conc = (y+y_p) / lam
+                initial_p_conc = y_p / lam_p
+            concs = [initial_conc]
+            p_concs = [initial_p_conc]
             for ti, t in enumerate(times[:-1]):
                 cur_conc, cur_p_conc = self._evaluate_conc(cur_conc, cur_p_conc,
                                                            lam_p, lam, ti, dt,
@@ -593,7 +608,7 @@ class Concentrations(BaseClass):
             if not self.omc:
                 self.logger.error('Pulse irradiation fission term not treated')
         elif self.irrad_type == 'saturation' or self.irrad_type == 'intermediate':
-            if self.spatial_scaling == 'scaled':
+            if self.flux_scaling or not only_incore:
                 fission_term = [self.f_in * f for f in fission_term]
         else:
             raise NameError(f'{self.irrad_type = } not available')

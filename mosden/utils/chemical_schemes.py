@@ -17,7 +17,8 @@ class Reprocessing(BaseClass):
         return None
 
     def removal_scheme(self, rate_csv: str='MSBR.csv', include_long: bool=True,
-                    rate_scaling: float=1.0) -> dict[str, float]:
+                       rate_scaling: float=1.0,
+                       vf_scaling: float=1.0) -> dict[str, float]:
         """
         Returns the removal scheme with rate scaling and optional longer cycle time
         elemental removal included
@@ -29,7 +30,10 @@ class Reprocessing(BaseClass):
         include_long : bool
             True to include long cycle time elements (defaults to True)
         rate_scaling : float
-            The scaling to apply to removal rates (defaults to 1.0)
+            The scaling to apply to removal rates (defaults to 1.0) (applies 
+            after `vf_scaling`)
+        vf_scaling : float
+            The scaling to specifically apply to volatile fluorides (Br and I)
         
         Returns
         -------
@@ -42,6 +46,8 @@ class Reprocessing(BaseClass):
         repr_dict_dirty: dict = repr_data.to_dict(index=False, orient='tight')
         repr_dict_clean: list[list] = repr_dict_dirty['data']
         for element, rate in repr_dict_clean:
+            if element in ['Br', 'I']:
+                rate *= vf_scaling
             if (not include_long) and (rate < 0.05):
                 continue
             repr_dict[element] = float(rate) * rate_scaling

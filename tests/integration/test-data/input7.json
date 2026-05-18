@@ -33,7 +33,7 @@
         "concentration_handling": "CFY",
         "count_rate_handling": "data",
         "reprocessing_locations": ["excore"],
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 0.0
         },
         "irrad_type": "saturation",
@@ -44,7 +44,7 @@
         "num_decay_times": 100
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 2,
         "method": "nlls",
         "samples": 1,
         "sample_func": "normal",

@@ -162,6 +162,7 @@ cython_debug/
 #.idea/
 
 /mosden/data/
+!/mosden/data/chemical_rates/*
 /tests/integration/output*
 /tests/integration/data_output
 /mosden/results*
@@ -171,6 +172,13 @@ cython_debug/
 !/examples/**/
 !/examples/**/input.json
 !/examples/**/*.py
+
+
+/examples/2026_data_paper/*
+!/examples/2026_data_paper/input.json
+!/examples/2026_data_paper/results_generator.py
+!/examples/2026_data_paper/hybrid_data_analysis.py
+
 
 /examples/phd_results/*
 !/examples/phd_results/input.json
