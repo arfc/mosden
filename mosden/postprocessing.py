@@ -18,6 +18,7 @@ from scipy.stats import linregress
 from armi import configure
 from armi.nucDirectory import nuclideBases
 from matplotlib.colors import LogNorm
+from tqdm import tqdm
 plt.style.use('mosden.plotting')
 
 
@@ -37,6 +38,9 @@ class PostProcess(BaseClass):
         self.decay_times: np.ndarray[float] = CountRate(input_path).decay_times
         if not os.path.exists(self.img_dir):
             os.makedirs(self.img_dir)
+        if self.is_spectral_calculation:
+            if not os.path.exists(self.spectra_img_dir):
+                os.makedirs(self.spectra_img_dir)
         self.group_data = None
         self.post_data = None
         self.MC_half_lives = None
@@ -45,6 +49,7 @@ class PostProcess(BaseClass):
         grouper = Grouper(input_path)
         self.refined_fission_term = grouper._set_refined_fission_term(self.decay_times)
         np.set_printoptions(legacy='1.25')
+        self.load_post_data()
 
         return None
     
@@ -52,7 +57,6 @@ class PostProcess(BaseClass):
         """
         Load post data and get the MC yield and half-lives
         """
-        self.load_post_data()
         try:
             self.MC_yields, self.MC_half_lives = self._get_MC_group_params()
         except KeyError:
@@ -120,6 +124,8 @@ class PostProcess(BaseClass):
         self.compare_yields()
         if not self.post_irrad_only:
             self.compare_counts()
+        if self.is_spectral_calculation:
+            self.evaluate_spectra()
         if not self.no_post_irrad:
             self.compare_group_to_data()
         self.MC_NLLS_analysis()
@@ -130,6 +136,18 @@ class PostProcess(BaseClass):
         Runs functions that compare the group parameters to the data
         """
         self._plot_group_vs_counts()
+        return None
+    
+    def evaluate_spectra(self) -> None:
+        """
+        Runs functions that evaluate spectral fits
+        """
+        self._plot_group_spectra()
+        self._compare_spectral_counts()
+        if self.MC_samples > 2:
+            spectra_params = self._get_group_spectra_sigma()
+            self._log_average_energies(spectra_params)
+            self._plot_MC_group_spectra(spectra_params)
         return None
     
     def compare_counts(self) -> None:
@@ -238,13 +256,15 @@ class PostProcess(BaseClass):
             The maximum value of the colorbar
         """
         configure(permissive=True)
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(6.4*1.25, 4.8))
         N = list()
         Z = list()
         C = list()
         for nuc, base in nuclideBases.byName.items():
             try:
                 value = data[nuc.capitalize()]
+                if (base.a - base.z) < 30:
+                    continue
                 N.append(base.a - base.z)
                 Z.append(base.z)
                 C.append(value)
@@ -259,7 +279,7 @@ class PostProcess(BaseClass):
             vmin_use = 0.1 * vmin_use
             vmax_use = 10 * vmax_use
         norm = LogNorm(vmin=vmin_use, vmax=vmax_use)
-        plt.scatter(N, Z, c=C, norm=norm, marker="s", s=60)
+        plt.scatter(N, Z, c=C, norm=norm, marker="s", s=20)
         plt.set_cmap('viridis')
         cbar = plt.colorbar()
         cbar.set_label(cbar_label)
@@ -492,17 +512,17 @@ class PostProcess(BaseClass):
         ylabel_replace = {
             "Half-life": fr"$\tau_{group_val}$ $[s]$",
             "Decay Constant": fr"$\lambda_{group_val}$ $[s^{{-1}}]$",
-            "Yield": fr"$\bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
+            "Yield": fr"${{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         offnom_ylabel_replace = {
             "Half-life": fr"$\Delta \tau_{group_val}$ $[s]$",
             "Decay Constant": fr"$\Delta \lambda_{group_val}$ $[s^{{-1}}]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}}$ $[-]$",
+            "Yield": fr"$\Delta {{\nu}}_{{d, {group_val}}}$ $[-]$",
         }
         pcnt_ylabel_replace = {
             "Half-life": fr"$\Delta \tau_{group_val} / \tau_{group_val}$ $[\%]$",
             "Decay Constant": fr"$\Delta \lambda_{group_val} / \lambda_{group_val}$ $[\%]$",
-            "Yield": fr"$\Delta \bar{{\nu}}_{{d, {group_val}}} / \bar{{\nu}}_{{d, {group_val}}}$ $[\%]$",
+            "Yield": fr"$\Delta {{\nu}}_{{d, {group_val}}} / {{\nu}}_{{d, {group_val}}}$ $[\%]$",
         }
         pcnt_xlabel_replace = {
             "Half-life": fr"$\Delta \tau_i / \tau_i$ $[\%]$",
@@ -783,7 +803,7 @@ class PostProcess(BaseClass):
                                 label=f'Group {group_i + 1}',
                                 alpha=0.5,
                                 s=4,
-                                marker=self.markers[group_i],
+                                marker=self.markers[group_i%len(self.markers)],
                                 color=colors[group_i])
                             xlab, ylab = self._configure_x_y_labels(
                                 name_dnp, gname, off_nominal, relative_diff)
@@ -960,6 +980,199 @@ class PostProcess(BaseClass):
         plt.close()
 
         return None
+    
+    def _load_group_spectral_counts(self):
+        group_data = CSVHandler(self.group_path,
+                                create=False).read_vector_csv()
+        countrate = CountRate(self.input_path)
+        countrate.group_params = group_data
+        group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
+        group_counts = dict()
+        for ei, each in enumerate(group_spectra.T):
+            group_data = countrate._count_rate_from_groups(group_spectra=each)
+            group_counts[str(self.eV_midpoints[ei])] = group_data['counts']
+        
+        times = group_data['times']
+        return times, group_counts
+
+    
+    def _compare_spectral_counts(self) -> None:
+        spectra_data = CSVHandler(self.spectra_count_path, create=False).read_vector_csv()
+        count_data = CSVHandler(self.countrate_path, create=False).read_vector_csv()
+        count_errs = count_data['sigma counts']
+        counts = count_data['counts']
+
+        times, group_counts = self._load_group_spectral_counts()
+        
+        colors = self.get_colors(2)
+        mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+        average_energies = list()
+        bin_widths = np.diff(self.energy_groups_MeV)
+
+        for ti, t in enumerate(tqdm(times, desc="Plotting spectra")):
+            use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in self.eV_midpoints])
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV,
+                                             use_actual_spectra/sum(use_actual_spectra))
+            midpoints_MeV = np.asarray(self.eV_midpoints) / 1e6
+            sigma_average_energies = np.sum(midpoints_MeV * use_actual_spectra * count_errs[ti] / counts[ti]**2)
+            average_energies.append(ufloat(avg_MeV, sigma_average_energies))
+            use_actual_spectra = use_actual_spectra / bin_widths
+            use_actual_spectra = np.concatenate((use_actual_spectra, [use_actual_spectra[-1]]))
+            use_group_spectra  = np.asarray([group_counts[str(e)][ti] for e in self.eV_midpoints])
+            use_group_spectra = use_group_spectra / bin_widths
+            use_group_spectra  = np.concatenate((use_group_spectra, [use_group_spectra[-1]]))
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(use_actual_spectra)[mask], label='Data',
+                    color=colors[0], linestyle='--')
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(use_group_spectra)[mask], label='Group Fit',
+                    color=colors[1], linestyle='-.')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.legend()
+            plt.ylabel(r'$\dot{n}_d$ $[\# \cdot s^{-1} \cdot MeV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_counts_{t:.5f}.png')
+            plt.close()
+
+            difference = 100 * ((np.asarray(use_actual_spectra)[mask] - np.asarray(use_group_spectra)[mask]) / np.asarray(use_actual_spectra)[mask])
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     difference, color='black')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'$\Delta \dot{n}_d$ $[\% \cdot MeV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/diff_spectra_counts_{t:.5f}.png')
+            plt.close()
+        
+        nom_energies = np.asarray([e.n for e in average_energies])
+        std_energies = np.asarray([e.s for e in average_energies])
+        plt.plot(times, nom_energies, color='black')
+        plt.fill_between(times, nom_energies-std_energies,
+                         nom_energies+std_energies,
+                         color='black',
+                         alpha=0.5)
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\bar{E}$ $[MeV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.spectra_img_dir}/average_energy.png')
+        plt.close()
+
+        return None
+    
+    def _plot_group_spectra(self) -> None:
+        nuc_spectra = CSVHandler(self.spectra_path, create=False).read_csv()
+        bin_widths = np.diff(self.energy_groups_MeV)
+        br87_spectrum = np.asarray([nuc_spectra['Br87'][str(e)] for e in self.eV_midpoints])
+        br87_dens = br87_spectrum / bin_widths
+        br87_dens = np.concatenate((br87_dens, [br87_dens[-1]]))
+
+        group_spectra = pd.read_csv(self.spectra_group_path).to_numpy()
+
+        colors = self.get_colors(self.num_groups)
+        for group, spectrum in enumerate(group_spectra):
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV, spectrum)
+            self.logger.info(f'Group {group+1} Average Energy: {avg_MeV:.3f} MeV')
+            spectrum_density = spectrum / bin_widths
+
+            spectrum_density = np.concatenate((spectrum_density, [spectrum_density[-1]]))
+            mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(spectrum_density)[mask]/sum(np.asarray(spectrum_density)[mask]),
+                      label=f'Group {group+1}', color=colors[group])
+            if group == 0:
+                plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                         np.asarray(br87_dens)[mask]/sum(br87_dens),
+                         label=r'$^{87}$Br',
+                         linestyle=':',
+                         color='black')
+                plt.legend()
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability $[MeV^{-1}]$')
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_{group+1}.png')
+            plt.close() 
+        return None
+    
+    def _log_average_energies(self, spectra_params: np.ndarray[np.ndarray[object]]) -> None:
+        """
+        Use `self.logger.info` to record the average energy of each group from
+        the calcualted spectra_params that include uncertainties
+
+        Parameters
+        ----------
+        spectra_params : np.ndarray[np.ndarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        for group in range(self.num_groups):
+            avg_MeV = self.calculate_avg_MeV(self.energy_groups_MeV, spectra_params[group])
+            self.logger.info(f'Group {group+1} Average Energy: {avg_MeV*1000:.3f} keV')
+        return None
+
+    def _get_group_spectra_sigma(self) -> np.ndarray[np.ndarray[object]]:
+        """
+        Collects the various sampled group spectra from post_data.
+        The data is given as list(list(list(float))) for each sample, group, 
+        and energy bin, respectively. Uncertainties are calculated using np.std.
+
+
+        Returns
+        -------
+        group_spectra : np.ndarray[unumpy.uarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        if self.post_data is not None:
+            spectra = self.post_data[self.names['spectraMC']]
+        else:
+            raise ValueError("No MC spectra data available")
+        group_spectra = np.zeros((self.num_groups,
+                                  len(self.energy_groups_MeV[:-1])), dtype=object)
+        for group in range(self.num_groups):
+            for ei in range(len(self.energy_groups_MeV[:-1])):
+                bin_samples = [spectra[MC_i][group][ei] for MC_i in range(self.MC_samples)]
+                mean = np.mean(bin_samples)
+                std = np.std(bin_samples)
+                group_spectra[group, ei] = ufloat(mean, std)
+        return group_spectra
+
+    def _plot_MC_group_spectra(self, spectra_params: np.ndarray[np.ndarray[object]]) -> None:
+        """
+        Create plots of the group spectra with std. dev. plotted using
+        fill between
+
+        Parameters
+        ----------
+        spectra_params : np.ndarray[np.ndarray[object]]
+            Array for each group containing unumpy array of ufloats for each
+            energy bin, providing params with uncertainties
+        """
+        colors = self.get_colors(self.num_groups)
+        for group in range(self.num_groups):
+            mean_spectrum = unumpy.nominal_values(spectra_params[group])
+            mean_spectrum = mean_spectrum / sum(mean_spectrum)
+            mean_spectrum = np.concatenate((mean_spectrum, [mean_spectrum[-1]]))
+            std_spectrum = unumpy.std_devs(spectra_params[group])
+            std_spectrum = std_spectrum / sum(mean_spectrum)
+            std_spectrum = np.concatenate((std_spectrum, [std_spectrum[-1]]))
+            upper = mean_spectrum + std_spectrum
+            lower = mean_spectrum - std_spectrum
+            mask = (np.asarray(self.energy_groups_MeV) < self.spectra_cutoff_MeV)
+            plt.step(np.asarray(self.energy_groups_MeV)[mask],
+                     np.asarray(mean_spectrum)[mask], label=f'Group {group+1}', color=colors[group])
+            plt.fill_between(np.asarray(self.energy_groups_MeV)[mask],
+                             np.asarray(lower)[mask],
+                             np.asarray(upper)[mask],
+                             color=colors[group], 
+                             alpha=0.5,
+                             step='pre')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability $[MeV^{-1}]$')
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(f'{self.spectra_img_dir}/spectra_group_MC_{group+1}.png')
+            plt.close()
+
+        return None
 
     def _group_param_helper(self,
                             name: str,
@@ -1071,7 +1284,12 @@ class PostProcess(BaseClass):
         yields, half_lives : tuple[np.ndarray[float], np.ndarray[float]]
             Tuple containing the yields and half-lives as numpy arrays
         """
-        parameters = self.post_data[self.names['groupfitMC']]
+        if self.post_data is not None:
+            parameters = self.post_data[self.names['groupfitMC']]
+        elif hasattr(self, '_MC_group_params'):
+            parameters = self._MC_group_params
+        else:
+            raise ValueError("No MC group parameters available")
         yields = np.zeros((self.num_groups, self.MC_samples))
         half_lives = np.zeros((self.num_groups, self.MC_samples))
         for MC_i, params in enumerate(parameters):
@@ -1395,7 +1613,9 @@ class PostProcess(BaseClass):
 
         if self.omc:
             concs = Concentrations(self.input_path)
+            group = Grouper(self.input_path)
             fission_term, fission_times = concs._calculate_fission_term(only_incore=False)
+            group._set_refined_fission_term(fission_times)
             dx = np.diff(fission_times)
             concentration_data = CSVHandler(
                 self.concentration_path,
@@ -1426,6 +1646,10 @@ class PostProcess(BaseClass):
                 decay_delnus = simpson(delnus_over_time[irrad_index:], times[irrad_index:])
                 total_delnus = irrad_delnus + decay_delnus
                 yield_val = total_delnus / total_fissions
+                #effective_fission_term = group._get_effective_fission(np.asarray([lam_val.n]),
+                #                                                      np.exp,
+                #                                                      np.expm1)[0]
+                #yield_val = delnus_over_time[irrad_index] / effective_fission_term
 
             nuc_yield[nuc] = yield_val
             self.total_delayed_neutrons += (Pn * N).n

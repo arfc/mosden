@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from mosden.countrate import CountRate
+from mosden.utils.csv_handler import CSVHandler
 import os
-
+from uncertainties import ufloat
 
 class MultiPostProcess():
     def __init__(self, input_paths: list[str]) -> None:
@@ -20,6 +21,7 @@ class MultiPostProcess():
         """
         self.posts: list[PostProcess] = [PostProcess(p) for p in input_paths]
         self.output_dir = self.posts[0].output_dir
+        self.is_spectra = False
         self.fig_post_name = ''
         if len(self.posts) > 1:
             self.output_dir = f'./{self.posts[0].multi_id}/images/'
@@ -34,13 +36,13 @@ class MultiPostProcess():
         self._post_heatmap_setup()
         self._initialize_posts()
         self.hm_z_names: dict[str, str] = {
-            'summed_yield': r'$\bar{\nu}_d$',
-            'group_yield': r'$\bar{\nu}_d$',
+            'summed_yield': r'${\nu}_d$',
+            'group_yield': r'${\nu}_d$',
             'summed_avg_halflife': r'$\bar{T} [s]$',
             'group_avg_halflife': r'$\bar{T} [s]$'
         }
         for i in range(1, self.posts[0].num_groups + 1):
-            self.hm_z_names[f'group_{i}_yield'] = rf'$\bar{{\nu}}_{{d,{i}}}$'
+            self.hm_z_names[f'group_{i}_yield'] = rf'${{\nu}}_{{d,{i}}}$'
             self.hm_z_names[f'group_{i}_halflife'] = rf'$T_{i} [s]$'
         self._set_post_names()
         return None
@@ -97,6 +99,25 @@ class MultiPostProcess():
                     post.name = rf'Scaled Flux'
                 else:
                     post.name = 'Unscaled Flux'
+        elif self._is_name('chem_scaling'):
+            for post in self.posts:
+                if post.chem_scaling:
+                    post.name = rf'Scaled Reprocessing'
+                else:
+                    post.name = 'Unscaled Reprocessing'
+        elif self._is_name('vf_scaling'):
+            self.posts[0].name = r'$VF = 0.1 VF_0$'
+            self.posts[1].name = r'$VF = 1.0 VF_0$'
+            self.posts[2].name = r'$VF = 10 VF_0$'
+        elif self._is_name('spectra_compare'):
+            self.posts[0].name = 'No Removal'
+            self.posts[1].name = 'Full MSBR'
+            self.is_spectra = True
+        elif self._is_name('group_compare'):
+            self.posts[0].name = r'K=6'
+            self.posts[1].name = r'K=8'
+            self.posts[2].name = r'K=10'
+            self.posts[3].name = r'K=12'
         return None
 
     def _post_heatmap_setup(self) -> None:
@@ -129,6 +150,8 @@ class MultiPostProcess():
                 self.hm_y_vals.append(post.hm_y)
             except AttributeError:
                 self.do_heatmap = False
+            if post.post_data is not None and post.names['groupfitMC'] in post.post_data:
+                post._MC_group_params = post.post_data[post.names['groupfitMC']]
             # Memory limitation for large datasets (~70 sims with 5k samples)
             post.post_data = None
         return None
@@ -180,6 +203,9 @@ class MultiPostProcess():
             self.heatmap_gen()
         self.group_param_histogram()
         self.group_fit_counts()
+        if self.is_spectra:
+            self.group_fit_spectra()
+            self.avg_energy_spectra()
         return None
 
     def _collect_post_data(self) -> dict[str: list[float]]:
@@ -308,7 +334,7 @@ class MultiPostProcess():
             else:
                 ax.bar(label_locations + offset(post_i), data[post.name]['Yield'], width, label=post.name,
                        color=colors[post_i])
-        ax.set_ylabel(r'$\bar{\nu}_{d, k}$')
+        ax.set_ylabel(r'${\nu}_{d, k}$')
         ax.set_xticks(label_locations)
         ax.set_xlabel('Groups')
         ax.set_xticklabels(group_labels)
@@ -335,6 +361,122 @@ class MultiPostProcess():
         plt.savefig(f'{self.output_dir}halflives_{self.fig_post_name}.png')
         plt.close()
         return None
+    
+    def avg_energy_spectra(self) -> None:
+        """
+        Generate average energy comparison plots over time for each 
+        PostProcess object
+        """
+        colors = self.posts[0].get_colors(len(self.posts))
+        for pi, post in enumerate(self.posts):
+            times = post.decay_times
+            spectra_data = CSVHandler(post.spectra_count_path, create=False).read_vector_csv()
+            count_data = CSVHandler(post.countrate_path, create=False).read_vector_csv()
+            average_energies = list()
+            sigma_average_energies = list()
+
+            for ti, t in enumerate(times):
+                use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in post.eV_midpoints])
+                avg_MeV = post.calculate_avg_MeV(post.energy_groups_MeV,
+                                                 use_actual_spectra)
+                midpoints_MeV = np.asarray(post.eV_midpoints) / 1e6
+                sigma_average_energies = np.sum(midpoints_MeV * use_actual_spectra * count_data['sigma counts'][ti] / count_data['counts'][ti]**2)
+                average_energies.append(ufloat(avg_MeV, sigma_average_energies))
+
+            if pi == 0:
+                base_avg = average_energies
+            nom_energies = np.asarray([e.n for e in average_energies])
+            std_energies = np.asarray([e.s for e in average_energies])
+            plt.plot(times, nom_energies, label=post.name,
+                     color=colors[pi],
+                     linestyle=post.linestyles[pi+1%len(post.linestyles)])
+            plt.fill_between(times, nom_energies-std_energies,
+                             nom_energies+std_energies,
+                             color=colors[pi],
+                             alpha=0.25)
+        plt.legend()
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\bar{E}$ $[MeV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.output_dir}/average_energy.png')
+        plt.close()
+
+
+        for pi, post in enumerate(self.posts):
+            if pi == 0:
+                continue
+            times = post.decay_times
+            spectra_data = CSVHandler(post.spectra_count_path, create=False).read_vector_csv()
+            count_data = CSVHandler(post.countrate_path, create=False).read_vector_csv()
+            average_energies = list()
+
+            for ti, t in enumerate(times):
+                use_actual_spectra = np.asarray([spectra_data[str(e)][ti] for e in post.eV_midpoints])
+                avg_MeV = post.calculate_avg_MeV(post.energy_groups_MeV,
+                                                 use_actual_spectra)
+                sigma_average_energies = count_data['sigma counts'][ti]/sum(use_actual_spectra)
+                average_energies.append(ufloat(avg_MeV, sigma_average_energies))
+            diff = (np.asarray(base_avg) - np.asarray(average_energies)) * 1000
+            nom_diff = np.asarray([d.n for d in diff])
+            std_diff = np.asarray([d.s for d in diff])
+            plt.plot(times, nom_diff, color='black')
+            plt.fill_between(times, nom_diff-std_diff, nom_diff+std_diff,
+                             color='black', alpha=0.5)
+        plt.xlabel(r'Time $[s]$')
+        plt.ylabel(r'$\Delta \bar{E}$ $[keV]$')
+        plt.tight_layout()
+        plt.savefig(f'{self.output_dir}/average_energy_diff.png')
+        plt.close()
+
+
+        return None
+
+
+
+
+    
+    def group_fit_spectra(self) -> None:
+        """
+        Generate group spectra plots for each PostProcess object
+        """
+        colors = self.posts[0].get_colors(len(self.posts))
+        for group in range(self.posts[0].num_groups):
+            for pi, post in enumerate(self.posts):
+                group_spectra = pd.read_csv(post.spectra_group_path).to_numpy()
+                spectrum = group_spectra[group, :]
+                spectrum = np.concatenate((spectrum, [spectrum[-1]]))
+                mask = (np.asarray(post.energy_groups_MeV) < post.spectra_cutoff_MeV)
+                if pi == 0:
+                    base_spectrum = np.asarray(spectrum)[mask]
+                plt.step(np.asarray(post.energy_groups_MeV)[mask],
+                        np.asarray(spectrum)[mask], label=post.name,
+                        color=colors[pi],
+                        linestyle=post.linestyles[pi%len(post.linestyles)])
+            plt.legend()
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(r'Probability per bin')
+            plt.tight_layout()
+            plt.savefig(f'{self.output_dir}/compare_spectra_group_{group+1}.png')
+            plt.close() 
+
+
+            for pi, post in enumerate(self.posts):
+                if pi == 0:
+                    continue
+                group_spectra = pd.read_csv(post.spectra_group_path).to_numpy()
+                spectrum = group_spectra[group, :]
+                spectrum = np.concatenate((spectrum, [spectrum[-1]]))
+                mask = (np.asarray(post.energy_groups_MeV) < post.spectra_cutoff_MeV)
+                diff = (base_spectrum - np.asarray(spectrum)[mask])
+                plt.step(np.asarray(post.energy_groups_MeV)[mask],
+                        diff, color='black')
+            plt.xlabel(r'Energy $[MeV]$')
+            plt.ylabel(fr'$\Delta$ Probability from {self.posts[0].name}')
+            plt.tight_layout()
+            plt.savefig(f'{self.output_dir}/diff_spectra_group_{group+1}.png')
+            plt.close() 
+        return None
+
 
     def group_fit_counts(self) -> None:
         """

@@ -32,7 +32,7 @@
         "concentration_handling": "IFY",
         "count_rate_handling": "data",
         "reprocessing_locations": ["excore"],
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 0.0
         },
         "irrad_type": "saturation",

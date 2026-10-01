@@ -35,6 +35,23 @@ class CSVHandler:
             os.makedirs(directory)
         return None
     
+    def write_spectra_group_params(self, data: np.ndarray[np.ndarray[float]],
+                                   column_names: list[float]) -> None:
+        """
+        Writes the group spectra to file
+
+        Parameters
+        ----------
+        data: np.ndarray[np.ndarray[float]]
+            The probabilities for each group `k` and each energy `j` (K, J)
+        column_names : list[float]
+            The name for each column (generally given as the midpoint of the 
+            energy bin for that probability)
+        """
+        df = pd.DataFrame(data, columns=column_names)
+        df.to_csv(self.file_path, index=False)
+        return None
+    
     def _file_exists(self) -> bool:
         """
         Check if the file exists at the specified path.
@@ -202,6 +219,25 @@ class CSVHandler:
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
         df = pd.DataFrame.from_dict(data, orient='index')
         df = df.sort_values(by=sortby, ascending=False)
+        df.to_csv(self.file_path, index=False)
+        return None
+    
+
+    def write_spectral_count_csv(self, data: dict[str, list[float]],
+                                 col_names: list[float]) -> None:
+        """
+        Write the spectral count rate to a CSV file.
+
+        Parameters
+        ----------
+        data : dict[str, list[float]]
+            The spectral data to write at each time
+        col_names : list[float]
+            The energy bins
+        """
+        df = pd.DataFrame.from_dict(data, orient='index', columns=col_names)
+        df.reset_index(inplace=True)
+        df.rename(columns={'index': 'times'}, inplace=True)
         df.to_csv(self.file_path, index=False)
         return None
 

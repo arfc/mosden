@@ -17,6 +17,7 @@
         "cross_section": "",
         "emission_probability": "jendl5/decay/",
         "fission_yield": "jendl5/fpy/",
+        "spectra": "jendl5/decay/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
@@ -29,7 +30,7 @@
         "concentration_handling": "OMC",
         "count_rate_handling": "data",
         "reprocessing_locations": ["excore"],
-        "reprocessing": {
+        "reprocessing_scheme": {
             "Xe": 0.0
         },
         "irrad_type": "intermediate",
@@ -37,7 +38,7 @@
             "flux": false,
             "reprocessing": false
         },
-        "base_removal_scaling": 0.5,
+        "base_removal_scaling": 0.64,
         "incore_s": 1e-5,
         "excore_s": 0,
         "net_irrad_s": 1e-5,
@@ -58,7 +59,20 @@
         "num_groups": 6,
         "parameter_guesses": 50,
         "method": "nlls",
+        "energy_groups_MeV": [],
         "samples": 1,
         "sample_func": "normal"
+    },
+    "post_options": {
+        "self_relative_counts": false,
+        "sensitivity_subplots": true,
+        "plot_nuc_spectra": [],
+        "spectra_plot_MeV_cutoff": 2,
+        "top_num_nuclides": {
+            "yield_top": 5,
+            "conc_top": 5,
+            "conc_over_time_top": 5
+        },
+        "pcc_cutoff": 0.2
     }
 }
