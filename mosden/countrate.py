@@ -18,6 +18,7 @@ class CountRate(BaseClass):
             Path to the input file
         """
         super().__init__(input_path)
+        self.is_warned = False
 
         return None
 
@@ -159,6 +160,8 @@ class CountRate(BaseClass):
                 return np.random.normal(val.n, val.s)
             elif dist == 'uniform':
                 return np.random.uniform(val.n - val.s, val.n + val.s)
+            elif dist == 'nominal':
+                return val.n
             else:
                 raise NotImplementedError(f'{dist} sampling not implemented')
             
@@ -221,6 +224,7 @@ class CountRate(BaseClass):
                 vals.append(val)
                 uncertainties.append(uncertainty)
             concentration_array = unumpy.uarray(vals, uncertainties)
+            nominal_concs = vals
             conc = concentration_array[post_irrad_index]
 
             if conc < 1e-24:
@@ -230,14 +234,26 @@ class CountRate(BaseClass):
             if Pn < 1e-24:
                 continue
 
+
+            if self.post_irrad_only:
+                index_offset = post_irrad_index
+            else:
+                index_offset = 0
+
             if MC_run and sampler_func:
-                if not single_time_val:
+                if not single_time_val and not self.is_warned:
                     msg = 'Concentration not sampled over time; using initial'
                     self.logger.warning(msg)
+                    self.logger.warning('Using nominal concentration')
+                    self.is_warned = True
+
+                if not single_time_val:
+                    conc = concentration_array[post_irrad_index].n
+                else:
+                    conc = sample_parameter(conc, sampler_func)
                 Pn = sample_parameter(Pn, sampler_func)
                 halflife = sample_parameter(halflife, sampler_func)
                 decay_const = np.log(2) / halflife
-                conc = sample_parameter(concentration_array[post_irrad_index], sampler_func)
 
                 if conc < 0.0:
                     conc = 1e-12
@@ -246,18 +262,23 @@ class CountRate(BaseClass):
                 if Pn < 0.0:
                     Pn = 1e-12
 
-                counts = Pn * decay_const * conc * \
-                    np.exp(-decay_const * use_times)
+                if self.no_post_irrad:
+                    conc_vals = nominal_concs[:post_irrad_index+1]
+                else:
+                    conc_vals = nominal_concs[index_offset:]
+                
+                if not single_time_val:
+                    assert len(conc_vals) == len(use_times)
+                    counts = Pn * decay_const * np.asarray(conc_vals)
+                else:
+                    counts = (Pn * decay_const * conc * 
+                              np.exp(-decay_const * use_times))
                 count_rate += counts
             else:
                 if single_time_val:
                     counts = Pn * decay_const * concentration_array[post_irrad_index] * \
                         unumpy.exp(-decay_const * use_times)
                 else:
-                    if self.post_irrad_only:
-                        index_offset = post_irrad_index
-                    else:
-                        index_offset = 0
                     if self.no_post_irrad:
                         counts = Pn * decay_const * concentration_array[:post_irrad_index+1]
                     else:

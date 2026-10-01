@@ -48,8 +48,8 @@ class Concentrations(BaseClass):
         
         if self.repr_scale <= 0.0:
             self.logger.info(f'{self.repr_scale = }')
-            self.logger.error('No valid chemical removal region provided')
-            self.logger.warning('Setting reprocessing scale to 1.0')
+            msg = 'No valid chemical removal region provided (scale set to 1.0)'
+            self.logger.warning(msg)
             self.repr_scale = 1.0
 
         return None
@@ -104,7 +104,8 @@ class Concentrations(BaseClass):
                        fission_rates: list[float], concs: list[float],
                        p_concs: list[float], y_p: float, y: float) -> tuple[float, float]:
         """
-        Evaluates the concentration of a nuclide and its decay parent.
+        Evaluates the concentration of a nuclide and its decay parent at the 
+        next time step.
         Yield of parent is assumed to be scaled by branching ratio.
 
         Parameters
@@ -140,6 +141,12 @@ class Concentrations(BaseClass):
         exp_p = np.exp(-lam_p * dt[ti])
         exp_c = np.exp(-lam * dt[ti])
 
+        if self.conc_method == 'CFY':
+            cfy = y_p + y
+            cur_conc = cfy / lam
+            cur_p_conc = y_p / lam
+            return cur_conc, cur_p_conc
+
         if lam_p > 0:
             cur_p_conc = p_concs[ti] * exp_p + (fission_rates[ti] * y_p / lam_p) * (1 - exp_p)
         else:
@@ -171,12 +178,14 @@ class Concentrations(BaseClass):
         Parameters
         ----------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration without debug
+            DNP data
         
         Returns
         -------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration with debug 
+            DNP data
         """
         if not self.has_debug_dnps:
             return data
@@ -186,8 +195,6 @@ class Concentrations(BaseClass):
             fission_rates, _ = self._calculate_fission_term(False)
             len_diff = len(times) - len(fission_rates)
             fission_rates = np.append(fission_rates, [0]*len_diff)
-            concs = [0]
-            p_concs = [0]
             lam = np.log(2) / nuc_vals['half_life_s']
             y = nuc_vals['yield']
             dt = np.diff(times)
@@ -199,6 +206,17 @@ class Concentrations(BaseClass):
             except NameError:
                 y_p = 0
                 lam_p = 1
+            except KeyError:
+                y_p = 0
+                lam_p = 1
+            initial_conc = 0
+            initial_p_conc = 0
+
+            if self.conc_method == 'CFY':
+                initial_conc = (y+y_p) / lam
+                initial_p_conc = y_p / lam_p
+            concs = [initial_conc]
+            p_concs = [initial_p_conc]
             for ti, t in enumerate(times[:-1]):
                 cur_conc, cur_p_conc = self._evaluate_conc(cur_conc, cur_p_conc,
                                                            lam_p, lam, ti, dt,
@@ -303,7 +321,7 @@ class Concentrations(BaseClass):
             'omc_dir': omc_dir,
             'timesteps': time_rate_data['timesteps'],
             'source_rates': time_rate_data['source_rates'],
-            'removal_indeces': time_rate_data['removal_indeces']
+            'removal_indices': time_rate_data['removal_indices']
         }
         rendered_template = template.render(render_data)
         fname = 'omc.py'

@@ -13,10 +13,10 @@
         "log_level": 20
     },
     "data_options": {
-        "half_life": "iaea/eval.csv",
+        "half_life": "jendl5/decay/",
         "cross_section": "",
-        "emission_probability": "iaea/eval.csv",
-        "fission_yield": "jeff311/nfpy/",
+        "emission_probability": "jendl5/decay/",
+        "fission_yield": "jendl5/fpy/",
         "decay_time_spacing": "log",
         "temperature_K": 920,
         "density_g_cm3": 2.3275,
@@ -38,15 +38,16 @@
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 0.1,
+        "incore_s": 1e-5,
         "excore_s": 0,
-        "net_irrad_s": 10,
+        "net_irrad_s": 1e-5,
         "decay_time": 600,
-        "num_decay_times": 100,
+        "num_decay_times": 300,
         "openmc_settings": {
             "nps": 5000,
             "batches": 10,
             "source": 1e3,
+            "chain": "jendl5/omcchain/chain_jendl5_pwr.xml",
             "run_omc": true,
             "write_fission_json": true,
             "write_nuyield_json": true,
@@ -55,6 +56,7 @@
     },
     "group_options": {
         "num_groups": 6,
+        "parameter_guesses": 50,
         "method": "nlls",
         "samples": 1,
         "sample_func": "normal"

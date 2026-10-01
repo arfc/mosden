@@ -172,6 +172,13 @@ cython_debug/
 !/examples/**/input.json
 !/examples/**/*.py
 
+
+/examples/2026_data_paper/*
+!/examples/2026_data_paper/input.json
+!/examples/2026_data_paper/results_generator.py
+!/examples/2026_data_paper/hybrid_data_analysis.py
+
+
 /examples/phd_results/*
 !/examples/phd_results/input.json
 !/examples/phd_results/results_generator.py

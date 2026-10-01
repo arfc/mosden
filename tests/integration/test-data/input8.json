@@ -49,7 +49,7 @@
         "num_decay_times": 100
     },
     "group_options": {
-        "num_groups": 6,
+        "num_groups": 2,
         "method": "nlls",
         "samples": 1,
         "sample_func": "normal",

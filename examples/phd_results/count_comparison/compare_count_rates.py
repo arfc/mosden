@@ -63,24 +63,14 @@ if __name__ == "__main__":
     counts_long = trim_counts(counts, final_irrad_index)
 
     diff_dict = calc_relative_diff(counts_short, counts_long)
-    sorted_keys = list(sorted(diff_dict, key=diff_dict.get, reverse=True))
-    
-    for each_index in range(top_num):
-        nuc = sorted_keys[each_index]
-        diff_val = np.round(diff_dict[nuc] * 100, 1)
-        hl = hl_data[nuc]['half_life']
-        pn = pn_data[nuc]['emission probability']
-        print(f'{nuc = }\n{diff_val = }%\n{hl = }\n{pn = }\n')
-
-
-    print()
-    sorted_keys = list(sorted(diff_dict, key=diff_dict.get, reverse=False))
-    
-    for each_index in range(top_num):
-        nuc = sorted_keys[each_index]
-        diff_val = np.round(diff_dict[nuc] * 100, 1)
-        hl = hl_data[nuc]['half_life']
-        pn = pn_data[nuc]['emission probability']
-        print(f'{nuc = }\n{diff_val = }%\n{hl = }\n{pn = }\n')
-
+    for direction in [True, False]:
+        sorted_keys = list(sorted(diff_dict, key=diff_dict.get, reverse=direction))
+        
+        for each_index in range(top_num):
+            nuc = sorted_keys[each_index]
+            diff_val = np.round(diff_dict[nuc] * 100, 1)
+            hl = hl_data[nuc]['half_life']
+            pn = pn_data[nuc]['emission probability']
+            print(f'{nuc = }\n{diff_val = }%\n{hl = }\n{pn = }\n')
+        print()
 

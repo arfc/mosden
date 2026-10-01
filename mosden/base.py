@@ -21,9 +21,11 @@ class BaseClass:
             Path to the input file
         """
         self.omc_data_words: list[str] = ['omcchain']
-        self.endf_data_words: list[str] = ['nfy', 'decay']
+        self.endf_data_words: list[str] = ['endf']
         self.iaea_data_words: list[str] = ['iaea']
         self.jeff_data_words: list[str] = ['jeff']
+        self.jendl_data_words: list[str] = ['jendl']
+
 
         self.input_path: str = input_path
         self.input_handler: InputHandler = InputHandler(input_path)
@@ -59,6 +61,8 @@ class BaseClass:
 
         self.name: str = self.input_data['name']
         self.output_dir: str = self.input_data['file_options'].get('output_dir', '')
+        if len(self.output_dir) > 1 and not self.output_dir.endswith('/'):
+            self.output_dir = self.output_dir + '/'
         self.logger.debug(f'{self.name = }')
 
         self.energy_MeV: float = data_options.get('energy_MeV', 0.0)
@@ -96,8 +100,6 @@ class BaseClass:
         self.t_in: float = modeling_options.get('incore_s', 0.0)
         self.t_ex: float = modeling_options.get('excore_s', 0.0)
         self.t_net: float = modeling_options.get('net_irrad_s', 0.0)
-        if self.t_in/self.t_net >= 0.9:
-            self.logger.warning('It is suggested to use a smaller in-core residence time or a longer total time')
         self.t_net = self._update_t_net()
         self.irrad_type: str = modeling_options.get('irrad_type', 'saturation')
         self.spatial_scaling: dict[str: str] = modeling_options.get(
@@ -150,6 +152,9 @@ class BaseClass:
         self.num_over_time = self.num_top.get('conc_over_time_top', 3)
         self.nuc_colors = post_options.get('nuc_colors', {})
         self.num_stack = post_options.get('num_stacked_nuclides', 2)
+        self.plot_means = post_options.get('plot_means', False)
+        self.pcc_cutoff = post_options.get('pcc_cutoff', 0.2)
+        self.plot_correlation = post_options.get('plot_correlation', False)
 
         self.post_irrad_only: bool = (len(self.residual_masks) == 1 and 'post-irrad' in self.residual_masks)
         self.no_post_irrad: bool = ('post-irrad' not in self.residual_masks and 'all' not in self.residual_masks)
@@ -226,26 +231,26 @@ class BaseClass:
         return values
 
     
-    def _get_times_and_rates(self, f_in: float = 1.0) -> dict[str, list[float|int]]:
+    def _get_times_and_rates(self, incore_fraction: float = 1.0) -> dict[str, list[float|int]]:
         """
         Calculates the time steps to evaluate in OpenMC, the source rates
-        to use at each time step, and the chemical removal indeces where
+        to use at each time step, and the chemical removal indices where
         removal occurs.
 
         Parameters
         ----------
-        f_in : float (optional)
+        incore_fraction : float (optional)
             Only required if the flux is scaled. The in-core salt fraction.
 
         Returns
         -------
         time_rate_data : dict[str, list[float|int]]
             Keys are names for different datasets, values are the time-dependent
-            data. Keys include `timesteps`, `source_rates`, `removal_indeces`,
+            data. Keys include `timesteps`, `source_rates`, `removal_indices`,
             and `irrad_mask`
         """
         time_rate_data = dict()
-        removal_indeces = list()
+        removal_indices = list()
         timesteps = list()
         source_rates = list()
         irrad_residual_mask = list()
@@ -278,9 +283,9 @@ class BaseClass:
                 current_time += t
                 timesteps.append(t)
                 if (region in self.reprocess_locations) or self.chem_scaling:
-                    removal_indeces.append(index_counter)
+                    removal_indices.append(index_counter)
                 if self.flux_scaling:
-                    source = self.openmc_settings['source'] * f_in
+                    source = self.openmc_settings['source'] * incore_fraction
                 source_rates.append(source)
                 index_counter += 1
                 time_close = np.isclose(current_time, self.t_net)
@@ -298,7 +303,7 @@ class BaseClass:
 
         time_rate_data['timesteps'] = timesteps
         time_rate_data['source_rates'] = source_rates
-        time_rate_data['removal_indeces'] = removal_indeces
+        time_rate_data['removal_indices'] = removal_indices
         time_rate_data['irrad_mask'] = irrad_residual_mask
         return time_rate_data
 

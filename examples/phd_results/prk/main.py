@@ -94,20 +94,24 @@ class PRKE:
 
     
     def _power_reativity_plot(self, time, power, reactivity_data):
+        colors = self.post.get_colors(2)
 
         fig, ax1 = plt.subplots()
 
-        color = 'tab:red'
+        color = colors[0]
         ax1.set_xlabel('Time [s]')
-        ax1.set_ylabel('Relative Power', color=color)
+        ax1.set_ylabel(r'$n(t)/n_0$', color=color)
         ax1.plot(time, power, color=color)
+        ax1.set_yscale('log')
         ax1.tick_params(axis='y', labelcolor=color)
 
         ax2 = ax1.twinx()
 
-        color = 'tab:blue'
-        ax2.set_ylabel('Reactivity [pcm]', color=color)
-        ax2.plot(time, np.asarray(reactivity_data)*1e5, color=color)
+        color = colors[1]
+        ax2.set_ylabel('Reactivity [\$]', color=color)
+        time = np.append([0], time)
+        reactivity_data = np.append([0], reactivity_data)
+        ax2.plot(time, np.asarray(reactivity_data)/self.betaeff, color=color)
         ax2.tick_params(axis='y', labelcolor=color)
 
         fig.tight_layout()
@@ -118,11 +122,12 @@ class PRKE:
     def _get_reactivity(self, problem, reactivity_form: str):
         total_yield = self.data['neutrons_per_fission']
         betaeff = np.sum(self.data[problem]['yields']) /  total_yield
+        step_duration = self.data['step_duration']
         if reactivity_form == 'step':
-            rho = lambda t: 50e-5
+            rho = lambda t: self.data['step_insertion']
             return rho
         elif reactivity_form == 'step_relative':
-            rho = lambda t: self.data['step_relative_insertion'] * betaeff
+            rho = lambda t: self.data['step_relative_insertion'] * betaeff * np.heaviside(-(t-step_duration),0)
             return rho
         elif reactivity_form == 'ramp':
             rho_max = self.data['rho_max_dollars'] * betaeff
@@ -196,13 +201,12 @@ class PRKE:
         linestyles = [':', '-.', '--']
         colors = self.post.get_colors(len(full_data))
         for pi, (problem, data) in enumerate(full_data.items()):
-            label: str = problem.capitalize()
+            label: str = problem
             times = data['times']
             power = data['power']
             plt.plot(times, power, label=label, linestyle=linestyles[pi%len(linestyles)], color=colors[pi])
             print(f'{label} {power[-1] = }')
         plt.legend()
-        #plt.xscale('log')
         plt.xlabel('Time [s]')
         plt.ylabel(r'$n$')
         plt.savefig(f'compare_power.png')
@@ -210,7 +214,7 @@ class PRKE:
 
 
         for pi, (problem, data) in enumerate(full_data.items()):
-            label: str = problem.capitalize()
+            label: str = problem
             times = data['times']
             power = np.asarray(data['power'])
             if pi == 0:
@@ -227,7 +231,7 @@ class PRKE:
         
         for group in range(self.num_groups):
             for pi, (problem, data) in enumerate(full_data.items()):
-                label: str = problem.capitalize()
+                label: str = problem
                 times = data['times']
                 concs = data['concs']
                 conc = np.asarray(concs)[:, group]
@@ -241,7 +245,7 @@ class PRKE:
             plt.close()
 
         for pi, (problem, data) in enumerate(full_data.items()):
-            label: str = problem.capitalize()
+            label: str = problem
             times = data['times']
             power = np.asarray(data['power'])
             base_rho = data['reactivity']
@@ -263,7 +267,6 @@ class PRKE:
         plt.ylabel(f'Reactivity')
         plt.savefig(f'compare_reactivity.png')
         plt.close()
-        
 
         return
     

@@ -1,5 +1,5 @@
 {
-    "name": "Four DNPs",
+    "name": "Zero DNPs",
     "file_options": {
         "overwrite": {
             "preprocessing": false,
@@ -25,13 +25,31 @@
             "U235": 1.0
         },
         "debug_dnps": {
-            "Zz99": {
-                "yield": 0.5,
-                "half_life_s": 3,
-                "pn": 1,
+            "Zi137": {
+                "yield": 0.0262236,
+                "half_life_s": 24.5,
+                "pn": 0.0714,
                 "parent": {
-                    "yield": 0.5,
-                    "half_life_s": 0.3
+                    "yield": 0.003924,
+                    "half_life_s": 2.49
+                }
+            },
+            "Zbr87": {
+                "yield": 0.0127177,
+                "half_life_s": 55,
+                "pn": 0.026,
+                "parent": {
+                    "yield": 0.00731,
+                    "half_life_s": 5.29
+                }
+            },
+            "Zrb94": {
+                "yield": 0.0156647,
+                "half_life_s": 2.702,
+                "pn": 0.105,
+                "parent": {
+                    "yield": 0.000868149,
+                    "half_life_s": 0.212
                 }
             }
         }
@@ -44,13 +62,13 @@
         "reprocessing": {
             "Xe": 0.0
         },
-        "irrad_type": "intermediate",
+        "irrad_type": "pulse",
         "spatial_scaling": {
             "flux": false,
             "reprocessing": false
         },
         "base_removal_scaling": 0.5,
-        "incore_s": 1e-6,
+        "incore_s": 1e-5,
         "excore_s": 0,
         "net_irrad_s": 1e-5,
         "decay_time": 600,
@@ -66,7 +84,7 @@
         }
     },
     "group_options": {
-        "num_groups": 1,
+        "num_groups": 3,
         "method": "nlls",
         "parameter_guesses": 10,
         "samples": 1,
