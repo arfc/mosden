@@ -185,7 +185,7 @@ class Grouper(BaseClass):
                             parameters: np.ndarray[float | object]
                             ) -> np.ndarray[float | object]:
         """
-        Fit function for a pulse irradiation
+        Fit function for a pulse irradiation.
 
         Parameters
         ----------
@@ -222,7 +222,7 @@ class Grouper(BaseClass):
                                  parameters: np.ndarray[float | object]
                                  ) -> np.ndarray[float | object]:
         """
-        Fit function for a saturation irradiation
+        Fit function for a saturation irradiation.
 
         Parameters
         ----------
@@ -283,7 +283,7 @@ class Grouper(BaseClass):
                                  parameters: np.ndarray[float | object]
                                  ) -> np.ndarray[float | object]:
         """
-        Fit function for any irradiation using numerical integration
+        Fit function for any irradiation using numerical integration.
 
         Parameters
         ----------
@@ -323,7 +323,7 @@ class Grouper(BaseClass):
     def _get_effective_fission(self, lam: np.ndarray[float], exp: Callable, 
                                expm1: Callable) -> np.ndarray[float]:
         """
-        Calculate the effective fission term scaled over time
+        Calculate the effective fission term scaled over time.
 
         Parameters
         ----------
@@ -356,7 +356,7 @@ class Grouper(BaseClass):
         version due to limitations in the derived equation.
         This value is used for the saturation irradiation.
         Because the derivation assumes a constant fission rate, this is a source
-        of error for the saturation method when using OpenMC
+        of error for the saturation method when using OpenMC.
 
         Parameters
         ----------
@@ -426,7 +426,7 @@ class Grouper(BaseClass):
     
     def _get_fit_func(self) -> Callable:
         """
-        Get the associated function for the irradiation type
+        Get the associated function for the irradiation type.
 
         Returns
         -------
@@ -452,7 +452,7 @@ class Grouper(BaseClass):
     def _get_modified_counts_and_times(self, times: np.ndarray[float],
                                        counts: np.ndarray[float]) -> tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
         """
-        Gets the counts and times during and post irradiation
+        Gets the counts and times during and post irradiation.
 
         Parameters
         ----------

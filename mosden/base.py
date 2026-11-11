@@ -18,7 +18,7 @@ class BaseClass:
         Parameters
         ----------
         input_path : str
-            Path to the input file
+            Path to the input file.
         """
         self.omc_data_words: list[str] = ['omcchain']
         self.endf_data_words: list[str] = ['nfy', 'decay']
@@ -177,17 +177,17 @@ class BaseClass:
      
     def _get_use_times(self, single_time_val: bool=False) -> np.ndarray[float]:
         """
-        Get all the times steps over which count rate data exists
+        Get all the times steps over which count rate data exists.
 
         Parameters
         ----------
         single_time_val : bool
-            Whether the problem is evaluated at a single point in time
+            Whether the problem is evaluated at a single point in time.
 
         Returns
         -------
         use_times : np.ndarray[float]
-            The time values where data exists
+            The time values where data exists.
         """
         if self.post_irrad_only:
             use_times = self.decay_times
@@ -203,17 +203,17 @@ class BaseClass:
     
     def _set_cycle_times(self, residence_time: float) -> list[float]:
         """
-        Returns the list of times applied in OpenMC for each residence time
+        Returns the list of times applied in OpenMC for each residence time.
 
         Parameters
         ----------
         residence_time : float
-            In-core or ex-core residence time
+            In-core or ex-core residence time.
 
         Returns
         -------
         values : list[float]
-            List of times to pass to OpenMC per residence
+            List of times to pass to OpenMC per residence.
         """
         max_value = np.min((self.openmc_settings['max_timestep'], residence_time))
         if max_value == 0.0:
@@ -242,7 +242,7 @@ class BaseClass:
         time_rate_data : dict[str, list[float|int]]
             Keys are names for different datasets, values are the time-dependent
             data. Keys include `timesteps`, `source_rates`, `removal_indeces`,
-            and `irrad_mask`
+            and `irrad_mask`.
         """
         time_rate_data = dict()
         removal_indeces = list()
@@ -311,12 +311,12 @@ class BaseClass:
         Returns
         -------
         decay_times : np.ndarray[float]
-            The array of time values
+            The array of time values.
         
         Raises
         ------
         ValueError
-            If the provided decay time spacing is invalid
+            If the provided decay time spacing is invalid.
         
         """
         if self.decay_time_spacing == 'linear':
@@ -340,7 +340,7 @@ class BaseClass:
         Returns
         -------
         t_net : float
-            The updated net irradiation time
+            The updated net irradiation time.
         """
         cycle = self.t_in + self.t_ex
         k = np.ceil((self.t_net - self.t_in) / cycle)
@@ -349,17 +349,17 @@ class BaseClass:
     
     def get_irrad_index(self, single_time_val: bool) -> int:
         """
-        Calculate the burnup index at which the sample starts decay
+        Calculate the burnup index at which the sample starts decay.
 
         Parameters
         ----------
         single_time_val : bool
-            If there is only a single time value, the index is 0
+            If there is only a single time value, the index is 0.
 
         Returns
         -------
         post_irrad_index: int
-            Integer index position of initial decay
+            Integer index position of initial decay.
         """
         if single_time_val:
             return 0

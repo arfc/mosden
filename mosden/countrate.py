@@ -15,7 +15,7 @@ class CountRate(BaseClass):
         Parameters
         ----------
         input_path : str
-            Path to the input file
+            Path to the input file.
         """
         super().__init__(input_path)
 
@@ -27,21 +27,21 @@ class CountRate(BaseClass):
                              write_data: bool = True) -> dict[str: list[float]]:
         """
         Calculate the delayed neutron count rate from
-        concentrations using various methods
+        concentrations using various methods.
 
         Parameters
         ----------
         MC_run : bool, optional
-            Whether to run in Monte Carlo mode, by default False
+            Whether to run in Monte Carlo mode, by default False.
         sampler_func : str, optional
-            The sampling function to use for Monte Carlo, by default None
+            The sampling function to use for Monte Carlo, by default None.
         write_data : bool, optional
-            Whether to write the data to a CSV file, by default True
+            Whether to write the data to a CSV file, by default True.
 
         Returns
         -------
         data : dict[str: list[float]]
-            Dictionary containing the times, count rates, and uncertainties
+            Dictionary containing the times, count rates, and uncertainties.
         """
         start = time()
         data: dict[str: list[float]] = dict()
@@ -75,12 +75,12 @@ class CountRate(BaseClass):
 
     def _count_rate_from_groups(self) -> dict[str: list[float]]:
         """
-        Calculate the delayed neutron count rate from group parameters
+        Calculate the delayed neutron count rate from group parameters.
 
         Returns
         -------
         data : dict[str: list[float]]
-            Dictionary containing the times, count rates, and uncertainties
+            Dictionary containing the times, count rates, and uncertainties.
         """
         from mosden.groupfit import Grouper
         data: dict[str: list[float]] = dict()
@@ -133,22 +133,22 @@ class CountRate(BaseClass):
                               sampler_func: str = None
                               ) -> dict[str: list[float]]:
         """
-        Calculate the delayed neutron count rate from existing data
+        Calculate the delayed neutron count rate from existing data.
 
         Parameters
         ----------
         MC_run : bool, optional
-            Whether to run in Monte Carlo mode, by default False
+            Whether to run in Monte Carlo mode, by default False.
         sampler_func : str, optional
-            The sampling function to use for Monte Carlo, by default None
+            The sampling function to use for Monte Carlo, by default None.
 
         Returns
         -------
         data : dict[str, list[float]]
-            Dictionary containing the times, count rates, and uncertainties
+            Dictionary containing the times, count rates, and uncertainties.
         post_data : dict[str, list[float]] (optional)
-            Sensitivity parameters, specifying the specific sample's values
-            Returned only if `MC_run` is True
+            Sensitivity parameters, specifying the specific sample's values.
+            Returned only if `MC_run` is True.
         """
         def sample_parameter(val: ufloat, dist: str) -> float:
             if isinstance(val, float):

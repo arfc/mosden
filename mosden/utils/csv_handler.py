@@ -13,11 +13,11 @@ class CSVHandler:
         Parameters
         ----------
         file_path : str
-            Path to the CSV file
+            Path to the CSV file.
         overwrite : bool, optional
-            Whether to overwrite the file if it exists, by default False
+            Whether to overwrite the file if it exists, by default False.
         create : bool, optional
-            Whether to create the file if it does not exist, by default True
+            Whether to create the file if it does not exist, by default True.
         """
         self.file_path = file_path
         if create:
@@ -53,12 +53,12 @@ class CSVHandler:
         Parameters
         ----------
         raw_iaea : bool, optional
-            Whether the data is in IAEA format, by default False
+            Whether the data is in IAEA format, by default False.
 
         Returns
         -------
         dict[str, dict[str, float]]
-            The data read from the CSV file
+            The data read from the CSV file.
         """
         if raw_iaea:
             return self._read_iaea_csv()
@@ -74,12 +74,12 @@ class CSVHandler:
         ----------
         trim : bool 
             Indicates if the time column should be removed (only if a single 
-            time value is used)
+            time value is used).
 
         Returns
         -------
         dict[str, dict[float, (float, float)]]
-            The data read from the CSV file
+            The data read from the CSV file.
         """
         df = pd.read_csv(self.file_path)
         data = defaultdict(dict)
@@ -135,7 +135,7 @@ class CSVHandler:
         Parameters
         ----------
         iaea_nuc : str
-            IAEA nuclide identifier
+            IAEA nuclide identifier.
 
         Returns
         -------
@@ -173,7 +173,7 @@ class CSVHandler:
         Parameters
         ----------
         data : dict[str, dict[str, float]]
-            The data to write to the CSV file, listed over time
+            The data to write to the CSV file, listed over time.
         """
         if not self.overwrite and self._file_exists():
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
@@ -190,7 +190,7 @@ class CSVHandler:
         data : dict[str: list[float]]
             The data to write, where keys are group names and values are lists of properties.
         sortby : str, optional
-            The column to sort, by default 'half_life'
+            The column to sort, by default 'half_life'.
         """
         if not self.overwrite and self._file_exists():
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
@@ -207,7 +207,7 @@ class CSVHandler:
         Parameters
         ----------
         data : dict[str: list[float]]
-            The data to write, where keys are nuclides and values are lists of count rates
+            The data to write, where keys are nuclides and values are lists of count rates.
         """
         if not self.overwrite and self._file_exists():
             self.logger.warning(f"File {self.file_path} already exists. Set overwrite=True to overwrite.")
@@ -223,7 +223,7 @@ class CSVHandler:
         Returns
         -------
         dict[str: list[float]]
-            The vector data from the CSV file
+            The vector data from the CSV file.
         """
         df = pd.read_csv(self.file_path)
         data = {col: df[col].astype(float).tolist() for col in df.columns}

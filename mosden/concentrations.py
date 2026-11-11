@@ -18,7 +18,7 @@ class Concentrations(BaseClass):
         Parameters
         ----------
         input_path : str
-            Path to the input file
+            Path to the input file.
         """
         super().__init__(input_path)
 
@@ -110,32 +110,32 @@ class Concentrations(BaseClass):
         Parameters
         ----------
         cur_conc : float
-            Current concentration of target nuclide
+            Current concentration of target nuclide.
         cur_p_conc : float
-            Current concentration of parent nuclide
+            Current concentration of parent nuclide.
         lam_p : float
-            Parent decay constant [s]
+            Parent decay constant [s].
         lam : float
-            Target decay constant [s]
+            Target decay constant [s].
         ti : int
-            The current time index
+            The current time index.
         dt : list[float]
-            The list of time step sizes [s]
+            The list of time step sizes [s].
         fission_rates : list[float]
-            The list of fission rates at each time step [1/s]
+            The list of fission rates at each time step [1/s].
         concs : list[float]
-            The list of concentrations at each time step for the target nuclide
+            The list of concentrations at each time step for the target nuclide.
         p_concs : list[float]
-            The list of concentrations at each time step for the parent nuclide
+            The list of concentrations at each time step for the parent nuclide.
         y_p : float
-            Parent yield per fission scaled by branching ratio
+            Parent yield per fission scaled by branching ratio.
         y : float
-            Target yield per fission
+            Target yield per fission.
 
         Returns
         -------
         cur_conc, cur_p_conc : tuple[float, float]
-            The updated concentrations of the target and parent nuclides
+            The updated concentrations of the target and parent nuclides.
         """
         exp_p = np.exp(-lam_p * dt[ti])
         exp_c = np.exp(-lam * dt[ti])
@@ -166,17 +166,17 @@ class Concentrations(BaseClass):
     
     def _add_debug_dnp_data(self, data: list[dict[str, float]]) -> list[dict[str, float]]:
         """
-        Add debug DNP data to the existing concentration data
+        Add debug DNP data to the existing concentration data.
 
         Parameters
         ----------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration.
         
         Returns
         -------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration.
         """
         if not self.has_debug_dnps:
             return data
@@ -231,7 +231,7 @@ class Concentrations(BaseClass):
         Returns
         -------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration.
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()
@@ -275,7 +275,7 @@ class Concentrations(BaseClass):
         Returns
         -------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration.
         """
         env = Environment(loader=PackageLoader('mosden'))
         file = self.openmc_settings['omc_file']
@@ -352,19 +352,19 @@ class Concentrations(BaseClass):
     
     def read_omc_fission_json(self, only_incore:bool = False) -> tuple[dict[str, np.ndarray], np.ndarray]:
         """
-        Collect the fission rate history from a json file
+        Collect the fission rate history from a json file.
 
         only_incore : bool
             Return the fission rate history ONLY for the in-core residence times
-            (this assumes starting in core and then alternates)
+            (this assumes starting in core and then alternates).
 
         Returns
         -------
         fissions : dict[str, np.ndarray]
             Fission rate history as a function of time for each fissile nuclide
-            and the 'net'
+            and the 'net'.
         times : np.ndarray
-            The times the fission rate history is recorded
+            The times the fission rate history is recorded.
         """
         with open(f'{self.output_dir}/omc_fissions.json', 'r') as f:
             full_data = json.load(f)
@@ -383,7 +383,7 @@ class Concentrations(BaseClass):
         Returns
         -------
         full_data : dict[str, dict[str, np.ndarray]
-            Data sorted by delayed and prompt, followed by fissile nuclide over time
+            Data sorted by delayed and prompt, followed by fissile nuclide over time.
         
         """
         with open(f'{self.output_dir}/omc_nuyield.json', 'r') as f:
@@ -396,13 +396,13 @@ class Concentrations(BaseClass):
     def _collect_omc_fissions(self) -> tuple[dict[str, np.ndarray], np.ndarray]:
         """
         Collect the fission rate history from OpenMC output and writes to a
-        json file
+        json file.
 
         Returns
         -------
         fissions : dict[str, np.ndarray]
             Fission rate history as a function of time for each fissile nuclide
-            and the 'net'
+            and the 'net'.
         times : np.ndarray
             The times the fission rate history is recorded
         """
@@ -449,22 +449,22 @@ class Concentrations(BaseClass):
     
     def _json_default(self, obj: object) -> object:
         """
-        JSON helper function that replaces incompatible datatypes
+        JSON helper function that replaces incompatible datatypes.
 
         Parameters
         ----------
         obj : object
-            Some Python object. Currently accepts np.ndarray
+            Some Python object. Currently accepts np.ndarray.
         
         Returns
         -------
         obj : object
-            JSON compatible version of the Python object
+            JSON compatible version of the Python object.
         
         Raises
         ------
         NotImplementedError
-            If the object is not defined in the function
+            If the object is not defined in the function.
         """
         if isinstance(obj, np.ndarray):
             return obj.tolist()
@@ -473,12 +473,12 @@ class Concentrations(BaseClass):
     
     def _collect_omc_nuyield(self) -> dict[str, dict[str, np.ndarray]]:
         """
-        Collects the delayed neutron yield from OpenMC results
+        Collects the delayed neutron yield from OpenMC results.
 
         Returns
         -------
         nuyield : dict[str, dict[str, np.ndarray]]
-            Data sorted by delayed and prompt, followed by fissile nuclide over time
+            Data sorted by delayed and prompt, followed by fissile nuclide over time.
 
 
         """
@@ -559,7 +559,7 @@ class Concentrations(BaseClass):
         Parameters
         ----------
         only_incore : bool
-            Whether or not to only return the non-zero fission term values 
+            Whether or not to only return the non-zero fission term values.
 
         Returns
         -------
@@ -570,7 +570,7 @@ class Concentrations(BaseClass):
         
         times : list[float]
             The times at which the fission history is evaluated (None unless OMC
-            is used)
+            is used).
 
         Raises
         ------
@@ -608,7 +608,7 @@ class Concentrations(BaseClass):
         Returns
         -------
         data : list[dict[str, float]]
-            List of data at each point in time for concentration
+            List of data at each point in time for concentration.
         """
         concentrations: dict[str: dict[str: ufloat]] = dict()
         all_nucs: set[str] = set()

@@ -11,7 +11,7 @@ class Reprocessing(BaseClass):
         Parameters
         ----------
         input_path : str
-            Path to the input file containing relevant data paths
+            Path to the input file containing relevant data paths.
         """
         super().__init__(input_path)
         return None
@@ -20,21 +20,21 @@ class Reprocessing(BaseClass):
                     rate_scaling: float=1.0) -> dict[str, float]:
         """
         Returns the removal scheme with rate scaling and optional longer cycle time
-        elemental removal included
+        elemental removal included.
 
         Parameters
         ----------
         rate_csv : str
-            The name of the removal rate CSV file to use (defaults to MSBR.csv)
+            The name of the removal rate CSV file to use (defaults to MSBR.csv).
         include_long : bool
-            True to include long cycle time elements (defaults to True)
+            True to include long cycle time elements (defaults to True).
         rate_scaling : float
-            The scaling to apply to removal rates (defaults to 1.0)
+            The scaling to apply to removal rates (defaults to 1.0).
         
         Returns
         -------
         dict[str, float]
-            Elemental chemical removal rates [per second]
+            Elemental chemical removal rates [per second].
         """
         repr_dict = {}
         repr_dir: str = os.path.join(self.repr_dir, rate_csv)

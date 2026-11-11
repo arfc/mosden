@@ -62,7 +62,7 @@ class Preprocess(BaseClass):
 
     def _add_debug_dnps(self) -> None:
         """
-        Writes debug DNPs to all data files (if applicable)
+        Writes debug DNPs to all data files (if applicable).
         """
         if not self.debug_dnp_data:
             return None
@@ -108,7 +108,7 @@ class Preprocess(BaseClass):
 
     def openmc_preprocess(self, data_val: str, unprocessed_path: str) -> None:
         """
-        Processes OpenMC data
+        Processes OpenMC data.
 
         Parameters
         ----------
@@ -125,7 +125,7 @@ class Preprocess(BaseClass):
 
     def endf_preprocess(self, data_val: str, unprocessed_path: str) -> None:
         """
-        Processes ENDF data
+        Processes ENDF data.
 
         Parameters
         ----------
@@ -144,7 +144,7 @@ class Preprocess(BaseClass):
     
     def jeff_preprocess(self, data_val: str, unprocessed_path: str) -> None:
         """
-        Processes JEFF data
+        Processes JEFF data.
 
         Parameters
         ----------
@@ -161,7 +161,7 @@ class Preprocess(BaseClass):
 
     def iaea_preprocess(self, data_val: str, unprocessed_path: str) -> None:
         """
-        Processes IAEA data
+        Processes IAEA data.
 
         Parameters
         ----------
@@ -198,7 +198,7 @@ class Preprocess(BaseClass):
 
     def _openmc_chain_preprocess(self, data_val: str, path: str) -> None:
         """
-        Processes OpenMC all chain_* files
+        Processes all OpenMC chain_* files.
 
         Parameters
         ----------
@@ -298,13 +298,12 @@ class Preprocess(BaseClass):
             pre_treated_data: dict[str: dict[str: dict[str: float]]]
             ) -> dict[str: dict[str: float]]:
         """
-        Take endf data for each nuclide and scale it by fissile fraction
-          for each nuclide
+        Takes ENDF data for each nuclide and scales it by fissile fraction.
 
         Parameters
         ----------
         pre_treated_data : dict[str: dict[str: dict[str: float]]]
-            Dictionary containing the pre-treated data for each fissile target
+            Dictionary containing the pre-treated data for each fissile target.
 
         Returns
         -------

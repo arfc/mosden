@@ -20,7 +20,7 @@ class Literature(BaseClass):
     
     def get_group_data(self, names:list[str]=None) -> dict[dict[str: list[float]]]:
         """
-        Get countrate data from various sources and compile into a dictionary
+        Get count rate data from various sources and compile into a dictionary.
 
         Parameters
         ----------
@@ -95,7 +95,7 @@ class Literature(BaseClass):
         Raises
         ------
         FileNotFoundError
-            If the fissile nuclide or energy level is not found in the specified literature source
+            If the fissile nuclide or energy level is not found in the specified literature source.
         """
         data_path: str = os.path.join(self.lit_data_dir, fiss, energy, 'six_group.csv')
         try:

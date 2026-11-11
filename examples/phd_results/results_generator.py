@@ -128,18 +128,18 @@ def set_data(new_data: dict, dir_path: str, idx: int, combination: tuple) -> tup
     Parameters
     ----------
     new_data : dict
-        The new data to write to the input file
+        The new data to write to the input file.
     dir_path : str
-        The directory path where the input file will be created
+        The directory path where the input file will be created.
     idx : int
-        The index of the current input file
+        The index of the current input file.
     combination : tuple
-        The combination of parameters for this input file
+        The combination of parameters for this input file.
 
     Returns
     -------
     tuple[dict, str]
-        The updated data and the path to the input file
+        The updated data and the path to the input file.
     """
     filename = 'input.json'
     file_dir = dir_path / str(idx)
